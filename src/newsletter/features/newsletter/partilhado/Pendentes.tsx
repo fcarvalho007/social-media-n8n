@@ -318,21 +318,21 @@ export function Pendentes(props: PendentesProps) {
 
 
                       {!emEdicao && !resultado && (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-3 border-t" style={{ borderColor: T.line }}>
+                        <div className="grid grid-cols-3 gap-2 pt-3 border-t" style={{ borderColor: T.line }}>
                           <button onClick={() => { if (bloqueado || emCurso) return; if (fontePorConfirmar) { notify("Fonte por confirmar — abre «Editar» e corrige o link antes de aprovar.", { tipo: "erro" }); return; } aprovar.mutate({ n }); }}
                             disabled={bloqueado || fontePorConfirmar || !!emCurso}
                             title={fontePorConfirmar ? "Corrige a fonte antes de aprovar" : undefined} aria-label="Aprovar"
-                            className="col-span-2 sm:col-span-1 min-h-12 sm:min-h-11 flex items-center justify-center gap-1.5 rounded-lg text-white transition-transform hover:scale-105 disabled:opacity-40 text-[15px] sm:text-[14px] font-bold" style={{ background: T.ok }}>
+                            className="min-h-12 sm:min-h-11 flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-white transition-transform hover:scale-105 disabled:opacity-40 text-[13px] sm:text-[14px] font-bold" style={{ background: T.ok }}>
                             {emCurso === "aprovar"
                               ? <><Loader2 size={18} className="animate-spin" /> A aprovar…</>
                               : <><Check size={18} /> Aprovar</>}
                           </button>
                           <button onClick={() => !bloqueado && !emCurso && abrirPend(n)} disabled={bloqueado || !!emCurso} aria-label="Editar antes de aprovar"
-                            className="min-h-12 sm:min-h-11 flex items-center justify-center gap-1.5 rounded-lg transition-transform hover:scale-105 disabled:opacity-40 text-[15px] sm:text-[14px] font-bold" style={{ background: T.primarySoft, color: T.primary }}>
+                            className="min-h-12 sm:min-h-11 flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 transition-transform hover:scale-105 disabled:opacity-40 text-[13px] sm:text-[14px] font-bold" style={{ background: T.primarySoft, color: T.primary }}>
                             <Pencil size={16} /> Editar
                           </button>
                           <button onClick={() => !bloqueado && !emCurso && rejeitar.mutate(n)} disabled={bloqueado || !!emCurso} aria-label="Rejeitar"
-                            className="min-h-12 sm:min-h-11 flex items-center justify-center gap-1.5 rounded-lg transition-transform hover:scale-105 disabled:opacity-40 text-[15px] sm:text-[14px] font-bold" style={{ background: T.dangerSoft, color: T.danger }}>
+                            className="min-h-12 sm:min-h-11 flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 transition-transform hover:scale-105 disabled:opacity-40 text-[13px] sm:text-[14px] font-bold" style={{ background: T.dangerSoft, color: T.danger }}>
                             {emCurso === "rejeitar"
                               ? <><Loader2 size={18} className="animate-spin" /> A rejeitar…</>
                               : <><X size={18} /> Rejeitar</>}

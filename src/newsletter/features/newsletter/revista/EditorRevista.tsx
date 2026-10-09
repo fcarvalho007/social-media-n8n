@@ -1015,14 +1015,15 @@ export default function EditorRevista({
 
 
   const aprovadas = aprovadasQ.data ?? [];
-  // «Só site» é estado derivado: aprovada na edição e ausente de revista_itens.
-  const soSite = aprovadas.filter((n) => !usadas.has(n.id));
+  const porOrganizar = aprovadas.filter((n) => !usadas.has(n.id) && n.destino !== "site");
+  const soSite = aprovadas.filter((n) => !usadas.has(n.id) && n.destino === "site");
 
 
   const definirPapel = (noticiaId: string, papel: PapelDerivado) => {
     const existente = itens.find((i) => i.noticia_id === noticiaId);
     const titulo = (aprovadas.find((n) => n.id === noticiaId)?.titulo ?? "notícia").slice(0, 40);
     if (papel === "so_site") {
+      mPatchNoticia.mutate({ id: noticiaId, patch: { destino: "site" } });
       if (existente) {
         mRemover.mutate(existente.id);
         sincronizarBrief(noticiaId, null);
@@ -1040,6 +1041,9 @@ export default function EditorRevista({
       toast.error(`O Radar já tem ${LIMITES_REVISTA.radarMax} notícias. Liberta uma antes de acrescentar outra.`);
       return;
     }
+    if (!existente && aprovadas.find((n) => n.id === noticiaId)?.destino === "site") {
+      mPatchNoticia.mutate({ id: noticiaId, patch: { destino: "news" } });
+    }
     registar(`Marcou «${titulo}» como ${papel === "destaque" ? "Destaque" : "Radar"}`);
     sincronizarBrief(noticiaId, papel);
     if (!existente) { mAdicionar.mutate({ noticiaId, papel }); return; }
@@ -1051,6 +1055,7 @@ export default function EditorRevista({
     { rotulo: "Aprovadas", valor: String(aprovadas.length) },
     { rotulo: "Destaques", valor: `${destaques.length}/${LIMITES_REVISTA.destaquesMax}` },
     { rotulo: "Radar", valor: `${radar.length}/${LIMITES_REVISTA.radarMax}` },
+    { rotulo: "Por organizar", valor: String(porOrganizar.length) },
     { rotulo: "Só site", valor: String(soSite.length) },
   ];
   const destaquesCheios = destaques.length >= LIMITES_REVISTA.destaquesMax;
