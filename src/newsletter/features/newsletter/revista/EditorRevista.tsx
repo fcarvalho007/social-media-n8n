@@ -59,7 +59,7 @@ import { BriefsDaEdicao } from "./BriefsDaEdicao";
 import { ReverLeituras } from "./ReverLeituras";
 import { estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn } from "@/newsletter/lib/brief.functions";
 import {
-  apagarNoticia, atualizarAssunto, atualizarCronica, atualizarNoticia, escolherEpisodio, getConfig, getEdicaoPorId,
+  retirarNoticiaDaEdicao, atualizarAssunto, atualizarCronica, atualizarNoticia, escolherEpisodio, getConfig, getEdicaoPorId,
   listarAuditRecente, listarEpisodios, listarFerramentas, registarAudit, reordenarNoticias,
   sincronizarPodcastRss, type Episodio,
 } from "../data";
@@ -872,9 +872,9 @@ export default function EditorRevista({
     mutationFn: async (noticiaId: string) => {
       const item = (itensQ.data ?? []).find((i) => i.noticia_id === noticiaId);
       if (item) await removerItem(item.id);
-      await apagarNoticia(noticiaId);
+      await retirarNoticiaDaEdicao(noticiaId, edicaoId);
     },
-    onSuccess: () => { registar("Removeu uma notícia da edição"); invalidarAprovadas(); toast.success("Notícia removida."); },
+    onSuccess: () => { registar("Removeu uma notícia da edição"); invalidarAprovadas(); toast.success("Notícia retirada desta newsletter. Continua aprovada na curadoria."); },
     onError: (e: Error) => toast.error(e.message),
   });
 
