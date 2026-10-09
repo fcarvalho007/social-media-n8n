@@ -109,6 +109,7 @@ export interface NoticiaAprovada {
   url_curto: string | null;
   categoria: string;
   ordem: number | null;
+  destino: string | null;
 }
 
 export async function getConfigRevista(edicaoId: string): Promise<ConfigRevista> {
