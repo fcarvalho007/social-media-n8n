@@ -25,6 +25,11 @@ export interface FontesProps {
   embutido?: boolean;
 }
 
+/** News collected by a run: in manual mode they land in the intake queue instead of being "inserted". */
+export function novasRecolha(r: { inseridas?: number; na_fila?: number }): number {
+  return Math.max(r.inseridas ?? 0, r.na_fila ?? 0);
+}
+
 export function Fontes({ isAdmin, nomeExibicao, notify, onFechar, embutido = false }: FontesProps) {
   const qc = useQueryClient();
   const invalidateAudit = () => qc.invalidateQueries({ queryKey: ["audit"] });
@@ -126,7 +131,7 @@ export function Fontes({ isAdmin, nomeExibicao, notify, onFechar, embutido = fal
       qc.invalidateQueries({ queryKey: ["fontes-stats-30d"] });
       qc.invalidateQueries({ queryKey: ["pendentes"] });
       invalidateAudit();
-      notify(`Curadoria: ${r.inseridas} sugestões novas de ${r.fontes_activas} fonte(s)`);
+      notify(`Curadoria: ${novasRecolha(r)} novas na fila de entrada, de ${r.fontes_activas} fonte(s)`);
     },
     onError: (e: unknown) => notify(`Curadoria falhou: ${(e as Error).message}`, { tipo: "erro" }),
   });
@@ -157,7 +162,7 @@ export function Fontes({ isAdmin, nomeExibicao, notify, onFechar, embutido = fal
     onSuccess: ({ id, r }) => {
       setResultadosFontes((s) => ({
         ...s,
-        [id]: { tipo: "sucesso", inseridas: r.inseridas ?? 0, candidatos: (r as { candidatos?: number }).candidatos ?? 0, ms: (r as { ms: number }).ms },
+        [id]: { tipo: "sucesso", inseridas: novasRecolha(r), candidatos: (r as { candidatos?: number }).candidatos ?? 0, ms: (r as { ms: number }).ms },
       }));
       qc.invalidateQueries({ queryKey: ["fontes"] });
       qc.invalidateQueries({ queryKey: ["fontes-contagem-30d"] });
