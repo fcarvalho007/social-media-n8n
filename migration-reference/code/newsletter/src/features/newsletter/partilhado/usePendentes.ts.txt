@@ -103,7 +103,7 @@ export function usePendentes(args: UsePendentesArgs): PendentesProps {
       concluirCartao(v.n.id, "aprovada");
       window.setTimeout(() => retirarCartao(v.n.id), 1100);
       invalidar(); fecharPend(v.n.id);
-      notify("Aprovada — fica disponível para a edição");
+      notify("Aprovada e adicionada à edição");
     },
     onError: (e: Error, v) => {
       setAccaoPend((s) => { const c = { ...s }; delete c[v.n.id]; return c; });

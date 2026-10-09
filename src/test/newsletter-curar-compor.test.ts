@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { separarDestinos } from "@/newsletter/features/newsletter/revista/Atualidade";
 import type { NoticiaAprovada } from "@/newsletter/features/newsletter/revista/data-revista";
+import { modoRetirarNoticiaDaEdicao } from "@/newsletter/features/newsletter/data";
 
 const noticia = (id: string, destino: string | null): NoticiaAprovada => ({
   id,
@@ -30,5 +31,13 @@ describe("Curar → Compor", () => {
     const resultado = separarDestinos([noticia("radar", "news")], [{ noticia_id: "radar" }]);
     expect(resultado.porOrganizar).toEqual([]);
     expect(resultado.soSite).toEqual([]);
+  });
+
+  it("retirar uma cópia da edição apaga apenas essa cópia", () => {
+    expect(modoRetirarNoticiaDaEdicao({ curadoria_origem_id: "origem" })).toBe("apagar_copia");
+  });
+
+  it("retirar a notícia original desassocia-a sem apagar a aprovação", () => {
+    expect(modoRetirarNoticiaDaEdicao({ curadoria_origem_id: null })).toBe("desassociar_original");
   });
 });
