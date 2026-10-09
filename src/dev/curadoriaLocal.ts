@@ -9,4 +9,6 @@ export const apiLocal: typeof API_CURADORIA = {
   ler: async (id) => { const n = itens.find((n) => n.id === id && n.editorial_estado === "aprovada"); if (!n) throw new Error("Aprova esta notícia primeiro."); return { noticia_id: n.id, hash: "local-fixture", titulo: n.titulo, texto: n.descricao!, url: n.url, categoria: n.categoria, origem: n.origem, nivel: n.nivel, parcial: false }; },
   decidir: async (id, estado) => { const n = itens.find((n) => n.id === id); if (n) n.editorial_estado = estado; },
   selecionarEdicao: async () => "local-selecao",
+  ocultarEdicao: async () => undefined,
+  reporEdicao: async () => undefined,
 };
