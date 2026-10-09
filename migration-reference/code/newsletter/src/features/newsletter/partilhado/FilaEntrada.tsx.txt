@@ -68,6 +68,7 @@ export function FilaEntrada({ compacto = false, recolherAntes = false, onConclui
   const [fase, setFase] = useState<FaseProcessamento>("parado");
   const [base, setBase] = useState<number | null>(null);
   const [avisoRecolha, setAvisoRecolha] = useState<string | null>(null);
+  const [recolhidas, setRecolhidas] = useState<number | null>(null);
 
   const [lote, setLote] = useState<number>(20);
   const [confirmarLimpeza, setConfirmarLimpeza] = useState(false);
@@ -86,7 +87,8 @@ export function FilaEntrada({ compacto = false, recolherAntes = false, onConclui
       setAvisoRecolha(null);
       if (recolherAntes) {
         setFase("a_recolher");
-        try { await recolher({}); }
+        setRecolhidas(null);
+        try { const rr = await recolher({}) as { inseridas?: number; na_fila?: number }; setRecolhidas(Math.max(rr.inseridas ?? 0, rr.na_fila ?? 0)); }
         catch (e) { setAvisoRecolha(`Não foi possível recolher novidades: ${(e as Error).message}`); }
       }
       const contagem = await q.refetch();
@@ -243,7 +245,7 @@ export function FilaEntrada({ compacto = false, recolherAntes = false, onConclui
             <Loader2 size={13} className="animate-spin" />
             {fase === "a_recolher"
               ? "A recolher novidades das fontes…"
-              : `A interpretar com IA: ${feitos} de ${limiteAtual}`}
+              : `${recolhidas != null ? `Recolhidas ${recolhidas} novidades · ` : ""}A interpretar com IA: ${feitos} de ${limiteAtual}`}
           </p>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: T.line }}>
             <div className={`h-full rounded-full transition-all ${fase === "a_recolher" ? "w-1/4 animate-pulse" : ""}`}
