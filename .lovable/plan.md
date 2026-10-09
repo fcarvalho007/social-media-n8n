@@ -7,6 +7,8 @@
 
 ## O que vou fazer
 
+0. **Esvaziar a fila antiga (pedido seu):** apagar as 509 notícias que estão à espera de ser processadas (438 de RSS e 71 de email, todas de 19/09 a 30/09). As que já foram processadas e as notícias da curadoria ficam como estão. Vai aparecer um pedido de confirmação antes de as apagar.
+
 1. **Diagnosticar porque a recolha parou** (só leitura primeiro): agendamento da recolha, modo manual, registos da última execução e erros das fontes. Corrigir a causa; se for uma alteração a agendamentos, peço autorização antes.
 2. **Recolher antes de processar:** ao carregar em «Processar 30», o sistema vai primeiro buscar novidades às fontes ativas e só depois escolhe as 30 mais recentes.
 3. **Não processar notícias antigas sem aviso:** itens com mais de 7 dias ficam fora do lote por defeito; aparece «X notícias antigas na fila» com opção de as limpar (a limpeza já existente, com confirmação).
