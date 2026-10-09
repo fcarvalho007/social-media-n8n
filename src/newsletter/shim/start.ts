@@ -3,6 +3,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { NL_OPS } from "../../../supabase/functions/_shared/nl-ops";
 import { pedirConfirmacao } from "./confirmar";
+import { SESSAO_EXPIRADA, tratarSessaoRecusada } from "@/lib/sessaoRecusada";
 
 /** Structural mirror of the server descriptor's phantom type fields. */
 interface ServerFnTipo<I, O> { __in?: I; __out?: O }
@@ -27,10 +28,17 @@ export function nlServerFn<F = ServerFnTipo<unknown, unknown>>(id: string): NlCa
       if (!ok) throw new AcaoCancelada();
       confirmar = id;
     }
-    const { data, error } = await supabase.functions.invoke("nl-api", { body: { id, data: arg?.data ?? null, confirmar } });
+    const invocar = () => supabase.functions.invoke("nl-api", { body: { id, data: arg?.data ?? null, confirmar } });
+    let { data, error } = await invocar();
+    // Expired session: refresh once and retry; if the refresh is rejected, say so plainly.
+    if (error && (error as { context?: Response }).context?.status === 401) {
+      if (await tratarSessaoRecusada()) throw new Error(SESSAO_EXPIRADA);
+      ({ data, error } = await invocar());
+    }
     if (error) {
       const ctx = (error as { context?: Response }).context;
       const body = ctx ? await ctx.json().catch(() => null) : null;
+      if (ctx?.status === 401) throw new Error(SESSAO_EXPIRADA);
       throw new Error((body as { error?: string } | null)?.error ?? error.message);
     }
     return data as Saida<F>;
