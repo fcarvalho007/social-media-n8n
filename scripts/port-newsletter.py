@@ -28,6 +28,8 @@ def tables(s: str) -> str:
     s = re.sub(r'(postgres_changes"?,\s*\{[^}]*table:\s*["\'])(%s)(["\'])' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + m.group(3), s)
     s = re.sub(r'((?:foreignTable|referencedTable):\s*["\'])(%s)(["\'])' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + m.group(3), s)
     s = re.sub(r'(\.(?:eq|neq|in|is|gt|gte|lt|lte|not|like|ilike|filter|contains)\(\s*["\'])(%s)\.' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + ".", s)
+    # Storage buckets carry the nl- prefix in this project.
+    s = re.sub(r'(storage\s*\.from\(\s*["\'])imagens-edicao(["\'])', r'\1nl-imagens-edicao\2', s)
     # PostgREST orders embedded rows by the alias, not the table name (alias "edicao" in the archive query)
     s = s.replace('.order("enviada_em", { foreignTable: "nl_edicoes",', '.order("enviada_em", { referencedTable: "edicao",')
     # embedded resources inside .select("...") strings: alias:table(...) / table!hint(...)
