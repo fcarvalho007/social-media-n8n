@@ -101,6 +101,7 @@ const App = () => (
                   <Route path="/redes-sociais" element={<Navigate to="/" replace />} />
                   <Route path="/dashboard" element={<Navigate to="/" replace />} />
                   <Route path="/newsletter/emails" element={<Navigate to="/curadoria?separador=emails" replace />} />
+                  <Route path="/newsletter/custos" element={<Navigate to="/custos?origem=newsletter" replace />} />
                   <Route path="/pending" element={<Pending />} />
                   <Route path="/review/:id" element={<Review />} />
                   <Route path="/review-story/:id" element={<ReviewStory />} />

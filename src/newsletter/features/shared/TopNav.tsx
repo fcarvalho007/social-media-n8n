@@ -228,9 +228,6 @@ export function TopNav() {
                 {isAdmin && (
                   <Link to="/emails" activeProps={{ style: activeStyle }} inactiveProps={{ style: inactiveStyle }} className={linkClass}>Emails</Link>
                 )}
-                {isAdmin && (
-                  <Link to="/custos" activeProps={{ style: activeStyle }} inactiveProps={{ style: inactiveStyle }} className={linkClass}>Custos</Link>
-                )}
 
               </nav>
 
@@ -307,11 +304,6 @@ export function TopNav() {
                       {isAdmin && (
                         <button className={itemMenu} onClick={() => { setMenuAberto(false); navigate({ to: "/emails" }); }} style={{ color: T.ink }}>
                           <Inbox size={14} style={{ color: T.muted }} /> Emails
-                        </button>
-                      )}
-                      {isAdmin && (
-                        <button className={itemMenu} onClick={() => { setMenuAberto(false); navigate({ to: "/custos" }); }} style={{ color: T.ink }}>
-                          <DollarSign size={14} style={{ color: T.muted }} /> Custos
                         </button>
                       )}
 
