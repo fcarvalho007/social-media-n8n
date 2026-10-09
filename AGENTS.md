@@ -27,3 +27,4 @@
 - Animated media uses a still+MP4 pair; GIPHY shares it. Paid/redesign AI images are tracked, never auto-applied; redesign returns two text-free images under editable copy.
 - Visual system keeps direction, typography (sistema.tipografia) and palette as independent choices; absent tipografia falls back to the style's legacy pair so old documents render unchanged.
 - Newsletter candidate exclusions are edition-scoped; hiding never changes the shared editorial decision or an included item.
+- scripts/port-newsletter.py writes client output atomically and only when changed, pruning stale files at the end; avoids the dev server seeing missing modules mid-regeneration.
