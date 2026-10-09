@@ -25,12 +25,27 @@ export function inicioPeriodo(p: Periodo, agora = new Date()): string | null {
   return base.toISOString().slice(0, 10);
 }
 
-export function filtrar(r: RegistoCusto[], p: { periodo: Periodo; fornecedor: Fornecedor | "todos"; pesquisa: string }, agora = new Date()) {
+export type Area = "todas" | "newsletter" | "estudio";
+/** Newsletter rows come from nl_ia_uso (id prefix "nl:"); everything else is Studio work. */
+export const areaDe = (x: Pick<RegistoCusto, "id">): Exclude<Area, "todas"> => (x.id.startsWith("nl:") ? "newsletter" : "estudio");
+
+const ROTULOS: Record<string, string> = {
+  curadoria_fila: "Curadoria (RSS)", curadoria_rss: "Curadoria (RSS)", email: "Emails", email_extrair: "Emails · extrair notícias",
+  email_blocos: "Emails · ferramentas e ligações", sugerir_assunto: "Sugerir assunto", carrossel_cronica: "Carrossel da crónica",
+  confirmar_repeticao: "Confirmar repetição", colagem_manual: "Colar notícia", descricao_reescrita: "Reescrever descrição",
+  minha_leitura: "Minha leitura", curadoria_ferramentas_relevancia: "Ferramentas · relevância", curadoria_ferramentas_polimento: "Ferramentas · polimento",
+};
+/** Human label for a technical action name; unknown names stay as they are. */
+export const rotuloAcao = (acao: string) => ROTULOS[acao] ?? acao;
+
+export function filtrar(r: RegistoCusto[], p: { periodo: Periodo; fornecedor: Fornecedor | "todos"; pesquisa: string; area?: Area }, agora = new Date()) {
   const ini = inicioPeriodo(p.periodo, agora);
   const q = p.pesquisa.trim().toLowerCase();
+  const area = p.area ?? "todas";
   return r.filter((x) => (!ini || diaLisboa(new Date(x.criado_em)) >= ini)
     && (p.fornecedor === "todos" || x.fornecedor === p.fornecedor)
-    && (!q || `${x.modelo} ${x.acao} ${x.estado}`.toLowerCase().includes(q)));
+    && (area === "todas" || areaDe(x) === area)
+    && (!q || `${x.modelo} ${x.acao} ${rotuloAcao(x.acao)} ${x.estado}`.toLowerCase().includes(q)));
 }
 
 /** Daily buckets up to 3 months, monthly beyond; empty buckets are 0, never missing. */
