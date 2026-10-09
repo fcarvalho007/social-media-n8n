@@ -29,7 +29,7 @@ async function guardar(
   const { supabaseAdmin } = await import("../_shim/admin.ts");
   const caminho = `${edicaoId}/cronica-${Date.now()}.${extensao(tipo)}`;
   const { error } = await supabaseAdmin.storage
-    .from("imagens-edicao")
+    .from("nl-imagens-edicao")
     .upload(caminho, bytes, { contentType: tipo, upsert: true });
   if (error) throw new Error(`Não foi possível guardar a imagem: ${error.message}`);
   const { baseUrlEdicoes } = await import("../../newsletter-engine/revista/destinos.server.ts");
