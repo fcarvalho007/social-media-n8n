@@ -53,6 +53,8 @@ export type ListaEmailsRecebidos = {
   emails: EmailRecebido[];
   total: number;
   contagens: { newsletter: number; confirmacao: number; outro: number; total: number };
+  /** Latest arrival regardless of filters, to flag a stalled forwarding. */
+  ultimo_recebido_em: string | null;
 };
 
 export type FiltrosListagem = {
@@ -113,7 +115,10 @@ export const listarEmailsRecebidos = createServerFn({ method: "GET" })
     const { data: rows, error } = await listQ.order("recebido_em", { ascending: false }).limit(100);
     if (error) throw new Error(error.message);
 
+    const { data: ultimo } = await context.supabase.from("nl_emails_recebidos")
+      .select("recebido_em").not("recebido_em", "is", null).order("recebido_em", { ascending: false }).limit(1).maybeSingle();
     return {
+      ultimo_recebido_em: ((ultimo as { recebido_em?: string } | null)?.recebido_em) ?? null,
       emails: (rows ?? []) as EmailRecebido[],
       total: totalCount,
       contagens: { total: totalCount, newsletter: cNews, confirmacao: cConf, outro: cOutro },
