@@ -55,6 +55,8 @@ export type ListaEmailsRecebidos = {
   emails: EmailRecebido[];
   total: number;
   contagens: { newsletter: number; confirmacao: number; outro: number; total: number };
+  /** Latest arrival regardless of filters, to flag a stalled forwarding. */
+  ultimo_recebido_em: string | null;
 };
 
 export type FiltrosListagem = {

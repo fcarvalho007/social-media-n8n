@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@/newsletter/shim/router";
+import { createFileRoute } from "@/newsletter/shim/router";
 import { useServerFn } from "@/newsletter/shim/start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -70,9 +70,12 @@ export const Route = createFileRoute("/_authenticated/emails")({
   component: EmailsPage,
 });
 
-function EmailsPage() {
-  const search = Route.useSearch();
-  const navigate = useNavigate({ from: "/emails" });
+/** Inbox of forwarded emails; filters live in local state so it can be embedded outside the newsletter router. */
+export function EmailsPage({ embutido = false }: { embutido?: boolean } = {}) {
+  const inicial = Route.useSearch();
+  const [search, setSearchState] = useState<{ janela: string; classe: string; fonte: string; q: string }>({
+    janela: inicial.janela ?? "14d", classe: inicial.classe ?? "todas", fonte: inicial.fonte ?? "", q: inicial.q ?? "",
+  });
 
   const janela = (["24h", "7d", "14d", "tudo"].includes(search.janela) ? search.janela : "14d") as Janela;
   const classe = (["todas", "newsletter", "confirmacao", "outro"].includes(search.classe) ? search.classe : "todas") as FiltroClasse;
@@ -126,11 +129,11 @@ function EmailsPage() {
   useEffect(() => {
     const t = setTimeout(() => {
       if (qLocal !== q) {
-        navigate({ search: (prev: Record<string, string>) => ({ ...prev, q: qLocal }) });
+        setSearchState((prev) => ({ ...prev, q: qLocal }));
       }
     }, 300);
     return () => clearTimeout(t);
-  }, [qLocal, q, navigate]);
+  }, [qLocal, q]);
 
   const seleccionado = emails.find((e) => e.id === seleccionadoId) ?? null;
 
@@ -146,12 +149,12 @@ function EmailsPage() {
   const ultimoIso = emails[0]?.recebido_em;
 
   const setSearch = (patch: Partial<{ janela: string; classe: string; fonte: string; q: string }>) => {
-    navigate({ search: (prev: Record<string, string>) => ({ ...prev, ...patch }) });
+    setSearchState((prev) => ({ ...prev, ...patch }));
   };
 
   return (
-    <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-5 sm:py-7" style={{ background: T.bg }}>
-      <div className="mb-4"><FilaEntrada /></div>
+    <main className={embutido ? "" : "max-w-[1400px] mx-auto px-4 sm:px-6 py-5 sm:py-7"} style={{ background: embutido ? undefined : T.bg }}>
+      {!embutido && <div className="mb-4"><FilaEntrada /></div>}
       <header className="mb-4 flex items-start justify-between gap-3 flex-wrap">
 
         <div>
@@ -165,6 +168,12 @@ function EmailsPage() {
                 ? `${contagens.total} ${contagens.total === 1 ? "email" : "emails"} · última entrada ${haQuanto(ultimoIso)}`
                 : "Sem emails na janela seleccionada."}
             {" · Retenção 14 dias."}
+          </p>
+          <p className="text-[12.5px] mt-1 font-semibold" style={{ color: atrasoEmails(query.data?.ultimo_recebido_em ?? ultimoIso ?? null) ? "#B42318" : T.muted }}>
+            {(query.data?.ultimo_recebido_em ?? ultimoIso)
+              ? `Último email recebido: ${dataHora(query.data?.ultimo_recebido_em ?? ultimoIso!)}`
+              : "Ainda não chegou nenhum email."}
+            {atrasoEmails(query.data?.ultimo_recebido_em ?? ultimoIso ?? null) && " · Nada chegou há mais de 2 dias: confirma o encaminhamento."}
           </p>
         </div>
         <button
@@ -235,7 +244,7 @@ function EmailsPage() {
           </div>
           {filtrosActivos && (
             <button
-              onClick={() => { setQLocal(""); navigate({ search: () => ({ janela: "14d", classe: "todas", fonte: "", q: "" }) }); }}
+              onClick={() => { setQLocal(""); setSearchState({ janela: "14d", classe: "todas", fonte: "", q: "" }); }}
               className="inline-flex items-center gap-1 text-[12px] font-semibold h-8 px-2 rounded-lg"
               style={{ color: T.danger, border: `1px solid ${T.line}` }}
               title="Limpar filtros"
@@ -837,4 +846,15 @@ function BotaoReprocessar({ emailId }: { emailId: string }) {
       {m.isPending ? "A reprocessar…" : "Reprocessar"}
     </button>
   );
+}
+
+
+/** True when no email arrived for more than two days (or never). */
+export function atrasoEmails(ultimo: string | null, agora: number = Date.now()): boolean {
+  if (!ultimo) return true;
+  return agora - Date.parse(ultimo) > 2 * 24 * 60 * 60 * 1000;
+}
+
+function dataHora(iso: string): string {
+  return new Date(iso).toLocaleString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Lisbon" });
 }

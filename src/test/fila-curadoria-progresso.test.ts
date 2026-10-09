@@ -27,3 +27,15 @@ describe("recolha das fontes", () => {
     expect(novasRecolha({ inseridas: 3 })).toBe(3);
   });
 });
+
+import { atrasoEmails } from "@/newsletter/routes/_authenticated/emails";
+describe("chegada de emails", () => {
+  const agora = Date.parse("2026-10-09T14:00:00Z");
+  it("fica a vermelho quando nada chega há mais de 2 dias", () => {
+    expect(atrasoEmails("2026-10-03T16:32:00Z", agora)).toBe(true);
+    expect(atrasoEmails(null, agora)).toBe(true);
+  });
+  it("não avisa com um email recente", () => {
+    expect(atrasoEmails("2026-10-08T14:00:00Z", agora)).toBe(false);
+  });
+});
