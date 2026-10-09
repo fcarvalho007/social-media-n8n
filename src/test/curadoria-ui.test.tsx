@@ -5,7 +5,7 @@ import { CuradoriaNoticias, nomeFonteCuradoria, canalCuradoria, type API_CURADOR
 import type { NoticiaCurada, FonteCuradoria } from '@/services/curadoria';
 const n: NoticiaCurada = { id:'news', titulo:'Uma notícia para reutilizar', descricao:'Factos aprovados pela curadoria.', url:null, categoria:'ia', origem:'rss', editorial_estado:'aprovada', estado_newsletter:'enviada', edicao_id:'old', criado_em:'2026-10-07T08:00:00Z', nivel:'resumo', usos:2, edicoes:['old'] };
 const f: FonteCuradoria = { noticia_id:n.id, hash:'canonical-hash', titulo:n.titulo, texto:n.descricao!, url:null, categoria:'ia', origem:'rss', nivel:'resumo', parcial:false };
-function api(): typeof API_CURADORIA { return { listar:vi.fn().mockResolvedValue({total:1,itens:[n]}), ler:vi.fn().mockResolvedValue(f), decidir:vi.fn().mockResolvedValue(undefined), selecionarEdicao:vi.fn().mockResolvedValue('copy') }; }
+function api(): typeof API_CURADORIA { return { listar:vi.fn().mockResolvedValue({total:1,itens:[n]}), ler:vi.fn().mockResolvedValue(f), decidir:vi.fn().mockResolvedValue(undefined), selecionarEdicao:vi.fn().mockResolvedValue('copy'), ocultarEdicao:vi.fn().mockResolvedValue(undefined), reporEdicao:vi.fn().mockResolvedValue(undefined) }; }
 afterEach(cleanup);
 describe('curadoria: decisão partilhada e escolha sem geração', () => {
  it('seleção só mostra aprovadas e lê uma cópia ao clicar, sem decidir nem gerar', async () => {
@@ -35,6 +35,12 @@ describe('curadoria: decisão partilhada e escolha sem geração', () => {
  });
  it('não oferece outra seleção da mesma notícia na mesma edição', async () => {
   const a=api();render(<MemoryRouter><CuradoriaNoticias api={a} paraEdicao={{id:'old',onSelecionada:vi.fn()}}/></MemoryRouter>);expect(await screen.findByRole('button',{name:'Já nesta edição'})).toBeDisabled();expect(a.selecionarEdicao).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button',{name:'Retirar desta edição'})).not.toBeInTheDocument();
+ });
+ it('retira visualmente uma notícia apenas da edição atual e atualiza a contagem', async () => {
+  const a=api();render(<MemoryRouter><CuradoriaNoticias api={a} paraEdicao={{id:'new',onSelecionada:vi.fn()}}/></MemoryRouter>);
+  expect(await screen.findByText('1 notícia · página 1')).toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:'Retirar desta edição'}));
+  await waitFor(()=>expect(a.ocultarEdicao).toHaveBeenCalledWith('news','new'));expect(screen.queryByRole('heading',{name:n.titulo})).not.toBeInTheDocument();expect(screen.getByText('0 notícias · página 1')).toBeInTheDocument();expect(a.decidir).not.toHaveBeenCalled();
  });
  it('falha de leitura tem recuperação e não é apresentada como lista vazia', async () => {
   const a=api();vi.mocked(a.listar).mockRejectedValueOnce(new Error('Ligação indisponível'));render(<MemoryRouter><CuradoriaNoticias api={a}/></MemoryRouter>);expect(await screen.findByRole('alert')).toHaveTextContent('Ligação indisponível');fireEvent.click(screen.getByRole('button',{name:'Tentar de novo'}));await screen.findByRole('heading',{name:n.titulo});expect(screen.queryByRole('alert')).not.toBeInTheDocument();
