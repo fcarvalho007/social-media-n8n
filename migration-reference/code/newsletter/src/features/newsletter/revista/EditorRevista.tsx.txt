@@ -1029,6 +1029,7 @@ export default function EditorRevista({
 
 
   const definirPapel = (noticiaId: string, papel: PapelDerivado) => {
+    if (papel === "por_organizar") return;
     const existente = itens.find((i) => i.noticia_id === noticiaId);
     const titulo = (aprovadas.find((n) => n.id === noticiaId)?.titulo ?? "notícia").slice(0, 40);
     if (papel === "so_site") {
