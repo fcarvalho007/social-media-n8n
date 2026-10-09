@@ -277,6 +277,28 @@ async function guardarCampoLista(req: Request): Promise<Response> {
   return json({ ok: true, campo: corpo.campo_id, nome: f.name });
 }
 
+/**
+ * Staff-triggered podcast feed sync (button in Compor). Reads only the configured feed and inserts
+ * new episodes deduplicated by URL; no AI, no sending. Independent of NL_CRON_ACTIVO.
+ */
+async function podcastSessao(req: Request): Promise<Response> {
+  const auth = req.headers.get("Authorization");
+  if (!auth) return json({ ok: false, mensagem: "Sessão em falta" }, 401);
+  const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
+  const { data: u } = await sb.auth.getUser();
+  if (!u?.user) return json({ ok: false, mensagem: "Sessão inválida" }, 401);
+  const { data: staff } = await sb.rpc("nl_is_staff");
+  if (!staff) return json({ ok: false, mensagem: "Sem permissão" }, 403);
+  const h = new Headers({ "Content-Type": "application/json", apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "" });
+  try {
+    const m = await HOOKS["sincronizar-podcast"].carregar();
+    return await m.Route.options.server.handlers.POST({ request: new Request("http://interno/sincronizar-podcast", { method: "POST", headers: h, body: "{}" }) });
+  } catch (e) {
+    console.error("[nl-hooks] podcast-sincronizar:", (e as Error).message);
+    return json({ ok: false, mensagem: "Não foi possível ler o feed do podcast" }, 500);
+  }
+}
+
 Deno.serve(async (req) => {
   const nome = new URL(req.url).pathname.split("/").filter(Boolean).pop() ?? "";
   if (req.method === "OPTIONS") {
@@ -299,6 +321,11 @@ Deno.serve(async (req) => {
   }
   if (nome === "sincronizar-tokens" && req.method === "POST") {
     const r = await sincronizarTokens(req);
+    r.headers.set("Access-Control-Allow-Origin", "*");
+    return r;
+  }
+  if (nome === "podcast-sincronizar" && req.method === "POST") {
+    const r = await podcastSessao(req);
     r.headers.set("Access-Control-Allow-Origin", "*");
     return r;
   }
