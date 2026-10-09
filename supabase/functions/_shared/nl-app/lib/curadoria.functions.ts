@@ -194,6 +194,9 @@ async function chamarHookRss(forcarFontes?: string[]) {
   const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
   if (!anon) throw new Error("Chave pública não configurada");
   const inicio = Date.now();
+  const { supabaseAdmin: adm } = await import("../_shim/admin.ts");
+  const contarFila = async () => (await adm.from("nl_curadoria_fila").select("id", { count: "exact", head: true }).eq("estado", "em_fila")).count ?? 0;
+  const antes = await contarFila();
   const { Route } = await import("../hooks/curadoria-rss.ts") as unknown as { Route: { options: { server: { handlers: { POST: (c: { request: Request }) => Promise<Response> } } } } };
   const res = await Route.options.server.handlers.POST({ request: new Request("http://interno/curadoria-rss", {
     method: "POST",
@@ -209,6 +212,7 @@ async function chamarHookRss(forcarFontes?: string[]) {
   return {
     ok: true,
     inseridas: body.inseridas ?? 0,
+    na_fila: Math.max(0, (await contarFila()) - antes),
     fontes_activas: body.fontes_activas ?? 0,
     candidatos: body.candidatos ?? 0,
     duracao_ms: Date.now() - inicio,

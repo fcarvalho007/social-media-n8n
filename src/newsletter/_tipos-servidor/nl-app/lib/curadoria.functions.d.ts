@@ -54,6 +54,7 @@ export declare const testarFeed: import("../_shim/start.ts").NlServerFn<{
 export declare const correrCuradoriaAgora: import("../_shim/start.ts").NlServerFn<void, {
     ok: boolean;
     inseridas: number;
+    na_fila: number;
     fontes_activas: number;
     candidatos: number;
     duracao_ms: number;
@@ -64,6 +65,7 @@ export declare const correrFonteAgora: import("../_shim/start.ts").NlServerFn<{
 }, {
     ok: boolean;
     inseridas: number;
+    na_fila: number;
     fontes_activas: number;
     candidatos: number;
     duracao_ms: number;

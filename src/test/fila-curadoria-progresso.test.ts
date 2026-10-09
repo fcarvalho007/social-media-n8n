@@ -19,3 +19,11 @@ describe("fila de entrada da curadoria", () => {
     expect(lote).toContain('.order("publicado_em", { ascending: false })');
   });
 });
+
+import { novasRecolha } from "@/newsletter/features/newsletter/partilhado/modais/Fontes";
+describe("recolha das fontes", () => {
+  it("conta as novas na fila como recolhidas", () => {
+    expect(novasRecolha({ inseridas: 0, na_fila: 72 })).toBe(72);
+    expect(novasRecolha({ inseridas: 3 })).toBe(3);
+  });
+});
