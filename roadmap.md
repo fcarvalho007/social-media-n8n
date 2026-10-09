@@ -26,3 +26,4 @@
 
 - [x] Redesenhar: imagens IA visíveis em slides de dados, recuperação ao reabrir e galeria de imagens já geradas do carrossel
 - [x] Retirar visualmente notícias candidatas apenas da edição atual, com reposição sem afetar a curadoria comum
+- [x] Corrigir Curar → Compor com fila «Por organizar» e ações de aprovação com dimensões iguais

@@ -73,6 +73,9 @@ export function usePendentes(args: UsePendentesArgs): PendentesProps {
     setResultadoPend((s) => ({ ...s, [id]: estado }));
     window.setTimeout(() => setResultadoPend((s) => { const c = { ...s }; delete c[id]; return c; }), 1100);
   }, []);
+  const retirarCartao = useCallback((id: string) => {
+    qc.setQueryData<Noticia[]>(["pendentes"], (actual) => (actual ?? []).filter((n) => n.id !== id));
+  }, [qc]);
 
   const invalidar = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["pendentes"] });
@@ -98,6 +101,7 @@ export function usePendentes(args: UsePendentesArgs): PendentesProps {
     onMutate: (v) => { vibrar(); setAccaoPend((s) => ({ ...s, [v.n.id]: "aprovar" })); },
     onSuccess: (_d, v) => {
       concluirCartao(v.n.id, "aprovada");
+      window.setTimeout(() => retirarCartao(v.n.id), 1100);
       invalidar(); fecharPend(v.n.id);
       notify("Aprovada — fica disponível para a edição");
     },
@@ -115,6 +119,7 @@ export function usePendentes(args: UsePendentesArgs): PendentesProps {
     onMutate: (n) => { vibrar(); setAccaoPend((s) => ({ ...s, [n.id]: "rejeitar" })); },
     onSuccess: (_d, n) => {
       concluirCartao(n.id, "rejeitada");
+      window.setTimeout(() => retirarCartao(n.id), 1100);
       invalidar(); fecharPend(n.id);
       notify("Rejeitada — sai da fila de pendentes");
     },

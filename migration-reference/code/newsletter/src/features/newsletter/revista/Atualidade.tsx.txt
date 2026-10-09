@@ -29,7 +29,7 @@ import {
 import type { CatId } from "../data";
 import type { ItemRevista, NoticiaAprovada, PapelRevista } from "./data-revista";
 
-export type PapelDerivado = PapelRevista | "so_site";
+export type PapelDerivado = PapelRevista | "so_site" | "por_organizar";
 
 export type PatchDestaque = Partial<
   Pick<ItemRevista, "titulo_override" | "resumo_factual" | "minha_leitura" | "cta_rotulo" | "radar_nota">
@@ -56,15 +56,17 @@ const ACENTO: Record<PapelDerivado, string> = {
   destaque: "border-l-2 border-l-primary/70 bg-primary/[0.03]",
   radar: "border-l-2 border-l-sky-600/50 bg-sky-500/[0.03]",
   so_site: "border-l-2 border-l-border",
+  por_organizar: "border-l-2 border-l-amber-500/70 bg-amber-500/[0.04]",
 };
 
 const ROTULO: Record<PapelDerivado, string> = {
   destaque: "Destaque",
   radar: "Radar",
   so_site: "Só site",
+  por_organizar: "Por organizar",
 };
 
-const SIMBOLO: Record<PapelDerivado, string> = { destaque: "☆", radar: "◎", so_site: "○" };
+const SIMBOLO: Record<PapelDerivado, string> = { destaque: "☆", radar: "◎", so_site: "○", por_organizar: "·" };
 
 function Botao({
   activo, desactivado, titulo, onClick, children,
@@ -457,7 +459,7 @@ function Cartao({
   const eDestaque = papel === "destaque" && !!item;
   const eEditavel = (papel === "destaque" || papel === "radar") && !!item;
   const estado = eDestaque ? estadoDestaque(item) : "";
-  const noEmail = papel !== "so_site";
+  const noEmail = papel === "destaque" || papel === "radar";
 
   const abrirEdicao = () => {
     setDraft({ titulo: n.titulo, descricao: n.descricao ?? "", categoria: n.categoria as CatId, url: n.url ?? "" });
@@ -518,9 +520,9 @@ function Cartao({
                   ? "border border-primary/25 bg-primary/10 text-primary"
                   : "border border-border bg-muted text-muted-foreground"
               }`}
-              title={noEmail ? "Entra no email desta edição" : "Fica só na página web da edição"}
+              title={noEmail ? "Entra no email desta edição" : papel === "so_site" ? "Fica só na página web da edição" : "Ainda sem destino escolhido"}
             >
-              {noEmail ? <><Mail size={10} /> {SIMBOLO[papel]} {ROTULO[papel]}</> : <><Globe size={10} /> Só no site</>}
+              {noEmail ? <><Mail size={10} /> {SIMBOLO[papel]} {ROTULO[papel]}</> : papel === "so_site" ? <><Globe size={10} /> Só no site</> : <>· Por organizar</>}
             </span>
             {estado && estado !== "completo" && (
               <span className="text-[11.5px] font-semibold text-amber-700">{estado}</span>
@@ -643,6 +645,14 @@ export function Atualidade({
     () => new Map(itens.map((i) => [i.noticia_id, i])),
     [itens],
   );
+  const porOrganizar = useMemo(
+    () => aprovadas.filter((n) => !porNoticia.has(n.id) && n.destino !== "site"),
+    [aprovadas, porNoticia],
+  );
+  const soSite = useMemo(
+    () => aprovadas.filter((n) => !porNoticia.has(n.id) && n.destino === "site"),
+    [aprovadas, porNoticia],
+  );
 
   const ordenadas = useMemo(() => {
     const pos = new Map(categorias.map((c, i) => [c.id as string, i]));
@@ -709,7 +719,8 @@ export function Atualidade({
           { rotulo: "No email", valor: `${nDestaques + nRadar}/8` },
           { rotulo: "Destaques", valor: `${nDestaques}/${LIMITES_REVISTA.destaquesMax}` },
           { rotulo: "Radar", valor: `${nRadar}/${LIMITES_REVISTA.radarMax}` },
-          { rotulo: "Só no site", valor: String(aprovadas.length - (nDestaques + nRadar)) },
+          { rotulo: "Por organizar", valor: String(porOrganizar.length) },
+          { rotulo: "Só no site", valor: String(soSite.length) },
         ].map((c) => (
           <span
             key={c.rotulo}
@@ -721,9 +732,28 @@ export function Atualidade({
         ))}
       </div>
       <p className="text-[14px] text-muted-foreground">
-        Todas as notícias aprovadas desta edição. Escolhe aqui o destino de cada uma, edita o texto
-        ou remove-a da edição.
+        As notícias aprovadas chegam primeiro a «Por organizar». Escolhe Destaque, Radar ou Só site.
       </p>
+
+      {porOrganizar.length > 0 && (
+        <section className="space-y-2 rounded-xl border border-amber-500/35 bg-amber-500/[0.04] p-3" aria-label="Por organizar">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-[15px] font-semibold text-foreground">Por organizar</h3>
+            <span className="text-[12px] font-medium text-muted-foreground">{porOrganizar.length} {porOrganizar.length === 1 ? "notícia" : "notícias"}</span>
+          </div>
+          <p className="text-[13px] text-muted-foreground">Aprovadas em «Curar», ainda sem destino na edição.</p>
+          <div className="space-y-2.5">
+            {porOrganizar.map((n, i) => (
+              <Cartao
+                key={n.id} n={n} indice={i} total={porOrganizar.length}
+                bloqueado={bloqueado} cheios={cheios}
+                papel="por_organizar" accoes={accoes}
+                onMover={() => undefined}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {grupos.map((g) => {
         const aberta = !fechadas[g.cat.id];
@@ -747,15 +777,15 @@ export function Atualidade({
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={arrastar(g.itens)}>
                   <SortableContext items={g.itens.map((n) => n.id)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-2.5">
-                      {g.itens.map((n, i) => {
+                      {g.itens.filter((n) => !porOrganizar.some((p) => p.id === n.id)).map((n, i, visiveis) => {
                         const item = porNoticia.get(n.id);
                         return (
                           <Cartao
-                            key={n.id} n={n} indice={i} total={g.itens.length}
+                            key={n.id} n={n} indice={i} total={visiveis.length}
                             bloqueado={bloqueado} cheios={cheios}
                             item={item} papel={item?.papel ?? "so_site"} accoes={accoes}
                             selo={selosBrief?.get(n.id)}
-                            onMover={(dir) => mover(g.itens, i, dir)}
+                            onMover={(dir) => mover(visiveis, i, dir)}
                           />
                         );
                       })}
