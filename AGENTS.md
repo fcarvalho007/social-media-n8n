@@ -1,7 +1,7 @@
 - The newsletter engine is vendored in shared edge code; rendering and secrets stay server-side.
 - Origin source under migration-reference/ stays as inert .txt files; prevents build/migration tooling from picking it up.
 - Login is email-only for two existing accounts via entrar-email (owner decision); allowlist, rate limit and auth_entradas log stay server-side; never creates accounts.
-- Original newsletter screens are generator-owned; edit the generator, not its client/server output, so re-ports stay reproducible.
+- Original newsletter screens are generator-owned (edit the generator, not its output, so re-ports stay reproducible); it writes atomically, only on change, pruning stale files last, so the dev server never sees missing modules.
 - Derived content (chronicle carousel) lives in nl_conteudos_* tables behind the nl-conteudos edge function; jobs are keyed by edition+type+source hash and only advance after E-goi reports "sent", so retries never regenerate and acceptance is not treated as delivery.
 - Studio "Para quem?" and brand ownership are stored in estudio_preferencias / estudio_identidades (backend), never only in localStorage.
 - Newsletter/Estudio baseline DDL lives in supabase/schema/nl_baseline.sql (exported from the live catalog by scripts/exportar-esquema-nl.sql); clean checkouts apply social migrations, then the baseline, then drizzle/migrations, because the original nl_ migrations were lost.
@@ -13,7 +13,6 @@
 - nl-worker-conteudos (hourly pg_cron, key read from nl_worker_estado at call time) only reconciles E-goi delivery and processes carousel jobs; automatic jobs only for campaigns accepted after AUTO_DESDE, history only via explicit "preparar"; send/publish crons stay off.
 - Send evidence on nl_edicoes (estado enviada, enviada_em, snapshot_envio, fecho_pendente_em) and nl_egoi_campanhas rows are writable only by the service role (trigger + RLS); client sessions can edit content only.
 - Social tables (posts_drafts, stories, scheduled_jobs) are team-shared for reading, but writes require admin/editor via social_pode_escrever(); profiles are editable only by their owner or an admin; server jobs use the service role and bypass RLS.
-- Studio project choice lives in ProjetoContext/estudio_preferencias; newsletter ownership comes only from estudio_identidades.
 - Updating an existing social draft never rewrites user_id or project_id; project_id is set only on insert from the persisted Studio choice, preserving authorship.
 - Social draft lists and Studio counts read team drafts filtered server-side by project only (cache keyed by user + project; old drafts without project only under "todos", never auto-assigned); keeps counts and lists consistent without narrowing team visibility.
 - DocumentoGrafico v1 stays separate from legacy flows; slide order follows logical ids across narrative and both variants.

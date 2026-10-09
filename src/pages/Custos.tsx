@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { listarCustos, type Fornecedor, type RegistoCusto } from "@/services/custos";
-import { dataPt, eur, filtrar, FORNECEDORES, PERIODOS, rotuloPeriodo, serie, totais, type Periodo } from "@/features/custos/agregar";
+import { dataPt, eur, filtrar, FORNECEDORES, PERIODOS, rotuloPeriodo, serie, totais, rotuloAcao, type Area, type Periodo } from "@/features/custos/agregar";
 
 const COR: Record<Fornecedor, string> = { deepseek: "hsl(var(--custo-deepseek))", kie: "hsl(var(--custo-kie))", fal: "hsl(var(--custo-fal))", outros: "hsl(var(--custo-outros))" };
 const ORIGEM: Record<string, string> = { confirmado: "Confirmado", calculado: "Calculado", estimado: "Estimado", desconhecido: "Sem custo conhecido" };
@@ -34,11 +34,12 @@ export default function Custos() {
   const periodo = (sp.get("p") as Periodo) || "mes";
   const fornecedor = (sp.get("f") as Fornecedor | "todos") || "todos";
   const pesquisa = sp.get("q") ?? "";
+  const area = (sp.get("origem") as Area) || "todas";
   const [pagina, setPagina] = useState(0);
   const definir = (k: string, v: string) => { const n = new URLSearchParams(sp); if (v) n.set(k, v); else n.delete(k); setSp(n, { replace: true }); setPagina(0); };
   const { data, isLoading, error } = useQuery({ queryKey: ["custos-ia"], queryFn: listarCustos });
 
-  const r = useMemo(() => filtrar(data ?? [], { periodo, fornecedor, pesquisa }), [data, periodo, fornecedor, pesquisa]);
+  const r = useMemo(() => filtrar(data ?? [], { periodo, fornecedor, pesquisa, area }), [data, periodo, fornecedor, pesquisa, area]);
   const t = useMemo(() => totais(r), [r]);
   const s = useMemo(() => serie(r, periodo), [r, periodo]);
   const visiveis = (fornecedor === "todos" ? FORNECEDORES.map((f) => f.id) : [fornecedor]).filter((k) => fornecedor !== "todos" || k !== "outros" || t.outros > 0 || r.some((x) => x.fornecedor === "outros"));
@@ -61,6 +62,10 @@ export default function Custos() {
         <Select value={fornecedor} onValueChange={(v) => definir("f", v === "todos" ? "" : v)}>
           <SelectTrigger className="h-10 sm:w-52" aria-label="Fornecedor"><SelectValue /></SelectTrigger>
           <SelectContent><SelectItem value="todos">Todos os fornecedores</SelectItem>{FORNECEDORES.map((f) => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={area} onValueChange={(v) => definir("origem", v === "todas" ? "" : v)}>
+          <SelectTrigger className="h-10 sm:w-44" aria-label="Área"><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="todas">Todas as áreas</SelectItem><SelectItem value="newsletter">Newsletter</SelectItem><SelectItem value="estudio">Estúdio</SelectItem></SelectContent>
         </Select>
         <Input className="h-10 sm:max-w-xs" placeholder="Pesquisar modelo, ação ou estado" value={pesquisa} onChange={(e) => definir("q", e.target.value)} aria-label="Pesquisar" />
       </div>
@@ -127,7 +132,7 @@ export default function Custos() {
                     <td className="whitespace-nowrap px-4 py-2 tabular-nums">{dataPt(x.criado_em)}</td>
                     <td className="px-4 py-2"><span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: COR[x.fornecedor] }} />{NOME[x.fornecedor]}</span></td>
                     <td className="px-4 py-2 text-muted-foreground">{x.modelo}</td>
-                    <td className="px-4 py-2">{x.acao}</td>
+                    <td className="px-4 py-2">{rotuloAcao(x.acao)}</td>
                     <td className="px-4 py-2">{x.estado}</td>
                     <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">{x.custo_eur == null ? "—" : eur(x.custo_eur)}</td>
                     <td className="px-4 py-2 text-xs text-muted-foreground">{ORIGEM[x.custo_origem]}</td>
