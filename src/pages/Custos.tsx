@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { listarCustos, type Fornecedor, type RegistoCusto } from "@/services/custos";
-import { dataPt, eur, filtrar, FORNECEDORES, PERIODOS, rotuloPeriodo, serie, totais, type Periodo } from "@/features/custos/agregar";
+import { dataPt, eur, filtrar, FORNECEDORES, PERIODOS, rotuloPeriodo, serie, totais, rotuloAcao, type Area, type Periodo } from "@/features/custos/agregar";
 
 const COR: Record<Fornecedor, string> = { deepseek: "hsl(var(--custo-deepseek))", kie: "hsl(var(--custo-kie))", fal: "hsl(var(--custo-fal))", outros: "hsl(var(--custo-outros))" };
 const ORIGEM: Record<string, string> = { confirmado: "Confirmado", calculado: "Calculado", estimado: "Estimado", desconhecido: "Sem custo conhecido" };
