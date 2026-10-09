@@ -992,10 +992,26 @@ export async function listarEpisodios(): Promise<Episodio[]> {
   const { data, error } = await supabase
     .from("episodios_podcast")
     .select("*")
-    .order("data_publicacao", { ascending: false, nullsFirst: false })
-    .limit(20);
+    .order("criado_em", { ascending: false })
+    .limit(40);
   if (error) throw error;
-  return data ?? [];
+  return ordenarEpisodios(data ?? []).slice(0, 20);
+}
+
+/** Feed dates are unreliable; order by episode number (eNNN), then insertion date. */
+export function numeroEpisodio(titulo: string | null | undefined): number | null {
+  const m = /\be(\d{2,4})s\d+\b/i.exec(titulo ?? "");
+  return m ? Number(m[1]) : null;
+}
+
+export function ordenarEpisodios<T extends { titulo: string | null; criado_em: string }>(eps: T[]): T[] {
+  return [...eps].sort((a, b) => {
+    const na = numeroEpisodio(a.titulo), nb = numeroEpisodio(b.titulo);
+    if (na !== null && nb !== null && na !== nb) return nb - na;
+    if (na !== null && nb === null) return -1;
+    if (na === null && nb !== null) return 1;
+    return a.criado_em < b.criado_em ? 1 : a.criado_em > b.criado_em ? -1 : 0;
+  });
 }
 
 export async function sincronizarPodcastRss(): Promise<{ novos: number; total_feed?: number }> {
