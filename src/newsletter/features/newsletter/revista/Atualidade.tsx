@@ -48,6 +48,17 @@ export interface AccoesAtualidade {
   removerNoticia: (noticiaId: string) => void;
 }
 
+export function separarDestinos(
+  aprovadas: NoticiaAprovada[],
+  itens: Pick<ItemRevista, "noticia_id">[],
+) {
+  const usadas = new Set(itens.map((i) => i.noticia_id));
+  return {
+    porOrganizar: aprovadas.filter((n) => !usadas.has(n.id) && n.destino !== "site"),
+    soSite: aprovadas.filter((n) => !usadas.has(n.id) && n.destino === "site"),
+  };
+}
+
 export type PatchNoticia = Partial<{
   titulo: string; descricao: string; url: string; categoria: CatId;
 }>;
@@ -645,13 +656,9 @@ export function Atualidade({
     () => new Map(itens.map((i) => [i.noticia_id, i])),
     [itens],
   );
-  const porOrganizar = useMemo(
-    () => aprovadas.filter((n) => !porNoticia.has(n.id) && n.destino !== "site"),
-    [aprovadas, porNoticia],
-  );
-  const soSite = useMemo(
-    () => aprovadas.filter((n) => !porNoticia.has(n.id) && n.destino === "site"),
-    [aprovadas, porNoticia],
+  const { porOrganizar, soSite } = useMemo(
+    () => separarDestinos(aprovadas, itens),
+    [aprovadas, itens],
   );
 
   const ordenadas = useMemo(() => {
