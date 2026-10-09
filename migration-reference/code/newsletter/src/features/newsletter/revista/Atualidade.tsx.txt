@@ -89,7 +89,7 @@ function Botao({
     <button
       type="button" onClick={onClick} disabled={desactivado && !activo} title={titulo}
       aria-pressed={activo}
-      className={`rounded-lg border px-2.5 py-1.5 text-[12px] transition ${
+      className={`min-h-9 w-full rounded-lg border px-2 py-1.5 text-[12px] transition ${
         activo
           ? "border-foreground/25 bg-foreground/[0.06] font-bold text-foreground"
           : desactivado
@@ -117,7 +117,7 @@ export function TrioDestino({
   const cheioD = Boolean(cheios?.destaque);
   const cheioR = Boolean(cheios?.radar);
   return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Destino editorial">
+    <div className="grid w-full grid-cols-3 gap-2 sm:w-auto sm:min-w-[300px]" role="group" aria-label="Destino editorial">
       <Botao
         activo={papel === "destaque"} desactivado={cheioD}
         titulo={cheioD && papel !== "destaque"
@@ -612,12 +612,12 @@ function Cartao({
           <button
             type="button"
             onClick={() => {
-              if (!window.confirm(`Remover «${n.titulo.slice(0, 50)}» desta edição?`)) return;
+              if (!window.confirm(`Remover «${n.titulo.slice(0, 50)}» desta newsletter? A notícia continuará aprovada na curadoria.`)) return;
               accoes.removerNoticia(n.id);
             }}
             className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/25 bg-destructive/[0.06] px-2.5 py-1.5 text-[12px] font-semibold text-destructive hover:bg-destructive/10"
           >
-            <Trash2 size={13} /> Remover
+            <Trash2 size={13} /> Remover da newsletter
           </button>
         </div>
       )}
@@ -712,8 +712,8 @@ export function Atualidade({
   if (aprovadas.length === 0) {
     return (
       <p className="text-[14px] leading-relaxed text-muted-foreground">
-        Ainda não há notícias aprovadas nesta edição. Aprova nos «Pendentes de aprovação» e elas aparecem aqui,
-        prontas a entrar nos Destaques ou no Radar.
+        Ainda não há notícias aprovadas nesta edição. Aprova em «Curar» e elas aparecem aqui,
+        prontas para organizar como Destaque, Radar ou Só site.
       </p>
     );
   }
@@ -739,16 +739,16 @@ export function Atualidade({
         ))}
       </div>
       <p className="text-[14px] text-muted-foreground">
-        As notícias aprovadas chegam primeiro a «Por organizar». Escolhe Destaque, Radar ou Só site.
+        «Aprovar» em Curar é definitivo. Aqui só é preciso organizar como Destaque, Radar ou Só site — ou remover da newsletter.
       </p>
 
       {porOrganizar.length > 0 && (
-        <section className="space-y-2 rounded-xl border border-amber-500/35 bg-amber-500/[0.04] p-3" aria-label="Por organizar">
+        <section className="space-y-2 rounded-xl border border-amber-500/35 bg-amber-500/[0.04] p-3" aria-label="Aprovadas por organizar">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="text-[15px] font-semibold text-foreground">Por organizar</h3>
+            <h3 className="text-[15px] font-semibold text-foreground">Aprovadas por organizar</h3>
             <span className="text-[12px] font-medium text-muted-foreground">{porOrganizar.length} {porOrganizar.length === 1 ? "notícia" : "notícias"}</span>
           </div>
-          <p className="text-[13px] text-muted-foreground">Aprovadas em «Curar», ainda sem destino na edição.</p>
+          <p className="text-[13px] text-muted-foreground">Já estão aprovadas e nesta newsletter. Escolhe apenas onde entram.</p>
           <div className="space-y-2.5">
             {porOrganizar.map((n, i) => (
               <Cartao

@@ -69,7 +69,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
       await api.decidir(id, decisao);
       setDados((atual) => atual ? { ...atual, total: Math.max(0, atual.total - 1), itens: atual.itens.filter((item) => item.id !== id) } : atual);
       setSelecionados((atual) => { const seguinte = new Set(atual); seguinte.delete(id); return seguinte; });
-      toast.success(decisao === "aprovada" ? "Disponível para todos os formatos" : "Movida para Rejeitadas");
+      toast.success(decisao === "aprovada" ? "Aprovada e disponível para a newsletter" : "Movida para Rejeitadas");
     }
     catch (e) { toast.error((e as Error).message); } finally { setOcupado(null); }
   };

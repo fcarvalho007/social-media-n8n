@@ -766,6 +766,37 @@ export async function apagarNoticia(id: string) {
   if (error) throw error;
 }
 
+export function modoRetirarNoticiaDaEdicao(
+  noticia: Pick<Noticia, "curadoria_origem_id">,
+): "apagar_copia" | "desassociar_original" {
+  return noticia.curadoria_origem_id ? "apagar_copia" : "desassociar_original";
+}
+
+/** Retira da edição sem desfazer a aprovação editorial da curadoria. */
+export async function retirarNoticiaDaEdicao(id: string, edicaoId: string) {
+  const { data, error: leituraErro } = await supabase
+    .from("nl_noticias")
+    .select("id, edicao_id, curadoria_origem_id")
+    .eq("id", id)
+    .eq("edicao_id", edicaoId)
+    .maybeSingle();
+  if (leituraErro) throw leituraErro;
+  if (!data) throw new Error("A notícia já não pertence a esta edição.");
+
+  if (modoRetirarNoticiaDaEdicao(data) === "apagar_copia") {
+    const { error } = await supabase.from("nl_noticias").delete().eq("id", id).eq("edicao_id", edicaoId);
+    if (error) throw error;
+    return;
+  }
+
+  const { error } = await supabase
+    .from("nl_noticias")
+    .update({ edicao_id: null, ordem: 0, destaque: false, destino: "news" })
+    .eq("id", id)
+    .eq("edicao_id", edicaoId);
+  if (error) throw error;
+}
+
 export async function atualizarNoticia(id: string, patch: Partial<Noticia>) {
   const { error } = await supabase.from("nl_noticias").update(patch).eq("id", id);
   if (error) throw error;
