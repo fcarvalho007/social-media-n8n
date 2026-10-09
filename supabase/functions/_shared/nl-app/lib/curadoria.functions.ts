@@ -191,15 +191,15 @@ async function requireAdmin(context: { supabase: unknown }) {
 
 /** Dispara o hook da curadoria RSS (opcionalmente scoped a fontes específicas). */
 async function chamarHookRss(forcarFontes?: string[]) {
-  const appUrl = await urlAppFromRequest();
   const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
   if (!anon) throw new Error("Chave pública não configurada");
   const inicio = Date.now();
-  const res = await fetch(`${appUrl}/api/public/hooks/curadoria-rss`, {
+  const { Route } = await import("../hooks/curadoria-rss.ts") as unknown as { Route: { options: { server: { handlers: { POST: (c: { request: Request }) => Promise<Response> } } } } };
+  const res = await Route.options.server.handlers.POST({ request: new Request("http://interno/curadoria-rss", {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: anon },
     body: JSON.stringify(forcarFontes ? { forcar_fontes: forcarFontes } : {}),
-  });
+  }) });
   const txt = await res.text();
   let body: { ok?: boolean; inseridas?: number; fontes_activas?: number; candidatos?: number; mensagem?: string } = {};
   try { body = JSON.parse(txt); } catch { /* ignore */ }

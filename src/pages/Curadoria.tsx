@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,35 +16,40 @@ import "@/newsletter/newsletter.css";
 
 export default function Curadoria() {
   const [separador, setSeparador] = useState("noticias");
+  // Remounting the list after a batch resets it to «Por rever» with fresh data.
+  const [versaoLista, setVersaoLista] = useState(0);
+  const qc = useQueryClient();
   const { user } = useAuth();
   const { isAdmin } = useCurrentUserRoles();
   const fontes = useQuery({ queryKey: ["fontes"], queryFn: listarFontes });
-  return <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6">
+  const ativas = fontes.data?.filter(f => f.activa).length;
+  return <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6">
     <ConfirmacaoExternaHost />
-    <header>
-      <h1 className="text-2xl font-semibold">Curadoria</h1>
-      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Revê uma vez e reutiliza as notícias aprovadas na newsletter e nas redes sociais.</p>
+    <header className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 className="text-2xl font-semibold">Curadoria</h1>
+        {fontes.data && <span className="text-sm text-muted-foreground">{ativas} de {fontes.data.length} fontes ativas</span>}
+        {fontes.isError && <span className="text-sm text-destructive">Não foi possível consultar as fontes.</span>}
+      </div>
+      <Button variant="outline" size="sm" title="RSS, sites e newsletters de onde vêm as notícias" onClick={() => setSeparador("fontes")}>Gerir fontes</Button>
     </header>
-    <div className="flex flex-wrap items-center justify-between gap-3 border-y py-3">
-      <p className="max-w-prose text-sm text-muted-foreground">As notícias vêm dos RSS, sites e newsletters que configuraste aqui. Em modo manual, passam pela fila de entrada antes da revisão.
-        {fontes.data && <span className="mt-1 block font-medium text-foreground">{fontes.data.filter(f => f.activa).length} de {fontes.data.length} fontes ativas.</span>}
-        {fontes.isError && <span className="mt-1 block text-destructive">Não foi possível consultar as fontes. Abre «Fontes e limites» para tentar novamente.</span>}
-      </p>
-      <Button variant="outline" onClick={() => setSeparador("fontes")}>Gerir fontes e RSS</Button>
-    </div>
     <Tabs value={separador} onValueChange={setSeparador}>
-      <TabsList className="mb-5 h-auto flex-wrap justify-start gap-1">
+      <TabsList className="mb-4 h-auto flex-wrap justify-start gap-1">
         <TabsTrigger className="min-h-11" value="noticias">Notícias</TabsTrigger>
         <TabsTrigger className="min-h-11" value="fontes">Fontes e limites</TabsTrigger>
-        <TabsTrigger className="min-h-11" value="fila">Fila de entrada</TabsTrigger>
       </TabsList>
-      <TabsContent value="noticias"><CuradoriaNoticias /></TabsContent>
-      <TabsContent value="fontes" className="overflow-hidden rounded-xl border bg-white">
-        <Fontes embutido isAdmin={isAdmin} nomeExibicao={user?.email ?? "Equipa"} notify={(m, opts) => opts?.tipo === "erro" ? toast.error(m) : toast.success(m)} onFechar={() => setSeparador("noticias")} />
+      <TabsContent value="noticias" className="space-y-4">
+        <FilaEntrada compacto recolherAntes={isAdmin} onConcluido={(r) => {
+          void qc.invalidateQueries();
+          setVersaoLista(v => v + 1);
+          toast.success(r.noticias > 0 ? `${r.noticias} ${r.noticias === 1 ? "notícia nova" : "notícias novas"} em «Por rever».` : "Processamento concluído, sem notícias novas.");
+        }} />
+        <CuradoriaNoticias key={versaoLista} />
       </TabsContent>
-      <TabsContent value="fila" className="space-y-4">
-        <p className="max-w-prose text-sm text-muted-foreground">Processa um lote para transformar os conteúdos recolhidos em notícias. Depois, revê-os no separador «Notícias». O processamento usa IA; abrir esta página não inicia nenhum pedido.</p>
-        <FilaEntrada />
+      <TabsContent value="fontes" className="space-y-4">
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <Fontes embutido isAdmin={isAdmin} nomeExibicao={user?.email ?? "Equipa"} notify={(m, opts) => opts?.tipo === "erro" ? toast.error(m) : toast.success(m)} onFechar={() => setSeparador("noticias")} />
+        </div>
         {isAdmin && <ModoRecolha />}
         <Button variant="outline" asChild><Link to="/estudio/ligacoes">Ver ligação dos emails e integrações</Link></Button>
       </TabsContent>

@@ -2,6 +2,8 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 type Admin = SupabaseClient<any, any, any>;
 export declare const CHAVE_MODO_MANUAL = "curadoria_modo_manual";
+/** Items older than this are never interpreted: the newsletter needs current news. */
+export declare const DIAS_MAX_PROCESSAR = 7;
 export type ItemFila = {
     origem: "rss" | "email";
     fonte_id?: string | null;

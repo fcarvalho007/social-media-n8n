@@ -288,6 +288,11 @@ HOOKS_INTERNOS = ("curadoria-ferramentas", "curadoria-rss", "email-newsletter", 
 
 # Targeted server fixes so the strict type-check (and declaration emit) passes. Patterns must exist.
 SERVER_FIXES = {
+    # The origin called its own public hook over HTTP; here the hook runs in-process (that URL does not exist).
+    "lib/curadoria.functions.ts": [
+        ('  const appUrl = await urlAppFromRequest();\n  const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";\n  if (!anon) throw new Error("Chave pública não configurada");\n  const inicio = Date.now();\n  const res = await fetch(`${appUrl}/api/public/hooks/curadoria-rss`, {\n    method: "POST",\n    headers: { "Content-Type": "application/json", apikey: anon },\n    body: JSON.stringify(forcarFontes ? { forcar_fontes: forcarFontes } : {}),\n  });',
+         '  const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";\n  if (!anon) throw new Error("Chave pública não configurada");\n  const inicio = Date.now();\n  const { Route } = await import("../hooks/curadoria-rss.ts") as unknown as { Route: { options: { server: { handlers: { POST: (c: { request: Request }) => Promise<Response> } } } } };\n  const res = await Route.options.server.handlers.POST({ request: new Request("http://interno/curadoria-rss", {\n    method: "POST",\n    headers: { "Content-Type": "application/json", apikey: anon },\n    body: JSON.stringify(forcarFontes ? { forcar_fontes: forcarFontes } : {}),\n  }) });'),
+    ],
     "lib/organizar-edicao.functions.ts": [
         ('    const aprovadas = noticias ?? [];',
          '    const aprovadas = (noticias ?? []) as Array<{ id: string; titulo: string; descricao: string | null; categoria: string | null; destaque: boolean | null; destino: string | null }>;'),
