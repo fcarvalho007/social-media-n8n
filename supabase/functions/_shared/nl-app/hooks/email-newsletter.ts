@@ -49,6 +49,20 @@ function verificarBasicAuth(request: Request): boolean {
   }
 }
 
+// CloudMailin cannot embed Basic credentials in the target URL, so accept a
+// secret ?chave= token as an alternative (constant-time compare, min length).
+export function verificarChaveUrl(request: Request): boolean {
+  const esperado = process.env.CLOUDMAILIN_URL_TOKEN;
+  if (!esperado || esperado.length < 24) return false;
+  let chave: string | null = null;
+  try {
+    chave = new URL(request.url).searchParams.get("chave");
+  } catch {
+    return false;
+  }
+  return !!chave && timingSafeEq(chave, esperado);
+}
+
 async function extrairPayload(request: Request): Promise<CloudMailinPayload | null> {
   const ct = (request.headers.get("content-type") ?? "").toLowerCase();
   try {
@@ -126,7 +140,7 @@ function parecerConfirmacao(assunto: string, corpo: string): { confirmar: true; 
 
 
 async function handler(request: Request): Promise<Response> {
-  if (!verificarBasicAuth(request)) {
+  if (!verificarBasicAuth(request) && !verificarChaveUrl(request)) {
     return new Response(JSON.stringify({ ok: false, mensagem: "Não autorizado" }), {
       status: 401,
       headers: { "Content-Type": "application/json", "WWW-Authenticate": 'Basic realm="cloudmailin"' },
