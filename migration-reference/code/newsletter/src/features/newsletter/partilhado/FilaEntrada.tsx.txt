@@ -12,6 +12,7 @@ import { Inbox, Loader2, Sparkles, AlertTriangle, RotateCcw, Mail, Rss, CheckCir
 import {
   contarFilaCuradoria, limparFilaAntigaCuradoria, processarFilaCuradoria, retomarFalhadosCuradoria,
 } from "@/lib/fila-curadoria.functions";
+import { correrCuradoriaAgora } from "@/lib/curadoria.functions";
 
 const T = {
   card: "#FFFFFF", shell: "#F7F8FA", line: "#E4E7EC",
@@ -27,6 +28,14 @@ export type ResultadoProcessamentoFila = {
 };
 
 type PedidoProcessamento = { limite: number };
+
+export type FaseProcessamento = "parado" | "a_recolher" | "a_interpretar";
+
+/** Items interpreted so far, derived from the queue count polled while a batch runs. */
+export function progressoLote(base: number | null, atual: number | undefined, limite: number): number {
+  if (base == null || atual == null) return 0;
+  return Math.max(0, Math.min(limite, base - atual));
+}
 
 const CHAVE_PROCESSAMENTO = ["processar-fila-curadoria"] as const;
 
@@ -44,12 +53,21 @@ function useUltimoProcessamento() {
   return [...mutacoes].sort((a, b) => b.iniciadoEm - a.iniciadoEm)[0] ?? null;
 }
 
-export function FilaEntrada({ compacto = false }: { compacto?: boolean }) {
+export function FilaEntrada({ compacto = false, recolherAntes = false, onConcluido }: {
+  compacto?: boolean;
+  /** Fetch fresh items from the sources before interpreting (admin only on the server). */
+  recolherAntes?: boolean;
+  onConcluido?: (r: ResultadoProcessamentoFila) => void;
+}) {
   const qc = useQueryClient();
   const contar = useServerFn(contarFilaCuradoria);
   const processar = useServerFn(processarFilaCuradoria);
   const retomar = useServerFn(retomarFalhadosCuradoria);
   const limparAntigas = useServerFn(limparFilaAntigaCuradoria);
+  const recolher = useServerFn(correrCuradoriaAgora);
+  const [fase, setFase] = useState<FaseProcessamento>("parado");
+  const [base, setBase] = useState<number | null>(null);
+  const [avisoRecolha, setAvisoRecolha] = useState<string | null>(null);
 
   const [lote, setLote] = useState<number>(20);
   const [confirmarLimpeza, setConfirmarLimpeza] = useState(false);
@@ -59,13 +77,26 @@ export function FilaEntrada({ compacto = false }: { compacto?: boolean }) {
     queryKey: ["fila-curadoria"],
     queryFn: () => contar({}),
     staleTime: 15_000,
-    refetchInterval: 60_000,
+    refetchInterval: fase === "a_interpretar" ? 3_000 : 60_000,
   });
 
   const mProcessar = useMutation({
     mutationKey: CHAVE_PROCESSAMENTO,
-    mutationFn: (pedido: PedidoProcessamento) => processar({ data: pedido }),
+    mutationFn: async (pedido: PedidoProcessamento) => {
+      setAvisoRecolha(null);
+      if (recolherAntes) {
+        setFase("a_recolher");
+        try { await recolher({}); }
+        catch (e) { setAvisoRecolha(`Não foi possível recolher novidades: ${(e as Error).message}`); }
+      }
+      const contagem = await q.refetch();
+      setBase(contagem.data?.total ?? null);
+      setFase("a_interpretar");
+      try { return await processar({ data: pedido }); }
+      finally { setFase("parado"); setBase(null); }
+    },
     onSuccess: (r) => {
+      if (!r.bloqueado) onConcluido?.(r);
       void qc.invalidateQueries({ queryKey: ["fila-curadoria"] });
       void qc.invalidateQueries({ queryKey: ["noticias"] });
       void qc.invalidateQueries({ queryKey: ["pendentes"] });
@@ -92,7 +123,10 @@ export function FilaEntrada({ compacto = false }: { compacto?: boolean }) {
   const manual = dados?.modo_manual ?? true;
   const aTrabalhar = ultimoProcessamento?.estado === "pending";
 
-  if (!manual && total === 0) return null;
+  const feitos = progressoLote(base, dados?.total, ultimoProcessamento?.pedido?.limite ?? lote);
+  const limiteAtual = ultimoProcessamento?.pedido?.limite ?? lote;
+
+  if (!manual && total === 0 && !recolherAntes) return null;
 
   return (
     <section className="rounded-[16px] p-4" style={{ background: T.card, border: `1px solid ${T.line}` }}>
@@ -178,7 +212,7 @@ export function FilaEntrada({ compacto = false }: { compacto?: boolean }) {
         </div>
       )}
 
-      {total > 0 && (
+      {(total > 0 || recolherAntes) && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="text-[12px]" style={{ color: T.muted }}>Processar</span>
           <div className="inline-flex rounded-lg p-0.5" style={{ background: T.shell, border: `1px solid ${T.line}` }}>
@@ -197,9 +231,36 @@ export function FilaEntrada({ compacto = false }: { compacto?: boolean }) {
             className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg text-white disabled:opacity-60"
             style={{ background: T.primary }}>
             {aTrabalhar ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-            {aTrabalhar ? "A interpretar…" : `Processar ${Math.min(lote, total)}`}
+            {aTrabalhar ? "A processar…" : recolherAntes ? `Recolher e processar ${lote}` : `Processar ${Math.min(lote, total)}`}
           </button>
         </div>
+      )}
+
+      {aTrabalhar && (
+        <div className="mt-3 rounded-lg px-3 py-2.5" role="status" aria-live="polite"
+          style={{ background: T.shell, border: `1px solid ${T.line}` }}>
+          <p className="text-[12.5px] font-semibold inline-flex items-center gap-1.5" style={{ color: T.ink }}>
+            <Loader2 size={13} className="animate-spin" />
+            {fase === "a_recolher"
+              ? "A recolher novidades das fontes…"
+              : `A interpretar com IA: ${feitos} de ${limiteAtual}`}
+          </p>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" style={{ background: T.line }}>
+            <div className={`h-full rounded-full transition-all ${fase === "a_recolher" ? "w-1/4 animate-pulse" : ""}`}
+              style={{ background: T.primary, width: fase === "a_interpretar" ? `${Math.max(4, (feitos / Math.max(1, limiteAtual)) * 100)}%` : undefined }} />
+          </div>
+          <p className="mt-1.5 text-[11.5px]" style={{ color: T.muted }}>Pode demorar alguns minutos. No fim, as notícias novas aparecem em «Por rever».</p>
+        </div>
+      )}
+
+      {avisoRecolha && <p className="mt-2 text-[12.5px]" style={{ color: T.warn }}>{avisoRecolha}</p>}
+
+      {!aTrabalhar && ultimoProcessamento?.estado === "success" && ultimoProcessamento.dados && !ultimoProcessamento.dados.bloqueado && (
+        <p className="mt-2 text-[12.5px] inline-flex items-center gap-1.5" style={{ color: T.ok }}>
+          <CheckCircle2 size={13} /> Concluído: {ultimoProcessamento.dados.noticias} {ultimoProcessamento.dados.noticias === 1 ? "notícia nova" : "notícias novas"}
+          {ultimoProcessamento.dados.falhados > 0 && ` · ${ultimoProcessamento.dados.falhados} falharam`}
+          {ultimoProcessamento.dados.processados === 0 && " · nada recente para interpretar (só itens dos últimos 7 dias)"}
+        </p>
       )}
 
       {ultimoProcessamento?.estado === "error" && (
