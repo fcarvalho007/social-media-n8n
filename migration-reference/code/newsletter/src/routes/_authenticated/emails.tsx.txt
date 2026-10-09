@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -244,7 +244,7 @@ export function EmailsPage({ embutido = false }: { embutido?: boolean } = {}) {
           </div>
           {filtrosActivos && (
             <button
-              onClick={() => { setQLocal(""); navigate({ search: () => ({ janela: "14d", classe: "todas", fonte: "", q: "" }) }); }}
+              onClick={() => { setQLocal(""); setSearchState({ janela: "14d", classe: "todas", fonte: "", q: "" }); }}
               className="inline-flex items-center gap-1 text-[12px] font-semibold h-8 px-2 rounded-lg"
               style={{ color: T.danger, border: `1px solid ${T.line}` }}
               title="Limpar filtros"
