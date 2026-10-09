@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { decidirCuradoria, selecionarNaEdicao, lerFonteCuradoria, listarCuradoria, type DecisaoEditorial, type FonteCuradoria } from "@/services/curadoria";
+import { decidirCuradoria, selecionarNaEdicao, ocultarNaEdicao, reporNaEdicao, lerFonteCuradoria, listarCuradoria, type DecisaoEditorial, type FonteCuradoria } from "@/services/curadoria";
 import type { NoticiaCurada } from "@/services/curadoria";
 
 export function nomeFonteCuradoria(n: Pick<NoticiaCurada, "fonte_nome" | "url">) {
@@ -22,7 +22,7 @@ export function canalCuradoria(n: Pick<NoticiaCurada, "fonte_tipo" | "origem">) 
   return nomes[n.fonte_tipo ?? ""] ?? nomes[n.origem] ?? "Origem não identificada";
 }
 
-export const API_CURADORIA = { listar: listarCuradoria, ler: lerFonteCuradoria, decidir: decidirCuradoria, selecionarEdicao: selecionarNaEdicao };
+export const API_CURADORIA = { listar: listarCuradoria, ler: lerFonteCuradoria, decidir: decidirCuradoria, selecionarEdicao: selecionarNaEdicao, ocultarEdicao: ocultarNaEdicao, reporEdicao: reporNaEdicao };
 interface Props { api?: typeof API_CURADORIA; selecionar?: (f: FonteCuradoria) => void; noticiaInicial?: string; paraEdicao?: { id: string; onSelecionada: () => void }; }
 const ESTADOS: Array<{ id: DecisaoEditorial; nome: string }> = [{ id: "pendente", nome: "Por rever" }, { id: "aprovada", nome: "Aprovadas" }, { id: "rejeitada", nome: "Rejeitadas" }];
 export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api = API_CURADORIA }: Props) {
@@ -42,7 +42,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
   useEffect(() => { const t = setTimeout(() => { setProcura(query); setPagina(0); }, 300); return () => clearTimeout(t); }, [query]);
   useEffect(() => {
     let vivo = true; setErro(null);
-    api.listar({ estado, query: procura, categoria: categoria === "todas" ? "" : categoria, pagina, desde: dias === "todos" ? null : new Date(Date.now() - Number(dias) * 86400000).toISOString() })
+    api.listar({ estado, query: procura, categoria: categoria === "todas" ? "" : categoria, pagina, desde: dias === "todos" ? null : new Date(Date.now() - Number(dias) * 86400000).toISOString(), edicao: paraEdicao?.id })
       .then((r) => vivo && setDados(r)).catch((e: Error) => vivo && setErro(e.message));
     return () => { vivo = false; };
   }, [api, estado, procura, categoria, dias, pagina, tentativa]);
@@ -88,6 +88,20 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
   };
   const idsVisíveis = dados?.itens.map((item) => item.id) ?? [];
   const todasVisíveis = idsVisíveis.length > 0 && idsVisíveis.every((id) => selecionados.has(id));
+  const retirarDaEdicao = async (noticia: NoticiaCurada) => {
+    if (!paraEdicao || noticia.edicoes?.includes(paraEdicao.id)) return;
+    setOcupado(noticia.id);
+    try {
+      await api.ocultarEdicao(noticia.id, paraEdicao.id);
+      setDados((atual) => atual ? { ...atual, total: Math.max(0, atual.total - 1), itens: atual.itens.filter((item) => item.id !== noticia.id) } : atual);
+      toast.success("Notícia retirada desta edição", { action: { label: "Desfazer", onClick: () => {
+        void api.reporEdicao(noticia.id, paraEdicao.id)
+          .then(() => { setTentativa((valor) => valor + 1); toast.success("Notícia reposta"); })
+          .catch((erro: Error) => toast.error(erro.message));
+      } } });
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setOcupado(null); }
+  };
   return <section className="flex min-w-0 flex-col gap-4" aria-label="Notícias da curadoria">
     {selecionar && <p className="text-sm text-muted-foreground">Escolhe uma notícia aprovada. Fica guardada uma cópia da fonte neste conteúdo; escolher não gera nem publica nada.</p>}
     {!selecionar && !paraEdicao && <ToggleGroup type="single" value={estado} onValueChange={(v) => { if (v) { setEstado(v as DecisaoEditorial); setPagina(0); } }} className="justify-start" aria-label="Decisão editorial">
@@ -126,6 +140,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
               {estado === "aprovada" && <Button variant="outline" className="min-h-11" asChild><Link to={`/estudio/roteiros/novo?noticia=${n.id}`}>Criar roteiro</Link></Button>}
               {estado === "aprovada" && ["carrossel", "post", "story"].map((f) => <Button key={f} variant="outline" className="min-h-11" asChild><Link to={`/estudio/carrosseis/novo?formato=${f}&noticia=${n.id}`}>Criar {f}</Link></Button>)}
             </>}
+            {paraEdicao && !n.edicoes?.includes(paraEdicao.id) && <Button variant="ghost" className="min-h-11 text-muted-foreground" disabled={!!ocupado} onClick={() => retirarDaEdicao(n)}>Retirar desta edição</Button>}
           </div></div>
         </li>)}
       </ul>

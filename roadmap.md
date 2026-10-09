@@ -25,3 +25,4 @@
 - [ ] Validação no ecrã com sessão iniciada (desktop e 375 px)
 
 - [x] Redesenhar: imagens IA visíveis em slides de dados, recuperação ao reabrir e galeria de imagens já geradas do carrossel
+- [x] Retirar visualmente notícias candidatas apenas da edição atual, com reposição sem afetar a curadoria comum

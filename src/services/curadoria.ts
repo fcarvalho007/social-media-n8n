@@ -11,7 +11,7 @@ export interface FonteCuradoria {
   noticia_id: string; hash: string; titulo: string; url: string | null; texto: string;
   nivel: "artigo" | "resumo"; parcial: boolean; categoria: string; origem: string;
 }
-export interface FiltrosCuradoria { estado?: DecisaoEditorial; query?: string; categoria?: string; desde?: string | null; pagina?: number }
+export interface FiltrosCuradoria { estado?: DecisaoEditorial; query?: string; categoria?: string; desde?: string | null; pagina?: number; edicao?: string }
 // New RPCs live in migration 0039; regenerate the Cloud Database type catalog after deploying it.
 const db = supabase as unknown as SupabaseClient;
 async function rpc<T>(nome: string, args: Record<string, unknown>): Promise<T> {
@@ -21,9 +21,11 @@ async function rpc<T>(nome: string, args: Record<string, unknown>): Promise<T> {
 }
 export const listarCuradoria = (f: FiltrosCuradoria = {}) => rpc<{ total: number; itens: NoticiaCurada[] }>("nl_curadoria_listar", {
   _estado: f.estado ?? "aprovada", _query: f.query ?? "", _categoria: f.categoria ?? "",
-  _desde: f.desde ?? null, _limite: 24, _offset: (f.pagina ?? 0) * 24,
+  _desde: f.desde ?? null, _limite: 24, _offset: (f.pagina ?? 0) * 24, _edicao: f.edicao ?? null,
 });
 export const lerFonteCuradoria = (id: string) => rpc<FonteCuradoria>("nl_curadoria_snapshot", { _id: id });
 export const decidirCuradoria = (id: string, estado: DecisaoEditorial) => rpc<void>("nl_curadoria_decidir", { _id: id, _estado: estado });
 
 export const selecionarNaEdicao = (id: string, edicao: string) => rpc<string>("nl_curadoria_para_edicao", { _id: id, _edicao: edicao });
+export const ocultarNaEdicao = (id: string, edicao: string) => rpc<void>("nl_curadoria_ocultar_edicao", { _id: id, _edicao: edicao });
+export const reporNaEdicao = (id: string, edicao: string) => rpc<void>("nl_curadoria_repor_edicao", { _id: id, _edicao: edicao });

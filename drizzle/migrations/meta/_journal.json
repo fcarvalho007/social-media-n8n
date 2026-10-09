@@ -379,6 +379,13 @@
       "when": 1791478082816,
       "tag": "0053_mc_export_cliente_interrupcoes",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791551211483,
+      "tag": "0054_ocultar_noticias_por_edicao",
+      "breakpoints": true
     }
   ]
 }
