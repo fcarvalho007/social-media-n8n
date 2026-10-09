@@ -329,9 +329,31 @@ async function handler(request: Request): Promise<Response> {
 
 
   // Pipeline unificado
+  // Every AI call made while reading an email is counted in ia_uso (origem "email").
+  const { custoUsd: custoUsdEmail } = await import("../edge-shared/custos-ia.ts");
+  const registarUsoEmail = async (modelo: string, usage: { cacheHit: number; cacheMiss: number; saida: number }, operacao: string) => {
+    try {
+      await supabaseAdmin.from("nl_ia_uso").insert({
+        modelo,
+        tokens_entrada_cache_hit: usage.cacheHit,
+        tokens_entrada_cache_miss: usage.cacheMiss,
+        tokens_saida: usage.saida,
+        custo_usd: custoUsdEmail(modelo, usage.cacheHit, usage.cacheMiss, usage.saida),
+        origem: "email",
+        operacao,
+        edicao_id: null,
+      } as never);
+    } catch { /* nunca bloqueia */ }
+  };
+  const extratorComCusto = async (bloco: string, urlManual: string | undefined, corpoArtigo?: string) => {
+    const r = await chamarIaExtrator(bloco, urlManual, corpoArtigo);
+    await registarUsoEmail(r.modelo, r.usage, "email_extrair");
+    return r;
+  };
   const chamarDeepSeekBruto = async (sistema: string, user: string): Promise<string | null> => {
     try {
       const r = await chamarDeepSeek(sistema, user, { responseJson: true });
+      await registarUsoEmail(r.modelo, r.usage, "email_blocos");
       return r.conteudo;
     } catch {
       return null;
@@ -351,7 +373,8 @@ async function handler(request: Request): Promise<Response> {
           tokens_entrada_cache_miss: u.usage.cacheMiss,
           tokens_saida: u.usage.saida,
           custo_usd: custoUsd(u.modelo, u.usage.cacheHit, u.usage.cacheMiss, u.usage.saida),
-          origem: u.origem,
+          origem: "email",
+          operacao: u.origem,
           edicao_id: null,
         } as never);
       } catch { /* nunca bloqueia */ }
@@ -377,7 +400,7 @@ async function handler(request: Request): Promise<Response> {
         remetenteEmail: remetenteEmail || null,
         emailRecebidoId,
       },
-      { chamarIaExtrator, chamarDeepSeek: chamarDeepSeekBruto, corrigirDescricao, lerCorpoArtigo },
+      { chamarIaExtrator: extratorComCusto, chamarDeepSeek: chamarDeepSeekBruto, corrigirDescricao, lerCorpoArtigo },
     );
   } catch (e) {
     // Nunca falhar em silêncio: o email fica marcado como falhado, com o
