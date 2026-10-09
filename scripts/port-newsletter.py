@@ -70,6 +70,7 @@ def server_fn_exports(s):
 # Targeted type fixes for origin code that relied on strict-mode narrowing or older lucide-react
 # prop types. Each pattern must exist (the port fails loudly otherwise) so drift is never hidden.
 CLIENT_FIXES = {
+    # The origin's relative /api route does not exist here; the staff-session sync lives in nl-hooks.
     "features/newsletter/partilhado/modais/Fontes.tsx": [
         ('  onFechar: () => void;', '  onFechar: () => void;\n  embutido?: boolean;'),
         ('notify, onFechar }: FontesProps)', 'notify, onFechar, embutido = false }: FontesProps)'),
@@ -111,6 +112,28 @@ CLIENT_FIXES = {
         ('          <div className="mb-4"><FilaEntrada /></div>', '          <div className="mb-4"><FilaEntrada /></div>\n          {edicaoId && !bloqueado && <details className="mb-4 rounded-2xl border border-border bg-card p-4">\n            <summary className="min-h-11 cursor-pointer font-semibold">Notícias aprovadas na curadoria comum</summary>\n            <CuradoriaNoticias paraEdicao={{ id: edicaoId, onSelecionada: () => { void qc.invalidateQueries({ queryKey: ["aprovadas", edicaoId] }); void qc.invalidateQueries({ queryKey: ["pendentes"] }); } }} />\n          </details>}'),
     ],
     "features/newsletter/data.ts": [
+        ('''  const { data: sess } = await supabase.auth.getSession();
+  const apikey = (supabase as unknown as { supabaseKey: string }).supabaseKey;
+  const res = await fetch("/api/public/hooks/sincronizar-podcast", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey,
+      Authorization: `Bearer ${sess.session?.access_token ?? apikey}`,
+    },
+    body: "{}",
+  });
+  const json = (await res.json().catch(() => ({}))) as { ok?: boolean; novos?: number; total_feed?: number; mensagem?: string };
+  if (!res.ok || json.ok === false) {
+    throw new Error(json.mensagem ?? `Erro ${res.status}`);
+  }''', '''  const { data, error } = await supabase.functions.invoke("nl-hooks/podcast-sincronizar", { body: {} });
+  let json = (data ?? {}) as { ok?: boolean; novos?: number; total_feed?: number; mensagem?: string };
+  if (error) {
+    const ctx = (error as { context?: Response }).context;
+    json = ((ctx ? await ctx.json().catch(() => null) : null) ?? {}) as typeof json;
+    throw new Error(ctx?.status === 401 ? "A sessão expirou. Volta a entrar." : json.mensagem ?? error.message);
+  }
+  if (json.ok === false) throw new Error(json.mensagem ?? "Não foi possível atualizar o podcast");'''),
         ('export async function listarPendentes(): Promise<Pendente[]> {\n  const { data, error } = await supabase', 'export async function listarPendentes(): Promise<Pendente[]> {\n  // New columns are added by migration 0039; the Cloud catalog is regenerated on deployment.\n  const db = supabase as unknown as import("@supabase/supabase-js").SupabaseClient;\n  const { data, error } = await db'),
         ('.eq("estado", "pendente")\n    .order("created_at",', '.eq("estado", "pendente")\n    .filter("editorial_estado", "eq", "pendente")\n    .filter("curadoria_origem_id", "is", null)\n    .order("created_at",'),
     ],

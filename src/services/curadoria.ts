@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { erroDeSessao, SESSAO_EXPIRADA, tratarSessaoRecusada } from "@/lib/sessaoRecusada";
 export type DecisaoEditorial = "pendente" | "aprovada" | "rejeitada";
 export interface NoticiaCurada {
   id: string; titulo: string; descricao: string | null; url: string | null; categoria: string; origem: string;
@@ -15,8 +16,16 @@ export interface FiltrosCuradoria { estado?: DecisaoEditorial; query?: string; c
 // New RPCs live in migration 0039; regenerate the Cloud Database type catalog after deploying it.
 const db = supabase as unknown as SupabaseClient;
 async function rpc<T>(nome: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await db.rpc(nome, args);
-  if (error) throw new Error(error.code === "42501" ? "Não tens acesso à curadoria." : error.message);
+  let { data, error } = await db.rpc(nome, args);
+  if (error) {
+    const { data: s } = await supabase.auth.getSession();
+    if (erroDeSessao(error.code, !!s.session) || error.code === "42501") {
+      // Expired token looks like "no permission"; refresh once and retry before blaming access.
+      if (await tratarSessaoRecusada()) throw new Error(SESSAO_EXPIRADA);
+      ({ data, error } = await db.rpc(nome, args));
+    }
+  }
+  if (error) throw new Error(error.code === "42501" ? "Não tens acesso à curadoria." : erroDeSessao(error.code, true) ? SESSAO_EXPIRADA : error.message);
   return data as T;
 }
 export const listarCuradoria = (f: FiltrosCuradoria = {}) => rpc<{ total: number; itens: NoticiaCurada[] }>("nl_curadoria_listar", {

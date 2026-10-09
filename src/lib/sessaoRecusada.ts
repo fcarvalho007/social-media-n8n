@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export const SESSAO_EXPIRADA = "A sessão expirou. Volta a entrar.";
+
 /**
  * Called when a function answers 401. Tries one session refresh; if the backend definitively
  * rejects it (not a network/outage error), ends the local session so the app returns to sign-in
@@ -13,4 +15,10 @@ export async function tratarSessaoRecusada(): Promise<boolean> {
   if (!definitivo) return false;
   await supabase.auth.signOut({ scope: "local" });
   return true;
+}
+
+/** Database errors that mean "no valid session" rather than "no permission". */
+export function erroDeSessao(code: string | undefined, temSessao: boolean): boolean {
+  if (code === "PGRST301" || code === "PGRST303") return true;
+  return code === "42501" && !temSessao;
 }
