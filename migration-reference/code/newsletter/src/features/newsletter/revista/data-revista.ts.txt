@@ -10,7 +10,7 @@ export type PapelRevista = "destaque" | "radar";
 
 const MAXIMOS: Record<PapelRevista, number> = {
   destaque: LIMITES_REVISTA.destaquesMax,
-  radar: LIMITES_REVISTA.radarMax,
+  radar: Number.POSITIVE_INFINITY,
 };
 
 export interface ConfigRevista {
@@ -167,10 +167,10 @@ export async function adicionarItem(
     throw new Error("Essa notícia já está a ser usada nesta edição.");
   }
   const doPapel = itens.filter((i) => i.papel === papel);
-  if (doPapel.length >= MAXIMOS[papel]) {
+  if (papel === "destaque" && doPapel.length >= MAXIMOS[papel]) {
     throw new Error(papel === "destaque"
       ? `«${ROTULOS_REVISTA.destaques}» já tem ${LIMITES_REVISTA.destaquesMax} notícias.`
-      : `O Radar já tem ${LIMITES_REVISTA.radarMax} notícias.`);
+      : "");
   }
   const noticia = (await supabase
     .from("noticias").select("descricao").eq("id", noticiaId).maybeSingle()).data;
@@ -203,10 +203,10 @@ export async function moverItemPapel(
 ): Promise<void> {
   const itens = await getItensRevista(edicaoId);
   const doPapel = itens.filter((i) => i.papel === papel && i.id !== itemId);
-  if (doPapel.length >= MAXIMOS[papel]) {
+  if (papel === "destaque" && doPapel.length >= MAXIMOS[papel]) {
     throw new Error(papel === "destaque"
       ? `«${ROTULOS_REVISTA.destaques}» já tem ${LIMITES_REVISTA.destaquesMax} notícias.`
-      : `O Radar já tem ${LIMITES_REVISTA.radarMax} notícias.`);
+      : "");
   }
   const { error } = await supabase
     .from("revista_itens").update({ papel, ordem: doPapel.length }).eq("id", itemId);

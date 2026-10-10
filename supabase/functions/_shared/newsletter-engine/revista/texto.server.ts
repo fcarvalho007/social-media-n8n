@@ -1,4 +1,3 @@
-import { linkSubscricao } from "../../nl-publico-config.ts";
 // Versão em texto simples do formato Revista (multipart do envio E-goi).
 
 import type { EdicaoRevista } from "./compose.server.ts";
@@ -118,8 +117,8 @@ export function montarTextoRevista(e: EdicaoRevista): string {
   L.push("Responde a este email. Leio todas as respostas.");
   L.push("");
   L.push("Recebes a Digital Sprint porque subscreveste em fredericocarvalho.pt.");
-  L.push("Gerir a subscrição: " + linkSubscricao());
-  L.push("Cancelar a subscrição: " + linkSubscricao("cancelar"));
+  L.push("Gerir a subscrição: https://edicoes.digitalsprint.pt/subscricao?e={!email:URLENCODE}");
+  L.push("Cancelar a subscrição: https://edicoes.digitalsprint.pt/subscricao?a=cancelar&e={!email:URLENCODE}");
   L.push("Frederico Carvalho · Digital FC — Portugal");
   L.push("Esta edição foi preparada com apoio de ferramentas de inteligência artificial e revista por Frederico Carvalho.");
   return L.join("\n");

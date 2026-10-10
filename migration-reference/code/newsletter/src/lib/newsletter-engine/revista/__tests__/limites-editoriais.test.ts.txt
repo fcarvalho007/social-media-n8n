@@ -38,8 +38,8 @@ function edicao(nDestaques: number, nRadar: number): EdicaoRevista {
   } as unknown as EdicaoRevista;
 }
 
-const sobreDestaques = (p: string[]) => p.filter((t) => t.includes("Notícias em foco"));
-const sobreRadar = (p: string[]) => p.filter((t) => t.startsWith("O Radar tem"));
+const sobreDestaques = (p: string[]) => p.filter((t) => t.includes("Destaques"));
+const sobreRadar = (p: string[]) => p.filter((t) => t.includes("Novidades da semana"));
 
 describe("limites editoriais da Revista", () => {
   it("aceita 2 e 3 destaques", () => {
@@ -52,13 +52,13 @@ describe("limites editoriais da Revista", () => {
     expect(sobreDestaques(validarRevista(edicao(1, 5)))).toHaveLength(1);
   });
 
-  it("aceita 3, 4 e 5 no Radar", () => {
-    for (const n of [3, 4, 5]) {
+  it("aceita 3, 5 e 30 em Novidades da semana", () => {
+    for (const n of [3, 5, 30]) {
       expect(sobreRadar(validarRevista(edicao(3, n)))).toEqual([]);
     }
   });
 
-  it("assinala menos de 3 no Radar", () => {
+  it("assinala menos de 3 em Novidades da semana", () => {
     expect(sobreRadar(validarRevista(edicao(3, 2)))).toHaveLength(1);
   });
 });

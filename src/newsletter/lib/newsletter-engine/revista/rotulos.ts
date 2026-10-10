@@ -4,8 +4,8 @@
 
 export const ROTULOS_REVISTA = {
   cronica: "A crónica desta semana",
-  destaques: "Notícias em foco",
-  radar: "Radar · Curtas",
+  destaques: "Destaques",
+  radar: "Novidades da semana",
   atualidades: "Todas as notícias",
   recomendacao: "Recomendo",
 } as const;
@@ -13,8 +13,8 @@ export const ROTULOS_REVISTA = {
 /** Nomes curtos para a barra de navegação da edição web. */
 export const NAV_REVISTA = {
   cronica: "Crónica",
-  destaques: "Em foco",
-  radar: "Radar",
+  destaques: "Destaques",
+  radar: "Novidades",
   atualidades: "Notícias",
   recomendacao: "Recomendo",
 } as const;
@@ -30,5 +30,4 @@ export const LIMITES_REVISTA = {
   destaquesMin: 2,
   destaquesMax: 3,
   radarMin: 3,
-  radarMax: 5,
 } as const;

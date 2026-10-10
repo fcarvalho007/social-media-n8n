@@ -461,13 +461,6 @@ export async function prepararEnvio(opts: {
 
   const { apiKey, senderId } = await credenciaisEgoi(sb);
 
-  // Every real list must have its tokens fully synced, field validated and no pending failures.
-  if (listasR.modo === "real") {
-    const { problemasTokensEnvio } = await import("../nl-egoi-tokens-gate.ts");
-    const p = await problemasTokensEnvio(sb, apiKey, listasR.listas.filter((l) => l.tipo === "real"));
-    if (p.length) throw new ErroEnvio(`Tokens de subscrição por validar: ${p.join(" ")}`, 412);
-  }
-
   const { data: edRaw } = await sb.from("nl_edicoes")
     .select("numero, estado, assunto, envio_em_curso").eq("id", opts.edicaoId).maybeSingle();
   if (!edRaw) throw new ErroEnvio("Edição não encontrada", 404);
@@ -555,13 +548,6 @@ export async function dispararLista(opts: {
     : (opts.quemNome ?? "agendamento");
 
   const { apiKey } = await credenciaisEgoi(sb);
-
-  // Re-checked right before dispatching (new contacts may have arrived since preparation).
-  if (lista.tipo === "real") {
-    const { problemasTokensEnvio } = await import("../nl-egoi-tokens-gate.ts");
-    const p = await problemasTokensEnvio(sb, apiKey, [lista]);
-    if (p.length) return { lista_id: lista.id, lista_nome: lista.nome, ok: false, sincronizada: false, erro: `Tokens de subscrição por validar: ${p.join(" ")}` };
-  }
 
   const { data: campRaw } = await sb.from("nl_egoi_campanhas")
     .select("campaign_hash").eq("edicao_id", opts.edicaoId).eq("lista_id", lista.id).maybeSingle();
@@ -819,8 +805,8 @@ export async function publicarWordpress(opts: {
   const quem = opts.userId ? (await autorizar(sb, opts.userId, "real")).nome : (opts.quemNome ?? "agendamento");
 
   const siteUrl = process.env.WORDPRESS_SITE_URL ?? "";
-  const wpUser = (process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username) ?? "";
-  const wpPass = (process.env.WORDPRESS_APP_PASSWORD || process.env.wordpress_site_key) ?? "";
+  const wpUser = process.env.WORDPRESS_APP_USER ?? "";
+  const wpPass = process.env.WORDPRESS_APP_PASSWORD ?? "";
   if (!siteUrl || !wpUser || !wpPass) {
     throw new ErroEnvio("WordPress não configurado (falta WORDPRESS_SITE_URL, WORDPRESS_APP_USER ou WORDPRESS_APP_PASSWORD).");
   }

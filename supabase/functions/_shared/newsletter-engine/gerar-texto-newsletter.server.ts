@@ -1,4 +1,3 @@
-import { linkSubscricao } from "../nl-publico-config.ts";
 // Versão em texto simples da newsletter (multipart alternative).
 //
 // Emails só-HTML pontuam mal em quase todos os filtros anti-spam. Este módulo
@@ -115,8 +114,8 @@ export function montarTexto(d: DadosEdicao): string {
   L.push("Frederico Carvalho · Digital FC — Portugal");
   L.push("");
   L.push("Recebes esta newsletter porque subscreveste a Digital Sprint em fredericocarvalho.pt.");
-  L.push("Gerir a subscrição (pausar ou receber só uma vez por mês): " + linkSubscricao());
-  L.push("Cancelar já: " + linkSubscricao("cancelar"));
+  L.push("Gerir a subscrição (pausar ou receber só uma vez por mês): https://newsletter-digital-sprint.lovable.app/subscricao?e={!email:URLENCODE}");
+  L.push("Cancelar já: https://newsletter-digital-sprint.lovable.app/subscricao?a=cancelar&e={!email:URLENCODE}");
   L.push("Esta newsletter foi produzida com o apoio de inteligência artificial.");
 
   return L.join("\n").replace(/\n{3,}/g, "\n\n").trim();

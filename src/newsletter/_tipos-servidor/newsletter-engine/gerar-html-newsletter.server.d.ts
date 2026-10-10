@@ -9,7 +9,7 @@ declare const TENUE_2 = "#B0B7C3";
 declare const DIVISOR = "#F1F5F9";
 declare const PRIMARIA = "#6366F1";
 declare const SOMBRA = "box-shadow:0 1px 3px rgba(15,23,42,0.06);";
-declare const AVATAR_URL: string;
+declare const AVATAR_URL = "https://newsletter-digital-sprint.lovable.app/__l5e/assets-v1/64e62b56-bcaf-4d4a-b6d3-d80d1568af05/frederico-avatar.png";
 declare const MEDALHAO_GRADIENTES: string[];
 declare function esc(s: string): string;
 /** Remove emoji/pontuação decorativa do início do título das notícias. */

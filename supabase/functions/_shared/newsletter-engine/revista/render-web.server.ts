@@ -139,7 +139,12 @@ export function montarHtmlRevistaWeb(e: EdicaoRevista): HtmlRevistaWeb {
       ${r.nota ? `<div style="font-family:${SANS};font-size:14px;line-height:24px;color:${R.textoSec};padding-top:4px;">${esc(r.nota)}</div>` : ""}
     </li>`).join("\n");
     p.push(`<ul style="margin:20px 0 0 0;padding:0;">\n${linhas}\n</ul>`);
-    p.push(`<p style="margin:16px 0 0 0;"><a href="#${ANCORA_ATUALIDADES}" style="font-family:${SANS};font-size:15px;color:${R.azul};text-decoration:none;font-weight:700;">${esc(cont.botao)} &rarr;</a></p>`);
+    p.push(`<aside style="margin-top:24px;background:${R.azul};padding:26px 28px;color:${R.branco};">
+      <div style="font-family:${SANS};font-size:12px;line-height:18px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;">Edição completa</div>
+      <div style="font-family:${SANS};font-size:30px;line-height:38px;font-weight:700;padding-top:6px;">${esc(cont.botao)}</div>
+      <p style="margin:8px 0 0 0;font-family:${SANS};font-size:15px;line-height:25px;">${esc(cont.intro)}</p>
+      <p style="margin:18px 0 0 0;"><a href="#${ANCORA_ATUALIDADES}" style="display:inline-block;background:${R.branco};padding:12px 20px;font-family:${SANS};font-size:15px;color:${R.azul};text-decoration:none;font-weight:700;">Abrir todas as notícias &rarr;</a></p>
+    </aside>`);
   }
 
   /* recomendação */

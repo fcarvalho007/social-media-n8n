@@ -215,7 +215,7 @@ export interface EdicaoRevista {
     /** Problemas de integridade — bloqueiam o envio quando existem. */
     problemas: string[];
 }
-/** Rótulo curto da categoria para o Radar (sem emoji, sem parêntesis). */
+/** Rótulo curto da categoria para «Novidades da semana» (sem emoji, sem parêntesis). */
 export declare function rotuloCategoria(id: string): string;
 export declare function limparTituloRevista(s: string): string;
 export declare function normalizarConfigRevista(v: unknown): RevistaConfigRow;
@@ -244,12 +244,6 @@ export interface SnapshotRevista {
     url_web_path: string;
     preparado_em: string;
     bloqueado_em: string | null;
-    /** Full chronicle frozen at send time (source for derived content). Optional for old snapshots. */
-    cronica_integral?: {
-        titulo: string;
-        corpoHtml: string;
-        url: string;
-    };
 }
 /**
  * Interpreta o campo gravado. Snapshots antigos (objecto `EdicaoRevista` sem

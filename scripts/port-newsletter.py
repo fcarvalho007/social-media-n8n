@@ -295,6 +295,7 @@ def server_rewrite(s: str, here: str) -> str:
     s = s.replace('"@/integrations/supabase/types"', '"%s"' % rel_to(os.path.join(SRV, "_shim/types.ts")))
     s = s.replace('"zod"', '"npm:zod@3.25.76"')
     s = s.replace('"@supabase/supabase-js"', '"npm:@supabase/supabase-js@2.57.4"').replace("'@supabase/supabase-js'", '"npm:@supabase/supabase-js@2.57.4"')
+    s = re.sub(r'"npm:(?:npm:)?@supabase/supabase-js@2\.57\.4(?:@2\.57\.4)?"', '"npm:@supabase/supabase-js@2.57.4"', s)
     s = re.sub(r'from "crypto"', 'from "node:crypto"', s)
     s = tables(s)
     s = s.replace("process.env.WORDPRESS_APP_USER", "(process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username)")
@@ -321,6 +322,10 @@ HOOKS_INTERNOS = ("curadoria-ferramentas", "curadoria-rss", "email-newsletter", 
 
 # Targeted server fixes so the strict type-check (and declaration emit) passes. Patterns must exist.
 SERVER_FIXES = {
+    "engine/revista/render-email.server.ts": [
+        ('const URL_CANCELAR = "https://edicoes.digitalsprint.pt/subscricao?a=cancelar&e={!email:URLENCODE}";',
+         'const URL_CANCELAR = linkSubscricao("cancelar");\nimport { linkSubscricao } from "../../nl-publico-config.ts";'),
+    ],
     # The origin called its own public hook over HTTP; here the hook runs in-process (that URL does not exist).
     "lib/curadoria.functions.ts": [
         ('  const appUrl = await urlAppFromRequest();\n  const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";\n  if (!anon) throw new Error("Chave pública não configurada");\n  const inicio = Date.now();\n  const res = await fetch(`${appUrl}/api/public/hooks/curadoria-rss`, {\n    method: "POST",\n    headers: { "Content-Type": "application/json", apikey: anon },\n    body: JSON.stringify(forcarFontes ? { forcar_fontes: forcarFontes } : {}),\n  });',
@@ -380,6 +385,15 @@ def build_server():
     shutil.rmtree(os.path.join(SRV, "edge-shared"), ignore_errors=True)
     shutil.rmtree(os.path.join(SRV, "hooks"), ignore_errors=True)
     files = []
+    # Generate the shared edge engine from the inert source in the same atomic pass.
+    for f in walk(os.path.join(SRC, "lib/newsletter-engine")):
+        rel = os.path.relpath(f, os.path.join(SRC, "lib/newsletter-engine"))[:-4]
+        if "__tests__" in rel or rel.endswith(".test.ts"):
+            continue
+        dst = os.path.join(ROOT, "supabase/functions/_shared/newsletter-engine", rel)
+        # envio.server has project-specific delivery reconciliation and is maintained in shared edge code.
+        if rel != "envio.server.ts":
+            files.append((f, dst))
     # Internal hook handlers that server functions call directly (no public route here).
     for name in HOOKS_INTERNOS:
         files.append((os.path.join(SRC, "routes/api/public/hooks", name + ".ts.txt"), os.path.join(SRV, "hooks", name + ".ts")))
@@ -402,7 +416,10 @@ def build_server():
         write(dst, "")  # create first so dir-vs-file resolution works
     for src, dst in files:
         body = server_rewrite(read(src), dst)
-        for old, new in SERVER_FIXES.get(os.path.relpath(dst, SRV).replace(os.sep, "/"), []):
+        fix_key = os.path.relpath(dst, SRV).replace(os.sep, "/")
+        if dst.startswith(os.path.join(ROOT, "supabase/functions/_shared/newsletter-engine") + os.sep):
+            fix_key = "engine/" + os.path.relpath(dst, os.path.join(ROOT, "supabase/functions/_shared/newsletter-engine")).replace(os.sep, "/")
+        for old, new in SERVER_FIXES.get(fix_key, []):
             if old not in body:
                 raise SystemExit("port-newsletter: server fix pattern not found in %s: %s" % (dst, old))
             body = body.replace(old, new)

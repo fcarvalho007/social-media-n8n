@@ -1,4 +1,3 @@
-import { avatarUrl, linkSubscricao } from "../nl-publico-config.ts";
 import process from "node:process";
 // Gera o HTML do email DIGITAL SPRINT — Opção C refinada.
 //
@@ -31,15 +30,15 @@ const PRIMARIA  = "#6366F1";
 const SOMBRA    = "box-shadow:0 1px 3px rgba(15,23,42,0.06);";
 
 /* Avatar do Frederico servido via CDN Lovable (URL absoluto para clientes de email). */
-const AVATAR_URL = avatarUrl();
+const AVATAR_URL = "https://newsletter-digital-sprint.lovable.app/__l5e/assets-v1/64e62b56-bcaf-4d4a-b6d3-d80d1568af05/frederico-avatar.png";
 /* Destino da foto/assinatura e dados de identificação do remetente (rodapé legal). */
 const PERFIL_URL = "https://fredericocarvalho.pt/";
 const EMAIL_CONTACTO = "frederico.carvalho@digitalfc.pt";
 const ENTIDADE = "Frederico Carvalho · Digital FC — Portugal";
-/* Página pública de gestão de subscrição. os links levam só o token assinado
-   (campo da E-goi), nunca o email sozinho. */
-const URL_SUBSCRICAO = linkSubscricao();
-const URL_CANCELAR = linkSubscricao("cancelar");
+/* Página pública de gestão de subscrição. `!email` é o merge code da E-goi:
+   é substituído pelo email de cada destinatário no momento do envio. */
+const URL_SUBSCRICAO = "https://newsletter-digital-sprint.lovable.app/subscricao?e={!email:URLENCODE}";
+const URL_CANCELAR = "https://newsletter-digital-sprint.lovable.app/subscricao?a=cancelar&e={!email:URLENCODE}";
 
 /* Gradientes rotativos para os medalhões numerados dos destaques. */
 const MEDALHAO_GRADIENTES: string[] = [

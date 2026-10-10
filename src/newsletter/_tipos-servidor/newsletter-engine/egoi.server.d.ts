@@ -24,8 +24,6 @@ export declare function criarCampanha(cfg: EgoiConfig, opts: {
     senderId: string;
     html: string;
     plainText?: string;
-    /** Token field id of this list (per list); null only for test lists. */
-    campoToken?: number | null;
 }): Promise<OkCriacao | EgoiErro>;
 /** PATCH /campaigns/email/{hash} — actualiza meta e/ou conteúdo num único pedido. */
 export declare function patchCampanha(cfg: EgoiConfig, hash: string, opts: {

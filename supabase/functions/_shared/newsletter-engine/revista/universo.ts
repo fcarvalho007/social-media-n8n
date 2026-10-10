@@ -7,7 +7,7 @@
 // do Radar, cálculo de «Só site», contadores do editor e a listagem completa
 // de Atualidades na versão web.
 
-export const COLUNAS_NOTICIA_EDICAO = "id, titulo, descricao, url, url_curto, categoria, ordem";
+export const COLUNAS_NOTICIA_EDICAO = "id, titulo, descricao, url, url_curto, categoria, ordem, destino";
 
 /** Estados que contam como «aprovada da edição» (inclui já enviada). */
 export const ESTADOS_NOTICIA_EDICAO = ["aprovada", "enviada"] as const;
@@ -20,6 +20,7 @@ export interface NoticiaDaEdicao {
   url_curto: string | null;
   categoria: string;
   ordem: number;
+  destino: string | null;
 }
 
 /** Cliente mínimo aceite (browser ou service role). */
