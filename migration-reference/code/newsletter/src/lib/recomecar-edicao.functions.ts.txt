@@ -76,7 +76,7 @@ export const recomecarEdicaoFn = createServerFn({ method: "POST" })
         podcast_cta: PODCAST_CTA, podcast_tema: "", podcast_convidado: "", podcast_pergunta: "",
         podcast_url: "",
         recomendacao_activa: false, recomendacao_tipo: "", recomendacao_meta: "",
-        recomendacao_titulo: "", recomendacao_url: "", recomendacao_nota: "",
+        recomendacao_titulo: "", recomendacao_subtitulo: "", recomendacao_url: "", recomendacao_nota: "",
       });
     }
     if (a.has("assunto")) {

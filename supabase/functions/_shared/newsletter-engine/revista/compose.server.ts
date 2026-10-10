@@ -15,6 +15,7 @@ import { caminhoCanonicoEdicao, urlCanonicaEdicao } from "./destinos.server.ts";
 import { POSICAO_FIM } from "./sequencia-cronica.ts";
 import { LIMITES_REVISTA, ROTULOS_REVISTA } from "./rotulos.ts";
 import { ligacoesBriefsDaEdicao, type LigacaoBrief } from "./brief/publicacao.server.ts";
+import { htmlEditorialInline, htmlEditorialSeguro, textoDeHtmlEditorial } from "./html-restrito.ts";
 
 export type { LigacaoBrief };
 
@@ -48,6 +49,7 @@ export interface RevistaConfigRow {
   recomendacao_tipo: string;
   recomendacao_meta: string;
   recomendacao_titulo: string;
+  recomendacao_subtitulo: string;
   recomendacao_url: string;
   recomendacao_nota: string;
   recomendacao_activa: boolean;
@@ -112,6 +114,7 @@ export const REVISTA_CONFIG_VAZIA: RevistaConfigRow = {
   recomendacao_tipo: "",
   recomendacao_meta: "",
   recomendacao_titulo: "",
+  recomendacao_subtitulo: "",
   recomendacao_url: "",
   recomendacao_nota: "",
   recomendacao_activa: true,
@@ -264,7 +267,7 @@ export interface EdicaoRevista {
 
   destaques: DestaqueRevista[];
   radar: RadarRevista[];
-  recomendacao: { tipo: string; meta: string; titulo: string; url: string; nota: string } | null;
+  recomendacao: { tipo: string; meta: string; titulo: string; tituloTexto: string; subtitulo: string; nota: string; url: string } | null;
   ferramentas: FerramentaRevista[];
   podcast: PodcastRevista | null;
   livro: LivroRevista | null;
@@ -337,6 +340,7 @@ export function normalizarConfigRevista(v: unknown): RevistaConfigRow {
     recomendacao_tipo: txt("recomendacao_tipo"),
     recomendacao_meta: txt("recomendacao_meta"),
     recomendacao_titulo: txt("recomendacao_titulo"),
+    recomendacao_subtitulo: txt("recomendacao_subtitulo"),
     recomendacao_url: txt("recomendacao_url"),
     recomendacao_nota: txt("recomendacao_nota"),
     recomendacao_activa: o.recomendacao_activa !== false,
@@ -729,13 +733,16 @@ export async function composeRevistaEdition(
       }
     : null;
 
-  const recomendacao = cfg.recomendacao_activa && cfg.recomendacao_titulo.trim()
+  const recomendacaoTitulo = textoDeHtmlEditorial(cfg.recomendacao_titulo);
+  const recomendacao = cfg.recomendacao_activa && recomendacaoTitulo
     ? {
         tipo: cfg.recomendacao_tipo.trim(),
         meta: cfg.recomendacao_meta.trim(),
-        titulo: cfg.recomendacao_titulo.trim(),
+        titulo: htmlEditorialInline(cfg.recomendacao_titulo),
+        tituloTexto: recomendacaoTitulo,
+        subtitulo: htmlEditorialInline(cfg.recomendacao_subtitulo),
         url: cfg.recomendacao_url.trim(),
-        nota: cfg.recomendacao_nota.trim(),
+        nota: htmlEditorialSeguro(cfg.recomendacao_nota),
       }
     : null;
 

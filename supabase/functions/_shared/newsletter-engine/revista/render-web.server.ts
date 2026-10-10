@@ -159,8 +159,9 @@ export function montarHtmlRevistaWeb(e: EdicaoRevista): HtmlRevistaWeb {
     const cabeca = ["Esta semana recomendo", rec.tipo, rec.meta].filter(Boolean).map(esc).join(" &middot; ");
     p.push(`<aside style="margin-top:56px;background:${R.painel};padding:32px;">
   <div style="font-family:${SANS};font-size:11px;line-height:16px;letter-spacing:0.18em;text-transform:uppercase;color:${R.textoSec};font-weight:700;">${cabeca}</div>
-  <h3 style="margin:12px 0 0 0;font-family:${SANS};font-size:22px;line-height:32px;font-weight:700;letter-spacing:-0.015em;"><a href="${href(rec.url)}" style="color:${R.navy};text-decoration:none;">${esc(rec.titulo)}</a></h3>
-  ${rec.nota ? `<p style="margin:10px 0 0 0;font-family:${SERIF};font-size:16px;line-height:28px;color:${R.textoSec};">${esc(rec.nota)}</p>` : ""}
+  <h3 style="margin:12px 0 0 0;font-family:${SANS};font-size:22px;line-height:32px;font-weight:700;letter-spacing:-0.015em;"><a href="${href(rec.url)}" style="color:${R.navy};text-decoration:none;">${rec.titulo}</a></h3>
+  ${rec.subtitulo ? `<div style="margin:8px 0 0 0;font-family:${SANS};font-size:18px;line-height:28px;color:${R.navy};">${rec.subtitulo}</div>` : ""}
+  ${rec.nota ? `<div style="margin:10px 0 0 0;font-family:${SERIF};font-size:16px;line-height:28px;color:${R.textoSec};">${rec.nota}</div>` : ""}
   <p style="margin:14px 0 0 0;"><a href="${href(rec.url)}" style="font-family:${SANS};font-size:15px;color:${R.azul};text-decoration:none;font-weight:700;">${esc(ctaRecomendacao(rec.tipo))} &rarr;</a></p>
 </aside>`);
   }
