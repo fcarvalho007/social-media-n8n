@@ -1,7 +1,7 @@
 - The newsletter engine is vendored in shared edge code; rendering and secrets stay server-side.
 - Origin source under migration-reference/ stays as inert .txt files; prevents build/migration tooling from picking it up.
 - Login is email-only for two existing accounts via entrar-email (owner decision); allowlist, rate limit and auth_entradas log stay server-side; never creates accounts.
-- Newsletter screens and shared engine are generator-owned (edit the inert source, not outputs); one atomic pass keeps preview and delivery identical.
+- Newsletter screens and shared engine are generator-owned (edit inert source, not outputs); restricted rich HTML uses the shared sanitizer so editor, email and web stay identical.
 - Derived content (chronicle carousel) lives in nl_conteudos_* tables behind the nl-conteudos edge function; jobs are keyed by edition+type+source hash and only advance after E-goi reports "sent", so retries never regenerate and acceptance is not treated as delivery.
 - Studio "Para quem?" and brand ownership are stored in estudio_preferencias / estudio_identidades (backend), never only in localStorage.
 - Newsletter/Estudio baseline DDL lives in supabase/schema/nl_baseline.sql (exported from the live catalog by scripts/exportar-esquema-nl.sql); clean checkouts apply social migrations, then the baseline, then drizzle/migrations, because the original nl_ migrations were lost.
