@@ -22,6 +22,7 @@ import { etiquetaTeste, eProva } from "@/features/motor/biblioteca";
 export { etiquetaTeste, eProva };
 import type { Medidor } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { paraPacote } from "../../supabase/functions/_shared/motor/proposta";
+import { BibliotecasConteudoTabs } from "@/components/conteudos/BibliotecasConteudoTabs";
 
 export const NOME_ESTADO: Record<EstadoTrabalho, string> = {
   pendente: "Na fila", a_processar: "A preparar", concluido: "Pronto", erro: "Erro", desconhecido: "Resultado incerto", cancelado: "Cancelado",
@@ -115,6 +116,7 @@ export default function Carrosseis() {
           </div>
           <Button asChild className="h-11 px-5"><Link to="/estudio/carrosseis/novo"><Plus className="mr-1.5 h-4 w-4" />Novo conteúdo</Link></Button>
         </header>
+        <BibliotecasConteudoTabs ativa="meus" />
 
         {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
         {!itens && !erro && <p className="flex items-center text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A carregar…</p>}

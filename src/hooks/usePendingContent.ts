@@ -26,6 +26,7 @@ interface PendingContentResult {
   draftsCount: number;
   scheduledCount: number;
   loading: boolean;
+  refresh: () => void;
 }
 
 export function usePendingContent(limit: number = 6): PendingContentResult {
@@ -35,6 +36,7 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
   const [draftsCount, setDraftsCount] = useState(0);
   const [scheduledCount, setScheduledCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const projetoId = useProjetoOpcional()?.projetoId ?? null;
 
   useEffect(() => {
@@ -235,7 +237,15 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(draftsChannel);
     };
-  }, [limit, projetoId]);
+  }, [limit, projetoId, refreshKey]);
 
-  return { items, totalCount, pendingApprovalCount, draftsCount, scheduledCount, loading };
+  return {
+    items,
+    totalCount,
+    pendingApprovalCount,
+    draftsCount,
+    scheduledCount,
+    loading,
+    refresh: () => setRefreshKey((key) => key + 1),
+  };
 }
