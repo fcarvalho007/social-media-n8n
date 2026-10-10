@@ -33,4 +33,9 @@ export declare const obterImagemBase64Fn: import("../_shim/start.ts").NlServerFn
 }, {
     base64: string;
     tipo: string;
+    erro?: never;
+} | {
+    base64?: never;
+    tipo?: never;
+    erro: string;
 }>;

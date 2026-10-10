@@ -47,6 +47,7 @@ export function ImagemCronica({ edicaoId, cfg, editar, bloqueado }: Props) {
   const abrirOriginal = useCallback(async (): Promise<HTMLImageElement> => {
     if (original && original.dataset.origem === url) return original;
     const r = await obterOriginal({ data: { url } });
+    if (r.erro) throw new Error(r.erro);
     const img = await carregarImagem(`data:${r.tipo};base64,${r.base64}`);
     img.dataset.origem = url;
     setOriginal(img);
