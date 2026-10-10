@@ -7,6 +7,10 @@
 // na fila de pendentes.
 
 /** Rodapés administrativos, páginas institucionais e blocos promocionais. */
+/** Footer phrases that never appear in a real headline: matched anywhere. */
+const RODAPE_INEQUIVOCO =
+  /(this email was sent|este email foi enviado|view (this )?in browser|ver no browser|all rights reserved|direitos reservados|manage your subscription|unsubscribe|desinscrever)/i;
+
 const RUIDO_TITULO =
   /(termos (de|e) (servi|uso|utiliza)|termos e condi|terms of (service|use)|condi(ç|c)(õ|o)es gerais|pol[ií]tica de privacidade|privacy policy|pol[ií]tica de cookies|cookie (policy|settings)|aviso legal|legal notice|rodap[ée]|footer|direitos reservados|all rights reserved|copyright|©|sobre n[óo]s|about us|quem somos|contact(o|os|s)?( us)?|fale connosco|ficha t[ée]cnica|mapa do site|sitemap|prefer[eê]nci?as? de e-?mail|email preferences|gerir prefer[eê]ncias|manage preferences|unsubscribe|desinscrever|cancelar (a )?subscri|subscri(ç|c)(ã|a)o|subscription|convite para subscri|subscreve|subscreva|inscreve-te|manage your subscription|advertise with us|together with|in partnership with|patrocinad|sponsor|partilha (esta|a) newsletter|share this|feedback|d[aá] a tua opini[ãa]o|segue-nos|follow us|ver (este )?email|this email was sent|este email foi enviado|ver no browser|view (this )?in browser|ler online|read online|read in browser|clica aqui|click here|saber mais|learn more|ler mais|read more|carreiras|careers|trabalha connosco|newsletter archive|arquivo da newsletter|login|iniciar sess[ãa]o|criar conta|sign ?up|log ?in)/i;
 
@@ -51,7 +55,15 @@ export function motivoTituloLixo(
 ): MotivoLixo | null {
   const t = (titulo || "").trim();
   if (!t) return "titulo_vazio";
-  if (RUIDO_TITULO.test(t)) return "pagina_institucional";
+  if (RODAPE_INEQUIVOCO.test(t)) return "pagina_institucional";
+  // Labels only count when they ARE the title (short and starting with the label);
+  // real headlines mentioning «contactos», «login», «subscrição»… must pass.
+  const semAdorno = t.replace(/^[^\p{L}\p{N}]+/u, "");
+  const palavras = semAdorno.split(/\s+/).filter(Boolean).length;
+  if (palavras <= 6) {
+    const m = RUIDO_TITULO.exec(semAdorno);
+    if (m && m.index === 0) return "pagina_institucional";
+  }
 
   const norm = normalizar(t);
   if (TITULOS_MARCADOR.test(norm)) return "titulo_vazio";
