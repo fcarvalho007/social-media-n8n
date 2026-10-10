@@ -55,6 +55,7 @@ import { PropostaApresentacao } from "./PropostaApresentacao";
 import { PropostaPecasCronica } from "./PropostaPecasCronica";
 import { FerramentasSemana } from "../FerramentasSemana";
 import { normalizarConteudoCronica } from "../sanitizeHtml";
+import { textoDeHtmlEditorial } from "@/newsletter/lib/newsletter-engine/revista/html-restrito";
 import { useSessao } from "../useSessao";
 import { Atualidade, ResumoOrdem, type PapelDerivado, type SeloBrief } from "./Atualidade";
 import { BriefsDaEdicao } from "./BriefsDaEdicao";
@@ -1653,7 +1654,7 @@ export default function EditorRevista({
             resumo={opcional(
               cfg?.recomendacao_activa !== false,
               !!(cfg?.recomendacao_titulo ?? "").trim(),
-              `${cfg?.recomendacao_tipo || "Recomendação"} · «${(cfg?.recomendacao_titulo ?? "").slice(0, 55)}»`,
+              `${cfg?.recomendacao_tipo || "Recomendação"} · «${textoDeHtmlEditorial(cfg?.recomendacao_titulo).slice(0, 55)}»`,
               "Bloco ligado, mas sem recomendação escolhida.",
             )}
           >
@@ -1686,13 +1687,13 @@ export default function EditorRevista({
                     ? { titulo: ep.titulo, url: ep.url ?? "" }
                     : cfg.recomendacao_tipo === "Ferramenta"
                       ? (() => {
-                          const f = ferramentas.find((x) => (x.nome ?? "") === cfg.recomendacao_titulo)
+                          const f = ferramentas.find((x) => (x.nome ?? "") === textoDeHtmlEditorial(cfg.recomendacao_titulo))
                             ?? (ferramentas.length === 1 ? ferramentas[0] : null);
                           return f ? { titulo: f.nome ?? "", url: f.url ?? "" } : null;
                         })()
                       : null;
                   const sincronizado = !!origem
-                    && origem.titulo === cfg.recomendacao_titulo
+                    && origem.titulo === textoDeHtmlEditorial(cfg.recomendacao_titulo)
                     && origem.url === cfg.recomendacao_url;
                   return (
                     <div className="space-y-2">
