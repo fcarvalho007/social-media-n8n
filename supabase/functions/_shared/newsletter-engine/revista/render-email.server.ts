@@ -193,14 +193,14 @@ export function montarHtmlRevista(e: EdicaoRevista): string {
       if (i > 0) {
         partes.push(`<tr><td class="px" style="padding:0 24px;${CELULA}"><div style="border-top:1px solid ${R.filete};font-size:0;line-height:0;">&nbsp;</div></td></tr>`);
       }
-      partes.push(`<tr><td class="px" style="padding:28px 24px 29px;${CELULA}">
-        <table role="presentation" width="100%" style="${FF}border-collapse:collapse;"><tr>
-          <td class="destaque-num" width="76" valign="top" style="width:76px;padding-right:24px;${CELULA}">
-            <p style="font-family:${SERIF};font-size:64px;line-height:62px;color:${R.azul};margin:0;">${i + 1}</p>
+      partes.push(`<tr><td class="px" style="padding:26px 24px 27px;${CELULA}">
+        <p class="label text-link" style="${ETIQUETA}color:${R.azul};">${esc(meta)}</p>
+        <table role="presentation" width="100%" style="margin-top:10px;${FF}border-collapse:collapse;"><tr>
+          <td class="destaque-num" width="64" valign="top" style="width:64px;padding-right:14px;${CELULA}">
+            <p style="font-family:${SERIF};font-size:88px;line-height:82px;color:${R.azul};margin:0;">${i + 1}</p>
           </td>
           <td valign="top" style="${CELULA}">
-        <p class="label text-link" style="${ETIQUETA}color:${R.azul};">${esc(meta)}</p>
-        <h3 class="story" style="font-family:${SERIF};font-size:26px;line-height:33px;letter-spacing:-0.3px;padding-top:10px;margin:0;">
+        <h3 class="story" style="font-family:${SERIF};font-size:26px;line-height:33px;letter-spacing:-0.3px;margin:0;">
           <a class="text-main" href="${href(d.url)}" style="font-family:${SERIF};font-size:26px;line-height:33px;color:${R.navy};text-decoration:none;">${esc(d.titulo)}</a>
         </h3>
         ${d.resumoFactual ? `<div style="padding-top:12px;${FF}"><p class="text-body" style="font-size:16px;line-height:26px;color:${R.texto};margin:0;${FF}">${esc(d.resumoFactual)}</p></div>` : ""}
