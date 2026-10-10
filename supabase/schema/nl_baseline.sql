@@ -1141,6 +1141,7 @@ CREATE TABLE IF NOT EXISTS public.nl_revista_edicao (
   recomendacao_tipo text DEFAULT ''::text NOT NULL,
   recomendacao_meta text DEFAULT ''::text NOT NULL,
   recomendacao_titulo text DEFAULT ''::text NOT NULL,
+  recomendacao_subtitulo text DEFAULT ''::text NOT NULL,
   recomendacao_url text DEFAULT ''::text NOT NULL,
   recomendacao_nota text DEFAULT ''::text NOT NULL,
   bloco_ferramentas boolean DEFAULT false NOT NULL,
