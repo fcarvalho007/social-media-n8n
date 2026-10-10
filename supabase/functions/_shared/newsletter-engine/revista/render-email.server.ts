@@ -193,10 +193,15 @@ export function montarHtmlRevista(e: EdicaoRevista): string {
       if (i > 0) {
         partes.push(`<tr><td class="px" style="padding:0 24px;${CELULA}"><div style="border-top:1px solid ${R.filete};font-size:0;line-height:0;">&nbsp;</div></td></tr>`);
       }
-      partes.push(`<tr><td class="px" style="padding:24px 24px 25px;${CELULA}">
+      partes.push(`<tr><td class="px" style="padding:28px 24px 29px;${CELULA}">
+        <table role="presentation" width="100%" style="${FF}border-collapse:collapse;"><tr>
+          <td class="destaque-num" width="76" valign="top" style="width:76px;padding-right:24px;${CELULA}">
+            <p style="font-family:${SERIF};font-size:64px;line-height:62px;color:${R.azul};margin:0;">${i + 1}</p>
+          </td>
+          <td valign="top" style="${CELULA}">
         <p class="label text-link" style="${ETIQUETA}color:${R.azul};">${esc(meta)}</p>
-        <h3 class="story" style="font-size:25px;line-height:31px;letter-spacing:-0.5px;padding-top:9px;margin:0;${FF}">
-          <a class="text-main" href="${href(d.url)}" style="${FF}font-size:25px;line-height:31px;font-weight:bold;color:${R.navy};text-decoration:none;">${esc(d.titulo)}</a>
+        <h3 class="story" style="font-family:${SERIF};font-size:26px;line-height:33px;letter-spacing:-0.3px;padding-top:10px;margin:0;">
+          <a class="text-main" href="${href(d.url)}" style="font-family:${SERIF};font-size:26px;line-height:33px;color:${R.navy};text-decoration:none;">${esc(d.titulo)}</a>
         </h3>
         ${d.resumoFactual ? `<div style="padding-top:12px;${FF}"><p class="text-body" style="font-size:16px;line-height:26px;color:${R.texto};margin:0;${FF}">${esc(d.resumoFactual)}</p></div>` : ""}
         ${d.minhaLeitura ? `<table role="presentation" width="100%" bgcolor="${R.ferramentaFundo}" class="panel-blue" style="margin-top:14px;background:${R.ferramentaFundo};border-left:3px solid ${R.azul};${FF}border-collapse:collapse;"><tr><td style="padding:15px 17px;${CELULA}">
@@ -206,6 +211,8 @@ export function montarHtmlRevista(e: EdicaoRevista): string {
           ? `<div style="padding-top:17px;${FF}">${botao(urlBriefEmail(d.brief.url), "Ler o Brief", R.fundoCartao, R.azul, R.azul, "paper text-link")}</div>
              ${d.url ? `<div style="padding-top:11px;${FF}"><a class="text-link" href="${href(d.url)}" style="${FF}font-size:13px;line-height:20px;color:${R.azul};text-decoration:underline;">Fonte original &#8599;</a></div>` : ""}`
           : d.url ? `<div style="padding-top:17px;${FF}">${botao(d.url, d.ctaRotulo || CTA_NOTICIA_PADRAO, R.fundoCartao, R.azul, R.azul, "paper text-link")}</div>` : ""}
+          </td>
+        </tr></table>
       </td></tr>`);
     });
   }
