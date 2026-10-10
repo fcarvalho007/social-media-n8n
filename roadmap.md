@@ -30,3 +30,4 @@
 - [x] Tornar «Aprovar» definitivo e «Remover da newsletter» específico da edição, preservando a curadoria
 - [x] Permitir eliminar conteúdos no Painel e alternar entre conteúdos próprios e carrosséis da crónica
 - [x] Adicionar título, subtítulo e nota editorial formatados a «Esta semana recomendo»
+- [x] Refinar os Destaques numerados: categoria alinhada ao título e ritmo compacto no email e web
