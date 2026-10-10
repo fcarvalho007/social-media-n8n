@@ -69,13 +69,20 @@ export const carregarImagemFn = createServerFn({ method: "POST" })
 export const obterImagemBase64Fn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { url: string }) => d)
-  .handler(async ({ data }): Promise<{ base64: string; tipo: string }> => {
-    if (!/^https?:\/\//i.test(data.url)) throw new Error("Endereço de imagem inválido.");
-    const res = await fetch(data.url);
-    if (!res.ok) throw new Error("Não foi possível obter a imagem original.");
+  .handler(async ({ data }): Promise<{ base64: string; tipo: string; erro?: never } | { base64?: never; tipo?: never; erro: string }> => {
+    if (!/^https?:\/\//i.test(data.url)) return { erro: "Endereço de imagem inválido." };
+    let res: Response;
+    try {
+      res = await fetch(data.url);
+    } catch {
+      return { erro: "Não foi possível obter a imagem original." };
+    }
+    // Uma imagem antiga pode já não existir. Isso impede o recorte, mas não
+    // deve transformar uma operação opcional num erro 500 da aplicação.
+    if (!res.ok) return { erro: "Não foi possível obter a imagem original." };
     const tipo = res.headers.get("content-type") ?? "image/jpeg";
-    if (!tipo.startsWith("image/")) throw new Error("O endereço não é uma imagem.");
+    if (!tipo.startsWith("image/")) return { erro: "O endereço não é uma imagem." };
     const buf = await res.arrayBuffer();
-    if (buf.byteLength > 10 * 1024 * 1024) throw new Error("A imagem original é demasiado grande.");
+    if (buf.byteLength > 10 * 1024 * 1024) return { erro: "A imagem original é demasiado grande." };
     return { base64: Buffer.from(buf).toString("base64"), tipo };
   });

@@ -31,3 +31,4 @@
 - [x] Permitir eliminar conteúdos no Painel e alternar entre conteúdos próprios e carrosséis da crónica
 - [x] Adicionar título, subtítulo e nota editorial formatados a «Esta semana recomendo»
 - [x] Refinar os Destaques numerados: categoria alinhada ao título e ritmo compacto no email e web
+- [x] Impedir que uma imagem antiga inacessível da crónica provoque erro 500 e ecrã em branco
