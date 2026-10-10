@@ -1047,10 +1047,6 @@ export default function EditorRevista({
       toast.error(`Já tens ${LIMITES_REVISTA.destaquesMax} destaques. Passa um deles a Radar ou a Só site antes de escolher outro.`);
       return;
     }
-    if (papel === "radar" && radar.length >= LIMITES_REVISTA.radarMax) {
-      toast.error(`O Radar já tem ${LIMITES_REVISTA.radarMax} notícias. Liberta uma antes de acrescentar outra.`);
-      return;
-    }
     if (!existente && aprovadas.find((n) => n.id === noticiaId)?.destino === "site") {
       mPatchNoticia.mutate({ id: noticiaId, patch: { destino: "news" } });
     }
@@ -1064,19 +1060,14 @@ export default function EditorRevista({
   const contadores = [
     { rotulo: "Aprovadas", valor: String(aprovadas.length) },
     { rotulo: "Destaques", valor: `${destaques.length}/${LIMITES_REVISTA.destaquesMax}` },
-    { rotulo: "Radar", valor: `${radar.length}/${LIMITES_REVISTA.radarMax}` },
+    { rotulo: "Novidades", valor: String(radar.length) },
     { rotulo: "Por organizar", valor: String(porOrganizar.length) },
     { rotulo: "Só site", valor: String(soSite.length) },
   ];
   const destaquesCheios = destaques.length >= LIMITES_REVISTA.destaquesMax;
-  const radarCheio = radar.length >= LIMITES_REVISTA.radarMax;
-  const notaLimite = destaquesCheios && radarCheio
-    ? "Destaques e Radar estão no máximo — liberta um lugar para trocar."
-    : destaquesCheios
+  const notaLimite = destaquesCheios
       ? `Destaques no máximo (${LIMITES_REVISTA.destaquesMax}) — para trocar, passa um a Radar ou Só site.`
-      : radarCheio
-        ? `Radar no máximo (${LIMITES_REVISTA.radarMax}) — liberta uma entrada para acrescentar outra.`
-        : null;
+      : null;
 
   /* ─── Fases de trabalho: curar → compor → publicar ─── */
   const [fase, setFase] = useState<Fase>("compor");
@@ -1188,12 +1179,12 @@ export default function EditorRevista({
       bloqueios.push({ id: `leitura-${d.id}`, fase: "compor", nivel: "aviso", texto: `Falta «A minha leitura» do destaque ${i + 1}.`, ir: () => irNoticia(d.noticia_id) });
     }
   });
-  if (radar.length < LIMITES_REVISTA.radarMin || radar.length > LIMITES_REVISTA.radarMax) {
+  if (radar.length < LIMITES_REVISTA.radarMin) {
     bloqueios.push({
       id: "radar", fase: "compor", nivel: "grave",
       texto: radar.length < LIMITES_REVISTA.radarMin
-        ? `${faltam(LIMITES_REVISTA.radarMin - radar.length, "notícia", "notícias")} no Radar.`
-        : `O Radar tem ${plural(radar.length, "notícia", "notícias")} — só entram ${LIMITES_REVISTA.radarMax}.`,
+        ? `${faltam(LIMITES_REVISTA.radarMin - radar.length, "notícia", "notícias")} em «${ROTULOS_REVISTA.radar}».`
+        : "",
       ir: () => irPara("compor", "atualidade"),
     });
   }
@@ -1426,12 +1417,12 @@ export default function EditorRevista({
                 ? {
                     estado: "pronto",
                     selo: "Pronto",
-                    linha: `${plural(destaques.length, "destaque", "destaques")} · ${radar.length} no Radar · ${soSite.length} só no site`,
+                    linha: `${plural(destaques.length, "destaque", "destaques")} · ${radar.length} em Novidades · ${soSite.length} só no site`,
                   }
                 : {
                     estado: "falta",
                     selo: `Faltam ${Math.max(0, LIMITES_REVISTA.destaquesMin - destaques.length) + Math.max(0, LIMITES_REVISTA.radarMin - radar.length)}`,
-                    linha: `${destaques.length} de ${LIMITES_REVISTA.destaquesMin}–${LIMITES_REVISTA.destaquesMax} destaques · ${radar.length} de ${LIMITES_REVISTA.radarMin}–${LIMITES_REVISTA.radarMax} no Radar · ${soSite.length} só no site`,
+                    linha: `${destaques.length} de ${LIMITES_REVISTA.destaquesMin}–${LIMITES_REVISTA.destaquesMax} destaques · ${radar.length} (mínimo ${LIMITES_REVISTA.radarMin}) em Novidades · ${soSite.length} só no site`,
                   }
             }
           >
@@ -1455,19 +1446,11 @@ export default function EditorRevista({
               </div>
               <div className="space-y-2">
                 <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Radar ({LIMITES_REVISTA.radarMin} a {LIMITES_REVISTA.radarMax} lugares)
+                  {ROTULOS_REVISTA.radar} (mínimo {LIMITES_REVISTA.radarMin})
                 </p>
-                <Ranhuras
-                  total={LIMITES_REVISTA.radarMax}
-                  minimo={LIMITES_REVISTA.radarMin}
-                  ocupadas={radar.map((r) => ({
-                    id: r.noticia_id,
-                    titulo: r.titulo_override?.trim() || r.noticia?.titulo || "—",
-                  }))}
-                  textoVazio="Lugar por preencher"
-                  accaoVazia="Escolher" accaoOcupada="Abrir"
-                  onEscolher={(_, item) => irNoticia(item?.id)}
-                />
+                <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-[13px] text-muted-foreground">
+                  {radar.length === 0 ? "Ainda sem notícias." : `${plural(radar.length, "notícia escolhida", "notícias escolhidas")} — sem limite máximo.`}
+                </p>
               </div>
             </div>
 
@@ -1476,9 +1459,10 @@ export default function EditorRevista({
                 Ordem no email
               </p>
               <ResumoOrdem
-                destaques={destaques.map((d) => ({ id: d.id, titulo: d.titulo_override?.trim() || d.noticia?.titulo || "—" }))}
-                radar={radar.map((r) => ({ id: r.id, titulo: r.titulo_override?.trim() || r.noticia?.titulo || "—" }))}
+                destaques={destaques.map((d) => ({ id: d.id, noticiaId: d.noticia_id, titulo: d.titulo_override?.trim() || d.noticia?.titulo || "—" }))}
+                radar={radar.map((r) => ({ id: r.id, noticiaId: r.noticia_id, titulo: r.titulo_override?.trim() || r.noticia?.titulo || "—" }))}
                 onReordenar={reordenarEmail}
+                onRetirarRadar={(id) => definirPapel(id, "so_site")}
               />
             </div>
             <div className="space-y-2 border-t border-border pt-4">

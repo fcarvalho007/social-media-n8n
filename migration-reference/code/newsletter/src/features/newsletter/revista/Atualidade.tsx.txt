@@ -64,15 +64,15 @@ export type PatchNoticia = Partial<{
 }>;
 
 const ACENTO: Record<PapelDerivado, string> = {
-  destaque: "border-l-2 border-l-primary/70 bg-primary/[0.03]",
-  radar: "border-l-2 border-l-sky-600/50 bg-sky-500/[0.03]",
-  so_site: "border-l-2 border-l-border",
-  por_organizar: "border-l-2 border-l-amber-500/70 bg-amber-500/[0.04]",
+  destaque: "border-l-4 border-l-primary bg-primary/10",
+  radar: "border-l-4 border-l-accent-foreground/50 bg-accent/70",
+  so_site: "border-l-4 border-l-muted-foreground/40 bg-muted/70",
+  por_organizar: "border-l-4 border-l-estado-falta bg-estado-falta/10",
 };
 
 const ROTULO: Record<PapelDerivado, string> = {
   destaque: "Destaque",
-  radar: "Radar",
+  radar: "Novidades da semana",
   so_site: "Só site",
   por_organizar: "Por organizar",
 };
@@ -115,7 +115,6 @@ export function TrioDestino({
   onDefinir: (p: PapelDerivado) => void;
 }) {
   const cheioD = Boolean(cheios?.destaque);
-  const cheioR = Boolean(cheios?.radar);
   return (
     <div className="grid w-full grid-cols-3 gap-2 sm:w-auto sm:min-w-[300px]" role="group" aria-label="Destino editorial">
       <Botao
@@ -128,13 +127,11 @@ export function TrioDestino({
         {SIMBOLO.destaque} Destaque
       </Botao>
       <Botao
-        activo={papel === "radar"} desactivado={cheioR}
-        titulo={cheioR && papel !== "radar"
-          ? "O Radar já tem 5 notícias — liberta uma antes de escolher outra"
-          : "Entra no Radar"}
+        activo={papel === "radar"}
+        titulo={`Entra em «${ROTULOS_REVISTA.radar}»`}
         onClick={() => onDefinir("radar")}
       >
-        {SIMBOLO.radar} Radar
+        {SIMBOLO.radar} Novidades
       </Botao>
       <Botao
         activo={papel === "so_site"}
@@ -431,6 +428,29 @@ export interface SeloBrief {
   papel: "destaque" | "radar";
 }
 
+export interface CategoriaRepetida {
+  categoria: string;
+  rotulo: string;
+  quantidade: number;
+}
+
+/** Categorias com duas ou mais entradas em «Novidades da semana». */
+export function categoriasRepetidasNoRadar(itens: ItemRevista[]): CategoriaRepetida[] {
+  const contagens = new Map<string, CategoriaRepetida>();
+  for (const item of itens) {
+    if (item.papel !== "radar" || !item.noticia) continue;
+    const categoria = item.noticia.categoria;
+    const definicao = categorias.find((c) => c.id === categoria);
+    const atual = contagens.get(categoria);
+    contagens.set(categoria, {
+      categoria,
+      rotulo: definicao?.curto ?? definicao?.nome ?? categoria,
+      quantidade: (atual?.quantidade ?? 0) + 1,
+    });
+  }
+  return [...contagens.values()].filter((c) => c.quantidade >= 2).sort((a, b) => b.quantidade - a.quantidade);
+}
+
 /** Etiqueta discreta: símbolo + texto, nunca só cor, e sem conteúdo do Brief. */
 function SeloDoBrief({ selo }: { selo: SeloBrief }) {
   const alerta = selo.precisaAtencao || selo.rotulo === "Erro";
@@ -684,7 +704,8 @@ export function Atualidade({
 
   const nDestaques = itens.filter((i) => i.papel === "destaque").length;
   const nRadar = itens.filter((i) => i.papel === "radar").length;
-  const cheios = { destaque: nDestaques >= LIMITES_REVISTA.destaquesMax, radar: nRadar >= LIMITES_REVISTA.radarMax };
+  const cheios = { destaque: nDestaques >= LIMITES_REVISTA.destaquesMax, radar: false };
+  const categoriasRepetidas = useMemo(() => categoriasRepetidasNoRadar(itens), [itens]);
 
   /** Sobe/desce uma notícia dentro do seu grupo, escrevendo a ordem global. */
   const mover = (grupo: NoticiaAprovada[], indice: number, dir: -1 | 1) => {
@@ -723,9 +744,9 @@ export function Atualidade({
       <div className="flex flex-wrap items-center gap-2">
         {[
           { rotulo: "Aprovadas", valor: String(aprovadas.length) },
-          { rotulo: "No email", valor: `${nDestaques + nRadar}/8` },
+          { rotulo: "No email", valor: String(nDestaques + nRadar) },
           { rotulo: "Destaques", valor: `${nDestaques}/${LIMITES_REVISTA.destaquesMax}` },
-          { rotulo: "Radar", valor: `${nRadar}/${LIMITES_REVISTA.radarMax}` },
+          { rotulo: "Novidades", valor: String(nRadar) },
           { rotulo: "Por organizar", valor: String(porOrganizar.length) },
           { rotulo: "Só no site", valor: String(soSite.length) },
         ].map((c) => (
@@ -738,6 +759,13 @@ export function Atualidade({
           </span>
         ))}
       </div>
+      {categoriasRepetidas.length > 0 && (
+        <div role="status" className="rounded-lg border border-estado-falta/40 bg-estado-falta/10 px-3 py-2 text-[13px] text-foreground">
+          <strong>Atenção à variedade:</strong>{" "}
+          {categoriasRepetidas.map((c) => `${c.rotulo} tem ${c.quantidade} notícias`).join(" · ")}.
+          <span className="text-muted-foreground"> Podes manter esta seleção.</span>
+        </div>
+      )}
       <p className="text-[14px] text-muted-foreground">
         «Aprovar» em Curar é definitivo. Aqui só é preciso organizar como Destaque, Radar ou Só site — ou remover da newsletter.
       </p>
@@ -810,9 +838,9 @@ export function Atualidade({
 
 /* ─── resumo compacto: ordem final no email ─── */
 
-interface LinhaResumo { id: string; titulo: string }
+interface LinhaResumo { id: string; noticiaId: string; titulo: string }
 
-function LinhaOrdenavel({ n, indice }: { n: LinhaResumo; indice: number }) {
+function LinhaOrdenavel({ n, indice, onRetirar }: { n: LinhaResumo; indice: number; onRetirar?: (noticiaId: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: n.id });
   const estilo = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 };
   return (
@@ -829,15 +857,26 @@ function LinhaOrdenavel({ n, indice }: { n: LinhaResumo; indice: number }) {
       </button>
       <span className="w-4 shrink-0 text-[12px] font-semibold tabular-nums text-muted-foreground">{indice + 1}</span>
       <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{n.titulo}</span>
+      {onRetirar && (
+        <button
+          type="button"
+          onClick={() => onRetirar(n.noticiaId)}
+          className="shrink-0 rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label={`Retirar «${n.titulo}» de Novidades da semana`}
+          title="Retirar de Novidades da semana e manter só na Atualidade"
+        >
+          Retirar
+        </button>
+      )}
     </li>
   );
 }
 
 function Coluna({
-  titulo, contador, itens, vazio, onReordenar,
+  titulo, contador, itens, vazio, onReordenar, onRetirar,
 }: {
   titulo: string; contador: string; itens: LinhaResumo[]; vazio: string;
-  onReordenar: (ids: string[]) => void;
+  onReordenar: (ids: string[]) => void; onRetirar?: (noticiaId: string) => void;
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -863,7 +902,7 @@ function Coluna({
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={arrastar}>
             <SortableContext items={itens.map((i) => i.id)} strategy={verticalListSortingStrategy}>
               <ul className="space-y-1.5">
-                {itens.map((n, i) => <LinhaOrdenavel key={n.id} n={n} indice={i} />)}
+                {itens.map((n, i) => <LinhaOrdenavel key={n.id} n={n} indice={i} onRetirar={onRetirar} />)}
               </ul>
             </SortableContext>
           </DndContext>
@@ -877,10 +916,11 @@ function Coluna({
  * aparece na newsletter. Cada coluna ordena apenas o seu papel.
  */
 export function ResumoOrdem({
-  destaques, radar, onReordenar,
+  destaques, radar, onReordenar, onRetirarRadar,
 }: {
   destaques: LinhaResumo[]; radar: LinhaResumo[];
   onReordenar: (papel: PapelRevista, ids: string[]) => void;
+  onRetirarRadar: (noticiaId: string) => void;
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -890,9 +930,10 @@ export function ResumoOrdem({
         onReordenar={(ids) => onReordenar("destaque", ids)}
       />
       <Coluna
-        titulo="Radar" contador={`${radar.length}/${LIMITES_REVISTA.radarMax}`} itens={radar}
-        vazio="Ainda sem entradas no Radar."
+        titulo={ROTULOS_REVISTA.radar} contador={String(radar.length)} itens={radar}
+        vazio={`Ainda sem entradas em «${ROTULOS_REVISTA.radar}».`}
         onReordenar={(ids) => onReordenar("radar", ids)}
+        onRetirar={onRetirarRadar}
       />
     </div>
   );
