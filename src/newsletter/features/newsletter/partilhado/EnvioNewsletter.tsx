@@ -7,7 +7,8 @@
 
 import { avisosConfirmaveisDe, bloqueiosRigidosDe } from "@/newsletter/lib/newsletter-engine/revista/prontidao-rotulos";
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@/newsletter/shim/start";
 import { toast } from "sonner";
 import {
   AlertTriangle, CalendarClock, CheckCircle2, Circle, FileText,
@@ -16,7 +17,7 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { estadoDestinosFn, prontidaoRevistaFn } from "@/newsletter/lib/destinos.functions";
+import { estadoDestinosFn, prontidaoRevistaFn, publicarCronicaFn, publicarArtigoCronicaFn } from "@/newsletter/lib/destinos.functions";
 import { baseUrlEdicoesFn } from "@/newsletter/lib/revista-web.functions";
 import { PreVisualizarEdicao, type VistaPrevia } from "@/newsletter/features/newsletter/revista/PreVisualizarEdicao";
 import { AvisoChecklistModal } from "@/newsletter/features/newsletter/AvisoChecklistModal";
@@ -76,12 +77,21 @@ export function EnvioNewsletter({
   const [erro, setErro] = useState<string | null>(null);
   const [resultadoFinal, setResultadoFinal] = useState<string | null>(null);
   const [confirmarPublicacao, setConfirmarPublicacao] = useState(false);
+  const [registo, setRegisto] = useState<{ hora: string; texto: string; erro?: boolean }[]>([]);
+  const registar = (texto: string, erro?: boolean) =>
+    setRegisto((r) => [...r, { hora: new Date().toLocaleTimeString("pt-PT", { timeZone: "Europe/Lisbon" }), texto, erro }]);
+  const qc = useQueryClient();
+  const publicarCronicaSrv = useServerFn(publicarCronicaFn);
+  const publicarArtigoSrv = useServerFn(publicarArtigoCronicaFn);
+  const [aPublicarCronica, setAPublicarCronica] = useState(false);
 
   const envio = useEnvioNewsletter({
     edicaoId,
     numero,
     onDisparoConcluido: (r) => {
       onEnviado?.();
+      for (const item of r.resultados) registar(`Lista ${item.lista_nome}: pedido aceite.`);
+      registar(r.falhas > 0 ? `Terminado com ${r.falhas} falha(s): ${r.mensagem}` : "Envio concluído.", r.falhas > 0);
       if (r.falhas > 0) {
         setResultadoFinal(null);
         setErro(r.mensagem);
@@ -97,7 +107,7 @@ export function EnvioNewsletter({
         toast.success(`Teste enviado com sucesso para ${destinos}.`);
       }
     },
-    onDisparoErro: (msg) => { setResultadoFinal(null); setErro(msg); },
+    onDisparoErro: (msg) => { setResultadoFinal(null); setErro(msg); registar(`Falhou: ${msg}`, true); },
     onRepetirErro: (msg) => setErro(msg),
     onAgendado: () => { setErro(null); onAberto(false); },
     onAgendarErro: setErro,
@@ -112,6 +122,7 @@ export function EnvioNewsletter({
     if (!aberto) {
       reset();
       setResultadoFinal(null);
+      setRegisto([]);
     }
   }, [aberto, reset]);
 
@@ -177,14 +188,39 @@ export function EnvioNewsletter({
   const confirmarAvisos = () => {
     const accao = avisosPendentes;
     setAvisosPendentes(null);
+    if (accao === "disparar") registar("Avisos confirmados — a iniciar envio…");
     if (accao === "disparar") disparar.mutate({ publicarConteudos: revista === true });
     if (accao === "agendar") agendar.mutate();
   };
   const precisaPublicar = !!revista && (!cronicaPublicada || !webPublica);
-  const iniciarDisparo = () => (avisos.length > 0
-    ? setAvisosPendentes("disparar")
-    : disparar.mutate({ publicarConteudos: revista === true }));
-  const pedirDisparo = () => (precisaPublicar ? setConfirmarPublicacao(true) : iniciarDisparo());
+  const iniciarDisparo = () => {
+    if (avisos.length > 0) { registar("A aguardar confirmação dos avisos."); setAvisosPendentes("disparar"); return; }
+    registar(revista ? "A publicar crónica e página web; depois segue o envio…" : "A enviar…");
+    disparar.mutate({ publicarConteudos: revista === true });
+  };
+  const pedirDisparo = () => {
+    setRegisto([]);
+    registar(isReal ? "Pedido de envio da edição." : "Pedido de envio de teste.");
+    if (precisaPublicar) setConfirmarPublicacao(true); else iniciarDisparo();
+  };
+  const publicarSoCronica = async () => {
+    setAPublicarCronica(true);
+    registar("A publicar a crónica em FredericoCarvalho.pt…");
+    try {
+      const r1 = await publicarCronicaSrv({ data: { edicao_id: edicaoId } }) as { ok?: boolean; mensagem?: string };
+      if (r1 && r1.ok === false) throw new Error(r1.mensagem ?? "Não foi possível criar o rascunho.");
+      registar("Rascunho criado no site; a tornar público…");
+      const r2 = await publicarArtigoSrv({ data: { edicao_id: edicaoId } }) as { ok?: boolean; mensagem?: string };
+      if (r2 && r2.ok === false) throw new Error(r2.mensagem ?? "A crónica não ficou pública.");
+      await qc.invalidateQueries({ queryKey: ["revista-destinos", edicaoId] });
+      registar("Crónica publicada; o endereço ficou gravado.");
+      toast.success("Crónica publicada em FredericoCarvalho.pt.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Não foi possível publicar a crónica.";
+      registar(`Crónica: ${msg}`, true);
+      toast.error(msg);
+    } finally { setAPublicarCronica(false); }
+  };
   const pedirAgendamento = () => (avisos.length > 0 ? setAvisosPendentes("agendar") : agendar.mutate());
 
   const podeEnviar =
@@ -287,6 +323,15 @@ export function EnvioNewsletter({
                 </span>
               </Button>
             </div>
+            {!cronicaPublicada && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button type="button" variant="secondary" disabled={aPublicarCronica || emCurso} onClick={publicarSoCronica}>
+                  {aPublicarCronica && <Loader2 size={16} className="animate-spin" />}
+                  {aPublicarCronica ? "A publicar a crónica…" : "Publicar crónica no site"}
+                </Button>
+                <span className="text-[12.5px] text-muted-foreground">Publica só a crónica; o URL é preenchido automaticamente.</span>
+              </div>
+            )}
           </section>
         )}
 
@@ -421,6 +466,20 @@ export function EnvioNewsletter({
           </Button>
         </div>
 
+        {registo.length > 0 && (
+          <div className="max-h-40 overflow-y-auto rounded-xl border border-border bg-muted/40 p-3" aria-live="polite">
+            <p className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Registo do envio</p>
+            <ul className="space-y-1 text-[13px]">
+              {registo.map((l, i) => (
+                <li key={i} className={l.erro ? "text-destructive" : "text-foreground"}>
+                  <span className="mr-2 tabular-nums text-muted-foreground">{l.hora}</span>{l.texto}
+                </li>
+              ))}
+              {emCurso && <li className="text-muted-foreground">{rotuloEnvio}</li>}
+            </ul>
+          </div>
+        )}
+
         {bloqueioCurador && (
           <p className="text-[13px] text-muted-foreground">Só um administrador pode disparar envios reais.</p>
         )}
@@ -459,21 +518,21 @@ export function EnvioNewsletter({
             onCancelar={() => setAvisosPendentes(null)}
           />
         )}
-      </DialogContent>
       {confirmarPublicacao && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/45 px-4" onClick={() => setConfirmarPublicacao(false)}>
           <div role="alertdialog" aria-modal="true" className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <p className="text-[18px] font-semibold text-foreground">Preparar e publicar antes do envio?</p>
             <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
-              A crónica será publicada ou atualizada e a página completa da edição ficará pública, mas fora dos motores de busca. Só depois de ambas responderem será enviado o teste.
+              A crónica será publicada ou atualizada e a página completa da edição ficará pública, mas fora dos motores de busca. Só depois de ambas responderem {isReal ? "será enviada a edição" : "será enviado o teste"}.
             </p>
             <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setConfirmarPublicacao(false)}>Cancelar</Button>
-              <Button onClick={() => { setConfirmarPublicacao(false); iniciarDisparo(); }}>Preparar e continuar</Button>
+              <Button type="button" variant="outline" onClick={() => { setConfirmarPublicacao(false); registar("Cancelado antes de publicar."); }}>Cancelar</Button>
+              <Button type="button" onClick={() => { setConfirmarPublicacao(false); registar("Publicação confirmada."); iniciarDisparo(); }}>Preparar e continuar</Button>
             </div>
           </div>
         </div>
       )}
+      </DialogContent>
       {previa && (
         <PreVisualizarEdicao
           edicaoId={edicaoId}
