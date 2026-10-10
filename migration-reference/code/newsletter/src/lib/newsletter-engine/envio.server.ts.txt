@@ -433,8 +433,15 @@ export async function prepararEnvio(opts: {
 
   if (revista && opts.publicarConteudos) {
     const { estadoDestinos } = await import("./revista/destinos.server");
-    const { publicarArtigoCronica, actualizarArtigoCronica } = await import("./revista/frederico-wordpress.server");
-    const antes = await estadoDestinos(opts.edicaoId);
+    const { publicarCronica, publicarArtigoCronica, actualizarArtigoCronica } = await import("./revista/frederico-wordpress.server");
+    let antes = await estadoDestinos(opts.edicaoId);
+    // Sem rascunho no site, cria-o primeiro: a publicação definitiva só actua
+    // sobre um artigo existente.
+    if (!antes.cronica.external_id && antes.cronica.estado !== "manual") {
+      const rascunho = await publicarCronica({ edicaoId: opts.edicaoId, quem });
+      if (!rascunho.ok) throw new ErroEnvio(`Não foi possível criar o rascunho da crónica: ${rascunho.mensagem}`, 409);
+      antes = await estadoDestinos(opts.edicaoId);
+    }
     if (antes.cronica.estado !== "publicada" && antes.cronica.estado !== "manual") {
       const resultadoCronica = antes.cronica.estado === "desactualizada"
         ? await actualizarArtigoCronica({ edicaoId: opts.edicaoId, quem })
