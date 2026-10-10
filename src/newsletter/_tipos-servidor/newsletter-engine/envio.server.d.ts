@@ -66,9 +66,8 @@ export interface ResDisparo {
 }
 /**
  * Pergunta à E-goi o estado real de cada campanha desta edição e alinha a
- * base de dados. Só "sent" confirma a entrega; "sending"/"processing" marcam a
- * campanha como aceite (nunca repetir). Quando um administrador já pediu o fecho
- * e todas as campanhas aceites estão confirmadas, fecha a edição aqui.
+ * base de dados. Evita "por enviar" falso quando a resposta ao disparo se
+ * perdeu (502, timeout) mas a campanha saiu mesmo.
  */
 export declare function reconciliarEdicao(edicaoId: string): Promise<{
     ok: true;
@@ -76,8 +75,6 @@ export declare function reconciliarEdicao(edicaoId: string): Promise<{
         lista_id: string;
         lista_nome: string;
     }>;
-    por_confirmar: number;
-    fechada: boolean;
 }>;
 export interface ListaPreparada {
     lista_id: string;
@@ -136,11 +133,6 @@ export declare function finalizarEnvio(opts: {
 }): Promise<{
     ok: true;
     fechada: boolean;
-    aguarda_confirmacao?: undefined;
-} | {
-    ok: true;
-    fechada: boolean;
-    aguarda_confirmacao: number;
 }>;
 /**
  * Fluxo completo (usado pelo motor agendado e como alternativa ao fluxo

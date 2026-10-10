@@ -47,16 +47,11 @@ export interface DestinosEdicao {
         estado: EstadoBackup;
     };
 }
-/** No hard-coded default: the destination base comes from NL_PUBLIC_BASE_URL (or configuracoes). */
-export declare const BASE_URL_PADRAO = "";
+export declare const BASE_URL_PADRAO = "https://edicoes.digitalsprint.pt";
 /** Caminho estável e permanente da edição pública. Nunca inclui domínio. */
 export declare function caminhoCanonicoEdicao(numero: number): string;
-/**
- * Base of the public editions: always the DESTINATION host (NL_PUBLIC_BASE_URL).
- * The imported `configuracoes.edicoes_base_url` is historical only and is never used for new
- * compositions; a custom domain only applies once a human sets it in NL_PUBLIC_BASE_URL.
- */
-export declare function baseUrlEdicoes(_sb?: SupabaseClient): Promise<string>;
+/** Base configurável das edições públicas (`configuracoes.edicoes_base_url`). */
+export declare function baseUrlEdicoes(sb?: SupabaseClient): Promise<string>;
 /** URL absoluta canónica — só resolvida onde é mesmo precisa (email, OG). */
 export declare function urlCanonicaEdicao(numero: number, sb?: SupabaseClient): Promise<string>;
 /**

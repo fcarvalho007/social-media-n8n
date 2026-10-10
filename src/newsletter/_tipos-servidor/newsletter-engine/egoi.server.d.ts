@@ -24,8 +24,6 @@ export declare function criarCampanha(cfg: EgoiConfig, opts: {
     senderId: string;
     html: string;
     plainText?: string;
-    /** Token field id of this list (per list); null only for test lists. */
-    campoToken?: number | null;
 }): Promise<OkCriacao | EgoiErro>;
 /** PATCH /campaigns/email/{hash} — actualiza meta e/ou conteúdo num único pedido. */
 export declare function patchCampanha(cfg: EgoiConfig, hash: string, opts: {
@@ -47,7 +45,7 @@ export declare function disparaCampanha(cfg: EgoiConfig, hash: string, listaId: 
  */
 export declare function estadoCampanha(cfg: EgoiConfig, hash: string): Promise<{
     ok: true;
-    estado: "enviada" | "a_enviar" | "rascunho" | "desconhecido";
+    estado: "enviada" | "rascunho" | "desconhecido";
     bruto: string;
 } | EgoiErro>;
 export {};

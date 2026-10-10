@@ -1,4 +1,3 @@
-import { basePublica } from "../../nl-publico-config.ts";
 import process from "node:process";
 // Destinos de publicação da Revista — orquestração server-side.
 //
@@ -68,8 +67,7 @@ export interface DestinosEdicao {
 const VAZIO: DestinoEstado = { estado: "", url: null, external_id: null, erro: null, tentado_em: null, publicado_em: null };
 
 
-/** No hard-coded default: the destination base comes from NL_PUBLIC_BASE_URL (or configuracoes). */
-export const BASE_URL_PADRAO = "";
+export const BASE_URL_PADRAO = "https://edicoes.digitalsprint.pt";
 
 /** Há credenciais WordPress? Lido só no servidor, nunca devolvido ao cliente. */
 function wordpressConfigurado(): boolean {
@@ -94,15 +92,16 @@ export function caminhoCanonicoEdicao(numero: number): string {
   return `/edicoes/${numero}`;
 }
 
-/**
- * Base of the public editions: always the DESTINATION host (NL_PUBLIC_BASE_URL).
- * The imported `configuracoes.edicoes_base_url` is historical only and is never used for new
- * compositions; a custom domain only applies once a human sets it in NL_PUBLIC_BASE_URL.
- */
-export async function baseUrlEdicoes(_sb?: SupabaseClient): Promise<string> {
-  const base = (basePublica() || BASE_URL_PADRAO).replace(/\/+$/, "");
-  if (!base) throw new Error("Endereço público das edições por configurar (NL_PUBLIC_BASE_URL).");
-  return base;
+/** Base configurável das edições públicas (`configuracoes.edicoes_base_url`). */
+export async function baseUrlEdicoes(sb?: SupabaseClient): Promise<string> {
+  const db = sb ?? admin();
+  const { data } = await db
+    .from("nl_configuracoes")
+    .select("valor")
+    .eq("chave", "edicoes_base_url")
+    .maybeSingle();
+  const v = ((data as { valor: string | null } | null)?.valor ?? "").trim();
+  return (v || BASE_URL_PADRAO).replace(/\/+$/, "");
 }
 
 /** URL absoluta canónica — só resolvida onde é mesmo precisa (email, OG). */

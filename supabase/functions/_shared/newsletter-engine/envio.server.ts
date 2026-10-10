@@ -196,86 +196,49 @@ export interface ResDisparo {
 
 /**
  * Pergunta à E-goi o estado real de cada campanha desta edição e alinha a
- * base de dados. Só "sent" confirma a entrega; "sending"/"processing" marcam a
- * campanha como aceite (nunca repetir). Quando um administrador já pediu o fecho
- * e todas as campanhas aceites estão confirmadas, fecha a edição aqui.
+ * base de dados. Evita "por enviar" falso quando a resposta ao disparo se
+ * perdeu (502, timeout) mas a campanha saiu mesmo.
  */
 export async function reconciliarEdicao(edicaoId: string): Promise<{
   ok: true;
   actualizadas: Array<{ lista_id: string; lista_nome: string }>;
-  por_confirmar: number;
-  fechada: boolean;
 }> {
   const sb = admin();
   const { data: campsRaw } = await sb.from("nl_egoi_campanhas")
-    .select("lista_id, campaign_hash, estado, nl_egoi_listas(nome)").eq("edicao_id", edicaoId);
+    .select("lista_id, campaign_hash, estado, egoi_listas:nl_egoi_listas(nome)").eq("edicao_id", edicaoId);
   const camps = (campsRaw ?? []) as unknown as Array<{
     lista_id: string; campaign_hash: string; estado: string;
-    nl_egoi_listas: { nome: string } | { nome: string }[] | null;
+    egoi_listas: { nome: string } | { nome: string }[] | null;
   }>;
-  const nomeDe = (c: (typeof camps)[number]) => {
-    const rel = Array.isArray(c.nl_egoi_listas) ? c.nl_egoi_listas[0] : c.nl_egoi_listas;
-    return rel?.nome ?? "lista";
-  };
   const pendentes = camps.filter((c) => c.estado !== "enviada" && c.campaign_hash);
+  if (!pendentes.length) return { ok: true, actualizadas: [] };
 
-  let apiKey: string | null = null;
-  if (pendentes.length) {
-    try { ({ apiKey } = await credenciaisEgoi(sb)); } catch { apiKey = null; }
+  let apiKey: string;
+  try {
+    ({ apiKey } = await credenciaisEgoi(sb));
+  } catch {
+    return { ok: true, actualizadas: [] };
   }
 
   const actualizadas: Array<{ lista_id: string; lista_nome: string }> = [];
-  const agora = () => new Date().toISOString();
-  if (apiKey) {
-    for (const c of pendentes) {
-      const r = await estadoCampanha({ apiKey }, c.campaign_hash);
-      if (!r.ok) continue;
-      if (r.estado === "enviada") {
-        await sb.from("nl_egoi_campanhas")
-          .update({ estado: "enviada", estado_egoi: r.bruto, confirmado_em: agora(), actualizado_em: agora() })
-          .eq("edicao_id", edicaoId).eq("lista_id", c.lista_id);
-        c.estado = "enviada";
-        actualizadas.push({ lista_id: c.lista_id, lista_nome: nomeDe(c) });
-        await sb.from("nl_audit_log").insert({
-          quem: "sistema",
-          accao: `E-goi confirma a entrega para «${nomeDe(c)}»`,
-          detalhe: `campaign_hash ${c.campaign_hash}`,
-        });
-      } else if (r.estado === "a_enviar" && c.estado === "rascunho") {
-        // A resposta ao disparo perdeu-se mas a campanha está a sair: aceite, não entregue.
-        await sb.from("nl_egoi_campanhas")
-          .update({ estado: "aceite", estado_egoi: r.bruto, aceite_em: agora(), actualizado_em: agora() })
-          .eq("edicao_id", edicaoId).eq("lista_id", c.lista_id);
-        c.estado = "aceite";
-      } else {
-        await sb.from("nl_egoi_campanhas").update({ estado_egoi: r.bruto }).eq("edicao_id", edicaoId).eq("lista_id", c.lista_id);
-      }
-    }
+  for (const c of pendentes) {
+    const r = await estadoCampanha({ apiKey }, c.campaign_hash);
+    if (!r.ok || r.estado !== "enviada") continue;
+    await sb.from("nl_egoi_campanhas")
+      .update({ estado: "enviada", actualizado_em: new Date().toISOString() })
+      .eq("edicao_id", edicaoId).eq("lista_id", c.lista_id);
+    const rel = Array.isArray(c.egoi_listas) ? c.egoi_listas[0] : c.egoi_listas;
+    const nome = rel?.nome ?? "lista";
+    actualizadas.push({ lista_id: c.lista_id, lista_nome: nome });
+    await sb.from("nl_audit_log").insert({
+      quem: "sistema",
+      accao: `Estado alinhado com a E-goi: «${nome}» já tinha recebido esta edição`,
+      detalhe: `campaign_hash ${c.campaign_hash}`,
+    });
   }
-  // Se há campanhas aceites ou confirmadas, a edição já não pode voltar atrás.
-  if (camps.some((c) => c.estado === "aceite" || c.estado === "enviada")) await bloquearSnapshotRevista(edicaoId);
-
-  const porConfirmar = camps.filter((c) => c.estado === "aceite").length;
-  let fechada = false;
-  const { data: edRaw } = await sb.from("nl_edicoes")
-    .select("numero, assunto, estado, fecho_pendente_em, fecho_pendente_por").eq("id", edicaoId).maybeSingle();
-  const ed = edRaw as { numero: number; assunto: string | null; estado: string; fecho_pendente_em: string | null; fecho_pendente_por: string | null } | null;
-  if (ed && ed.estado !== "enviada" && ed.fecho_pendente_em && porConfirmar === 0) {
-    const sucessos = camps.filter((c) => c.estado === "enviada")
-      .map((c) => ({ campaign_hash: c.campaign_hash, lista_id: c.lista_id, lista_nome: nomeDe(c) }));
-    if (sucessos.length) {
-      const falhas = camps.filter((c) => c.estado === "rascunho").map((c) => ({ lista_id: c.lista_id, lista_nome: nomeDe(c) }));
-      const assunto = (ed.assunto ?? "").trim() || `Edição #${ed.numero}`;
-      const { html } = await renderEdicaoEmail(edicaoId);
-      fechada = await fecharEdicaoEnviada(sb, edicaoId, { quem: ed.fecho_pendente_por ?? "sistema", assunto, html, sucessos, falhas });
-      if (fechada) {
-        await sb.from("nl_edicoes").update({ fecho_pendente_em: null, fecho_pendente_por: null }).eq("id", edicaoId);
-        const { enfileirarCarrossel } = await import("../conteudos/jobs.server.ts");
-        await enfileirarCarrossel(edicaoId, "reconciliacao");
-      }
-    }
-  }
-  return { ok: true, actualizadas, por_confirmar: porConfirmar, fechada };
+  // Se a E-goi confirma envios, a edição já não pode voltar atrás.
+  if (actualizadas.length) await bloquearSnapshotRevista(edicaoId);
+  return { ok: true, actualizadas };
 }
 
 
@@ -452,21 +415,7 @@ export async function prepararEnvio(opts: {
     ? (await autorizar(sb, opts.userId, listasR.modo)).nome
     : (opts.quemNome ?? "agendamento");
 
-  // Real sends need destination public links and per-contact signed tokens (never e-mail-only links).
-  if (listasR.modo === "real") {
-    const { verificarLigacoesPublicas } = await import("../nl-publico-config.ts");
-    const falta = verificarLigacoesPublicas();
-    if (falta.length) throw new ErroEnvio(falta.join(" "), 412);
-  }
-
   const { apiKey, senderId } = await credenciaisEgoi(sb);
-
-  // Every real list must have its tokens fully synced, field validated and no pending failures.
-  if (listasR.modo === "real") {
-    const { problemasTokensEnvio } = await import("../nl-egoi-tokens-gate.ts");
-    const p = await problemasTokensEnvio(sb, apiKey, listasR.listas.filter((l) => l.tipo === "real"));
-    if (p.length) throw new ErroEnvio(`Tokens de subscrição por validar: ${p.join(" ")}`, 412);
-  }
 
   const { data: edRaw } = await sb.from("nl_edicoes")
     .select("numero, estado, assunto, envio_em_curso").eq("id", opts.edicaoId).maybeSingle();
@@ -556,13 +505,6 @@ export async function dispararLista(opts: {
 
   const { apiKey } = await credenciaisEgoi(sb);
 
-  // Re-checked right before dispatching (new contacts may have arrived since preparation).
-  if (lista.tipo === "real") {
-    const { problemasTokensEnvio } = await import("../nl-egoi-tokens-gate.ts");
-    const p = await problemasTokensEnvio(sb, apiKey, [lista]);
-    if (p.length) return { lista_id: lista.id, lista_nome: lista.nome, ok: false, sincronizada: false, erro: `Tokens de subscrição por validar: ${p.join(" ")}` };
-  }
-
   const { data: campRaw } = await sb.from("nl_egoi_campanhas")
     .select("campaign_hash").eq("edicao_id", opts.edicaoId).eq("lista_id", lista.id).maybeSingle();
   const hash = (campRaw as { campaign_hash?: string } | null)?.campaign_hash;
@@ -577,17 +519,15 @@ export async function dispararLista(opts: {
   await sleep(DELAY_ANTES_DISPARO_MS);
   const rD = await disparaCampanha({ apiKey }, hash, lista.egoi_lista_id);
   let confirmadoNaEgoi = false;
-  let estadoBruto: string | null = null;
   if (!rD.ok) {
     // Um erro de rede/5xx não significa que a campanha não saiu: a E-goi é a
     // fonte da verdade. Só reportamos falha se ela confirmar que não enviou.
     const est = await estadoCampanha({ apiKey }, hash);
-    if (est.ok && (est.estado === "enviada" || est.estado === "a_enviar")) {
-      confirmadoNaEgoi = est.estado === "enviada";
-      estadoBruto = est.bruto;
+    if (est.ok && est.estado === "enviada") {
+      confirmadoNaEgoi = true;
       await sb.from("nl_audit_log").insert({
         quem,
-        accao: `Disparo sem resposta para «${lista.nome}», mas a E-goi já tem a campanha ${confirmadoNaEgoi ? "enviada" : "em envio"}`,
+        accao: `Disparo sem resposta para «${lista.nome}», mas a E-goi confirma o envio`,
         detalhe: `campaign_hash ${hash} · ${rD.mensagem}`,
       });
     } else {
@@ -598,13 +538,8 @@ export async function dispararLista(opts: {
     }
   }
 
-  // Aceitação do pedido ≠ entrega: fica "aceite" até a E-goi reportar "sent"
-  // (confirmação aqui, na reconciliação ou na tarefa de conteúdos derivados).
-  const agoraIso = new Date().toISOString();
   await sb.from("nl_egoi_campanhas")
-    .update(confirmadoNaEgoi
-      ? { estado: "enviada", estado_egoi: estadoBruto, aceite_em: agoraIso, confirmado_em: agoraIso, actualizado_em: agoraIso }
-      : { estado: "aceite", estado_egoi: estadoBruto, aceite_em: agoraIso, actualizado_em: agoraIso })
+    .update({ estado: "enviada", actualizado_em: new Date().toISOString() })
     .eq("edicao_id", opts.edicaoId).eq("lista_id", lista.id);
   // Primeira lista aceite pela E-goi: a fotografia passa a definitiva e as
   // listas em falta receberão obrigatoriamente esta mesma versão.
@@ -612,7 +547,7 @@ export async function dispararLista(opts: {
   await sb.from("nl_audit_log").insert({
     quem,
     accao: listasR.modo === "real"
-      ? `E-goi aceitou o envio da edição #${numero} para «${lista.nome}»${confirmadoNaEgoi ? " (entrega confirmada)" : " (entrega por confirmar)"}`
+      ? `Enviou a edição #${numero} para «${lista.nome}»${confirmadoNaEgoi ? " (confirmado na E-goi)" : ""}`
       : `Disparou teste da edição #${numero} para «${lista.nome}»`,
     detalhe: `campaign_hash ${hash}`,
   });
@@ -645,13 +580,10 @@ export async function repetirLista(opts: {
 
   const { data: campRaw } = await sb.from("nl_egoi_campanhas")
     .select("estado").eq("edicao_id", opts.edicaoId).eq("lista_id", lista.id).maybeSingle();
-  const estadoCamp = (campRaw as { estado?: string } | null)?.estado;
-  if (estadoCamp === "enviada" || estadoCamp === "aceite") {
+  if ((campRaw as { estado?: string } | null)?.estado === "enviada") {
     return {
       lista_id: lista.id, lista_nome: lista.nome, ok: false, sincronizada: true,
-      erro: estadoCamp === "aceite"
-        ? "A E-goi já aceitou o envio para esta lista (entrega por confirmar) — não foi repetida."
-        : "Esta lista já recebeu esta edição — não foi repetida.",
+      erro: "Esta lista já recebeu esta edição — não foi repetida.",
     };
   }
 
@@ -698,24 +630,10 @@ export async function finalizarEnvio(opts: {
   if (opts.adiarFecho) return { ok: true as const, fechada: false };
 
 
-  // A E-goi é a fonte da verdade: reconciliar ANTES de decidir fechar ou descartar.
-  await reconciliarEdicao(opts.edicaoId);
-
   const nomes = new Map(listasR.listas.map((l) => [l.id, l.nome]));
   const { data: campsRaw } = await sb.from("nl_egoi_campanhas")
     .select("lista_id, campaign_hash, estado").eq("edicao_id", opts.edicaoId);
   const camps = (campsRaw ?? []) as { lista_id: string; campaign_hash: string; estado: string }[];
-  const aceites = camps.filter((c) => c.estado === "aceite" && nomes.has(c.lista_id));
-  if (aceites.length) {
-    // Pedido aceite mas entrega por confirmar: nunca descartar nem fechar já.
-    // A reconciliação seguinte fecha a edição quando a E-goi reportar "sent".
-    await sb.from("nl_edicoes").update({ fecho_pendente_em: new Date().toISOString(), fecho_pendente_por: quem }).eq("id", opts.edicaoId);
-    await sb.from("nl_audit_log").insert({
-      quem,
-      accao: `Fecho pedido — ${aceites.length} lista(s) aceite(s) pela E-goi com entrega por confirmar`,
-    });
-    return { ok: true as const, fechada: false, aguarda_confirmacao: aceites.length };
-  }
   const sucessos = camps
     .filter((c) => c.estado === "enviada" && nomes.has(c.lista_id))
     .map((c) => ({ campaign_hash: c.campaign_hash, lista_id: c.lista_id, lista_nome: nomes.get(c.lista_id)! }));
@@ -748,12 +666,6 @@ export async function finalizarEnvio(opts: {
   const { html } = await renderEdicaoEmail(opts.edicaoId);
 
   const fechada = await fecharEdicaoEnviada(sb, opts.edicaoId, { quem, assunto, html, sucessos, falhas });
-  if (fechada) await sb.from("nl_edicoes").update({ fecho_pendente_em: null, fecho_pendente_por: null }).eq("id", opts.edicaoId);
-  // Derived content: idempotent durable job (no AI here, never affects the send result).
-  if (fechada) {
-    const { enfileirarCarrossel } = await import("../conteudos/jobs.server.ts");
-    await enfileirarCarrossel(opts.edicaoId, "envio");
-  }
   return { ok: true as const, fechada };
 }
 
@@ -798,9 +710,9 @@ export async function dispararEgoi(opts: {
     sucessos: sucessos.length,
     falhas: falhas.length,
     mensagem: falhas.length > 0
-      ? `Aceite pela E-goi para ${sucessos.length} de ${prep.listas.length} lista(s); ${falhas.length} falha(s). ` +
+      ? `Enviada para ${sucessos.length} de ${prep.listas.length} lista(s); ${falhas.length} falha(s). ` +
         falhas.map((x) => `${x.lista_nome}: ${x.erro}`).join(" · ")
-      : `Aceite pela E-goi para ${sucessos.length} lista(s). A entrega é confirmada quando a E-goi a reportar.`,
+      : `Enviada para ${sucessos.length} lista(s).`,
   };
 }
 

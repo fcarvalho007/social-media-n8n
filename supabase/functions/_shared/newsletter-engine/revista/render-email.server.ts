@@ -1,4 +1,3 @@
-import { linkSubscricao } from "../../nl-publico-config.ts";
 // Renderer de email do formato Revista — proposta V4.
 // Papel quente, marca em caixa alta, crónica em bloco azul, notícias em foco
 // com painel «A minha leitura», radar escuro com chamada para a edição online,
@@ -13,6 +12,7 @@ import { ROTULOS_REVISTA } from "./rotulos.ts";
 import { paletaFerramenta } from "./cores-ferramenta.ts";
 
 const URL_CANCELAR = linkSubscricao("cancelar");
+import { linkSubscricao } from "../../nl-publico-config.ts";
 const ENTIDADE = "Digital Sprint · Frederico Carvalho · Digital FC · Portugal";
 
 export function esc(s: string): string {
@@ -233,9 +233,11 @@ export function montarHtmlRevista(e: EdicaoRevista): string {
         </tr></table>
       </td></tr>`);
     });
-    partes.push(`<tr><td class="px" bgcolor="${R.escuro}" style="padding:2px 24px 27px;background:${R.escuro};${CELULA}">
-      <p style="font-size:15px;line-height:24px;color:${R.branco};padding-bottom:15px;margin:0;${FF}">${esc(cont.intro)}</p>
-      ${botao(e.urlPagina, cont.botao, R.amarelo, R.navy, R.amarelo)}
+    partes.push(`<tr><td class="px" bgcolor="${R.azul}" style="padding:25px 24px 27px;background:${R.azul};${CELULA}">
+      <p style="font-size:12px;line-height:18px;letter-spacing:1.2px;text-transform:uppercase;color:${R.branco};margin:0;${FF}">Edição completa</p>
+      <p style="font-size:29px;line-height:35px;font-weight:bold;color:${R.branco};padding-top:7px;margin:0;${FF}">${esc(cont.botao)}</p>
+      <p style="font-size:15px;line-height:24px;color:${R.branco};padding-top:8px;padding-bottom:17px;margin:0;${FF}">${esc(cont.intro)}</p>
+      ${botao(e.urlPagina, "Abrir todas as notícias", R.branco, R.azul, R.branco)}
     </td></tr>`);
   }
 

@@ -69,8 +69,6 @@ export declare const reconciliarEdicaoFn: import("../_shim/start.ts").NlServerFn
         lista_id: string;
         lista_nome: string;
     }>;
-    por_confirmar: number;
-    fechada: boolean;
 }>;
 /** Fase 3 do envio: liberta o bloqueio e fecha a edição. */
 export declare const finalizarEnvioFn: import("../_shim/start.ts").NlServerFn<{
@@ -80,11 +78,6 @@ export declare const finalizarEnvioFn: import("../_shim/start.ts").NlServerFn<{
 }, {
     ok: true;
     fechada: boolean;
-    aguarda_confirmacao?: undefined;
-} | {
-    ok: true;
-    fechada: boolean;
-    aguarda_confirmacao: number;
 }>;
 export declare const publicarWordpressFn: import("../_shim/start.ts").NlServerFn<{
     edicao_id: string;

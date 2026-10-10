@@ -1,14 +1,13 @@
-import { aplicarTokenLista, linkUmClique } from "../nl-publico-config.ts";
-import { consultarEstadoCampanha } from "./egoi-estado.ts";
 // Helpers partilhados para chamadas à API E-goi.
 // A API separa metadados de campanha (subject, sender, list) do conteúdo HTML.
 // Para "actualizar rascunho" fazemos PATCH aos dois recursos.
 
 /** Cabeçalhos de cancelamento de um clique enviados com a campanha. */
-const cabecalhosUnsubscribe = (campo: number | null) => ({
-  "List-Unsubscribe": `<${aplicarTokenLista(linkUmClique(), campo)}>`,
+const URL_UM_CLIQUE = "https://newsletter-digital-sprint.lovable.app/api/public/hooks/unsubscribe?e={!email:URLENCODE}";
+const CABECALHOS_UNSUBSCRIBE = {
+  "List-Unsubscribe": `<${URL_UM_CLIQUE}>`,
   "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-});
+};
 
 const BASE = "https://api.egoiapp.com";
 
@@ -141,8 +140,6 @@ export async function criarCampanha(cfg: EgoiConfig, opts: {
   senderId: string;
   html: string;
   plainText?: string;
-  /** Token field id of this list (per list); null only for test lists. */
-  campoToken?: number | null;
 }): Promise<OkCriacao | EgoiErro> {
   if (!opts.html || !opts.html.trim()) {
     return { ok: false, status: 400, mensagem: "HTML da newsletter não foi gerado — verifica se a edição tem conteúdo" };
@@ -161,7 +158,7 @@ export async function criarCampanha(cfg: EgoiConfig, opts: {
       : { type: "html", body: opts.html },
     // Cancelamento de um clique (RFC 8058). Se a conta não aceitar cabeçalhos
     // personalizados, repetimos sem eles — a E-goi injecta o link nativo.
-    ...(comCabecalhos ? { headers: cabecalhosUnsubscribe(opts.campoToken ?? null) } : {}),
+    ...(comCabecalhos ? { headers: CABECALHOS_UNSUBSCRIBE } : {}),
   });
 
   // Ordem de tentativa: tudo → sem cabeçalhos → sem texto simples.
@@ -258,9 +255,23 @@ export async function disparaCampanha(cfg: EgoiConfig, hash: string, listaId: st
 export async function estadoCampanha(
   cfg: EgoiConfig,
   hash: string,
-): Promise<{ ok: true; estado: "enviada" | "a_enviar" | "rascunho" | "desconhecido"; bruto: string } | EgoiErro> {
-  // Documented lookup: GET /campaigns?channel=email&campaign_hash=… ; only exact hash+channel, status "sent" = delivered.
-  return consultarEstadoCampanha(cfg.apiKey, hash);
+): Promise<{ ok: true; estado: "enviada" | "rascunho" | "desconhecido"; bruto: string } | EgoiErro> {
+  const p = await pedidoComRepeticao(() =>
+    fetch(`${BASE}/campaigns/email/${hash}`, { method: "GET", headers: headers(cfg.apiKey) }),
+  );
+  if (!p.ok) return erroRede("E-goi (estado da campanha)", p.erroRede);
+  const r = p.resposta;
+  if (!r.ok) return parseErro(r, "E-goi (estado da campanha)");
+  const body = (await r.json().catch(() => ({}))) as { status?: string; state?: string };
+  const bruto = String(body.status ?? body.state ?? "").toLowerCase();
+  // A E-goi usa "sent" para campanhas já disparadas; "sending" também conta,
+  // porque a ordem de envio já foi aceite e repetir duplicaria os emails.
+  const estado = bruto === "sent" || bruto === "sending" || bruto === "processing"
+    ? "enviada"
+    : bruto === "draft" || bruto === "scheduled"
+      ? "rascunho"
+      : "desconhecido";
+  return { ok: true, estado, bruto };
 }
 
 

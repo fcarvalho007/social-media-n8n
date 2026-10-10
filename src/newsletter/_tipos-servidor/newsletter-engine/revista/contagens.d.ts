@@ -6,7 +6,7 @@ export interface ContagemSeleccao {
     extras: number;
     /** Verdadeiro quando há total fiável para mostrar números. */
     confirmada: boolean;
-    /** Texto acima do botão, no fim do Radar. */
+    /** Texto acima do botão, no fim de «Novidades da semana». */
     intro: string;
     /** Rótulo do botão que abre a edição online. */
     botao: string;

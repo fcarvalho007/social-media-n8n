@@ -286,7 +286,7 @@ function admin(): SupabaseClient {
   });
 }
 
-/** Rótulo curto da categoria para o Radar (sem emoji, sem parêntesis). */
+/** Rótulo curto da categoria para «Novidades da semana» (sem emoji, sem parêntesis). */
 export function rotuloCategoria(id: string): string {
   const def = CATEGORIAS.find((c) => c.id === id);
   const nome = def?.nome ?? id;
@@ -422,15 +422,15 @@ export function validarRevista(e: EdicaoRevista): string[] {
     if (!d.minhaLeitura.trim()) p.push(`Falta «A minha leitura» da notícia ${i + 1}.`);
     if (!d.url.trim()) p.push(`Falta o link da notícia ${i + 1}.`);
   });
-  if (e.radar.length < LIMITES_REVISTA.radarMin || e.radar.length > LIMITES_REVISTA.radarMax) {
-    p.push(`O Radar tem ${e.radar.length} notícias (entre ${LIMITES_REVISTA.radarMin} e ${LIMITES_REVISTA.radarMax}).`);
+  if (e.radar.length < LIMITES_REVISTA.radarMin) {
+    p.push(`«${ROTULOS_REVISTA.radar}» tem ${e.radar.length} notícias (mínimo ${LIMITES_REVISTA.radarMin}).`);
   }
   e.radar.forEach((r, i) => {
-    if (!r.url.trim()) p.push(`Falta o link da entrada ${i + 1} do Radar.`);
+    if (!r.url.trim()) p.push(`Falta o link da entrada ${i + 1} de «${ROTULOS_REVISTA.radar}».`);
   });
   const ids = new Set<string>();
   for (const n of [...e.destaques, ...e.radar]) {
-    if (ids.has(n.noticiaId)) p.push(`Existe uma notícia repetida entre «${ROTULOS_REVISTA.destaques}» e o Radar.`);
+    if (ids.has(n.noticiaId)) p.push(`Existe uma notícia repetida entre «${ROTULOS_REVISTA.destaques}» e «${ROTULOS_REVISTA.radar}».`);
     ids.add(n.noticiaId);
   }
   // Campos opcionais: ou ficam completos, ou ficam desligados.
@@ -477,8 +477,6 @@ export interface SnapshotRevista {
   url_web_path: string;
   preparado_em: string;
   bloqueado_em: string | null;
-  /** Full chronicle frozen at send time (source for derived content). Optional for old snapshots. */
-  cronica_integral?: { titulo: string; corpoHtml: string; url: string };
 }
 
 function normalizarEstrutura(e: EdicaoRevista): EdicaoRevista {
@@ -525,8 +523,6 @@ export function lerEnvelope(v: unknown): SnapshotRevista | null {
         : caminhoCanonicoEdicao(env.edicao?.edicao?.numero ?? 0),
       preparado_em: env.preparado_em ?? "",
       bloqueado_em: env.bloqueado_em ?? null,
-      ...(env.cronica_integral && typeof env.cronica_integral.corpoHtml === "string"
-        ? { cronica_integral: env.cronica_integral } : {}),
     };
   }
   // Formato legado: era o próprio `EdicaoRevista`.
@@ -744,7 +740,7 @@ export async function composeRevistaEdition(
     : null;
 
   // Atualidades: todas as aprovadas da edição. As que não entram em
-  // «Três coisas» nem no Radar são, por definição, «só site».
+  // Destaques nem «Novidades da semana» são, por definição, «só site».
   const papeis = new Map<string, "destaque" | "radar">();
   destaques.forEach((d) => papeis.set(d.noticiaId, "destaque"));
   radar.forEach((r) => papeis.set(r.noticiaId, "radar"));
@@ -844,15 +840,7 @@ export async function prepararSnapshotRevista(
   estrutura: EdicaoRevista,
   artefacto: { emailHtml: string; emailText: string; urlWeb: string },
 ): Promise<SnapshotRevista> {
-  const sbCro = admin();
-  const { data: croRaw } = await sbCro.from("nl_cronicas")
-    .select("titulo, conteudo_html, conteudo").eq("edicao_id", edicaoId).maybeSingle();
-  const cro = croRaw as { titulo: string | null; conteudo_html: string | null; conteudo: string | null } | null;
-  const corpoHtml = (cro?.conteudo_html || cro?.conteudo || "").trim();
   const envelope: SnapshotRevista = {
-    ...(corpoHtml
-      ? { cronica_integral: { titulo: estrutura.cronica?.titulo || cro?.titulo || "", corpoHtml, url: estrutura.cronica?.urlProvisoria ? "" : (estrutura.cronica?.url ?? "") } }
-      : {}),
     schema_version: SNAPSHOT_SCHEMA_VERSION,
     renderer_version: RENDERER_VERSION,
     estado: "preparado",
