@@ -32,4 +32,4 @@
 - [x] Adicionar título, subtítulo e nota editorial formatados a «Esta semana recomendo»
 - [x] Refinar os Destaques numerados: categoria alinhada ao título e ritmo compacto no email e web
 - [x] Impedir que uma imagem antiga inacessível da crónica provoque erro 500 e ecrã em branco
-- [ ] Corrigir o recorte de imagens da crónica e automatizar o URL após publicação
+- [x] Corrigir o recorte de imagens da crónica e automatizar o URL após publicação
