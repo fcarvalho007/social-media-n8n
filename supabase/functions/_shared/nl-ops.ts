@@ -115,6 +115,7 @@ export const NL_OPS: Record<string, NlOp> = {
   "imagens:importarPexelsFn": E,
   "imagens:carregarImagemFn": E,
   "newsletter-ia:sugerirAssunto": E,
+  "newsletter-ia:resumirEpisodioPodcast": E,
   "organizar-edicao:sugerirOrganizacaoEdicao": E,
   "pesquisar-fonte:pesquisarFonteIA": E,
   "processar-noticias:extrairNoticias": E,
