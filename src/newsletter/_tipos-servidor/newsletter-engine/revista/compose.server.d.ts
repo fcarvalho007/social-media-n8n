@@ -30,6 +30,7 @@ export interface RevistaConfigRow {
     recomendacao_tipo: string;
     recomendacao_meta: string;
     recomendacao_titulo: string;
+    recomendacao_subtitulo: string;
     recomendacao_url: string;
     recomendacao_nota: string;
     recomendacao_activa: boolean;
@@ -199,8 +200,10 @@ export interface EdicaoRevista {
         tipo: string;
         meta: string;
         titulo: string;
-        url: string;
+        tituloTexto: string;
+        subtitulo: string;
         nota: string;
+        url: string;
     } | null;
     ferramentas: FerramentaRevista[];
     podcast: PodcastRevista | null;

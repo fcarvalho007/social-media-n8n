@@ -10,6 +10,7 @@ import { Etiqueta, IntroSeccao, SERIF, fmtDataPublica } from "./ui";
 import { sequenciaCronica } from "@/newsletter/lib/newsletter-engine/revista/sequencia-cronica";
 import { Cabecalho } from "./Hero";
 import { NAV_REVISTA, NOTAS_REVISTA, ROTULOS_REVISTA } from "@/newsletter/lib/newsletter-engine/revista/rotulos";
+import { htmlEditorialInline, htmlEditorialSeguro } from "@/newsletter/lib/newsletter-engine/revista/html-restrito";
 
 export { fmtDataPublica };
 
@@ -379,16 +380,21 @@ export function PaginaEdicao({
                   className="mt-2 max-w-[38rem] text-[26px] font-semibold leading-[1.2] tracking-[-0.02em] sm:text-[32px]"
                 >
                   <a href={e.recomendacao.url} target="_blank" rel="noopener noreferrer" className="text-rw-ink rw-link">
-                    {e.recomendacao.titulo}
+                    <span dangerouslySetInnerHTML={{ __html: htmlEditorialInline(e.recomendacao.titulo) }} />
                   </a>
                 </h3>
+                {e.recomendacao.subtitulo ? (
+                  <div
+                    className="mt-2 max-w-[38rem] text-[18px] leading-7 text-rw-ink"
+                    dangerouslySetInnerHTML={{ __html: htmlEditorialInline(e.recomendacao.subtitulo) }}
+                  />
+                ) : null}
                 {e.recomendacao.nota ? (
-                  <p
+                  <div
                     className="mt-3 max-w-[38rem] text-[17px] leading-[1.65] text-rw-ink-2"
                     style={{ fontFamily: SERIF }}
-                  >
-                    {e.recomendacao.nota}
-                  </p>
+                    dangerouslySetInnerHTML={{ __html: htmlEditorialSeguro(e.recomendacao.nota) }}
+                  />
                 ) : null}
                 <p className="mt-5">
                   <a

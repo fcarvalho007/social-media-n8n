@@ -306,10 +306,11 @@ export function montarHtmlRevista(e: EdicaoRevista): string {
         ${cabeca ? `<p class="label text-link" style="${ETIQUETA}color:${R.azul};">${esc(cabeca)}</p>` : ""}
         <h3 class="text-main" style="${FF}font-size:22px;line-height:30px;letter-spacing:-0.3px;color:${R.navy};padding-top:${cabeca ? "10px" : "0"};margin:0;">${
           rec.url
-            ? `<a class="text-main" href="${href(rec.url)}" style="color:${R.navy};text-decoration:none;${FF}">${esc(rec.titulo)}</a>`
-            : esc(rec.titulo)
+            ? `<a class="text-main" href="${href(rec.url)}" style="color:${R.navy};text-decoration:none;${FF}">${rec.titulo}</a>`
+            : rec.titulo
         }</h3>
-        ${rec.nota ? `<p class="text-body" style="font-size:15px;line-height:25px;color:${R.texto};padding-top:9px;margin:0;${FF}">${esc(rec.nota)}</p>` : ""}
+        ${rec.subtitulo ? `<div class="text-main" style="font-size:17px;line-height:26px;color:${R.navy};padding-top:8px;margin:0;${FF}">${rec.subtitulo}</div>` : ""}
+        ${rec.nota ? `<div class="text-body rec-note" style="font-size:15px;line-height:25px;color:${R.texto};padding-top:10px;margin:0;${FF}">${rec.nota}</div>` : ""}
         ${rec.url ? `<div style="padding-top:16px;${FF}">${botao(rec.url, ctaRecomendacao(rec.tipo), R.azul, R.branco, R.azul)}</div>` : ""}
       </td></tr></table>
     </td></tr>`);
@@ -412,6 +413,7 @@ export function montarHtmlRevista(e: EdicaoRevista): string {
   table{border-collapse:collapse;table-layout:auto}
   img{max-width:100%;height:auto}
   p,h1,h2,h3{margin:0}
+  .rec-note p{margin:0 0 8px}.rec-note p:last-child{margin-bottom:0}
   a:hover{text-decoration:none}
   @media screen and (min-width:681px){
     .outer{padding:28px 12px!important}

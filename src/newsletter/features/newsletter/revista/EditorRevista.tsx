@@ -49,6 +49,7 @@ import {
 } from "@/newsletter/lib/newsletter-engine/revista/sequencia-cronica";
 
 import { CronicaEditor } from "../CronicaEditor";
+import { TextoRicoCompacto } from "../TextoRicoCompacto";
 import { ImagemCronica } from "./ImagemCronica";
 import { PropostaApresentacao } from "./PropostaApresentacao";
 import { PropostaPecasCronica } from "./PropostaPecasCronica";
@@ -674,6 +675,7 @@ export default function EditorRevista({
     return {
       recomendacao_tipo: "Podcast",
       recomendacao_titulo: ep.titulo,
+      recomendacao_subtitulo: "",
       recomendacao_url: ep.url ?? "",
       recomendacao_meta: ep.codigo ?? "",
     };
@@ -1719,6 +1721,7 @@ export default function EditorRevista({
                             onClick={() => editar({
                               recomendacao_tipo: "Ferramenta",
                               recomendacao_titulo: f.nome ?? "",
+                              recomendacao_subtitulo: "",
                               recomendacao_url: f.url ?? "",
                               recomendacao_nota: f.descricao ?? "",
                             })}
@@ -1732,9 +1735,10 @@ export default function EditorRevista({
                   );
                 })()}
                 <Campo etiqueta="Metadado curto (opcional)" valor={cfg.recomendacao_meta} onChange={(v) => editar({ recomendacao_meta: v })} dica="Por exemplo: 42 min." />
-                <Campo etiqueta="Título" valor={cfg.recomendacao_titulo} onChange={(v) => editar({ recomendacao_titulo: v })} />
+                <TextoRicoCompacto etiqueta="Título" valor={cfg.recomendacao_titulo} onChange={(v) => editar({ recomendacao_titulo: v })} disabled={!!bloqueado} />
+                <TextoRicoCompacto etiqueta="Subtítulo (opcional)" valor={cfg.recomendacao_subtitulo} onChange={(v) => editar({ recomendacao_subtitulo: v })} disabled={!!bloqueado} linhas={2} />
                 <Campo etiqueta="URL" mono valor={cfg.recomendacao_url} onChange={(v) => editar({ recomendacao_url: v })} />
-                <Campo etiqueta="Nota editorial" area linhas={3} valor={cfg.recomendacao_nota} onChange={(v) => editar({ recomendacao_nota: v })} />
+                <TextoRicoCompacto etiqueta="Nota editorial" valor={cfg.recomendacao_nota} onChange={(v) => editar({ recomendacao_nota: v })} disabled={!!bloqueado} linhas={3} />
               </>
             )}
           </BlocoEdicao>

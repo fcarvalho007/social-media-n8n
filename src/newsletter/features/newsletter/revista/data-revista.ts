@@ -46,6 +46,7 @@ export interface ConfigRevista {
   recomendacao_tipo: string;
   recomendacao_meta: string;
   recomendacao_titulo: string;
+  recomendacao_subtitulo: string;
   recomendacao_url: string;
   recomendacao_nota: string;
   recomendacao_activa: boolean;
