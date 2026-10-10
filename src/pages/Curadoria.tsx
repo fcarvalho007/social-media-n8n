@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CuradoriaNoticias } from "@/features/curadoria/CuradoriaNoticias";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCurrentUserRoles } from "@/hooks/useUserRoles";
-import { listarFontes } from "@/newsletter/features/newsletter/data";
+import { getEdicaoAtual, listarFontes } from "@/newsletter/features/newsletter/data";
+import { AdicionarNoticias } from "@/newsletter/features/newsletter/partilhado/modais/AdicionarNoticias";
 import { Fontes } from "@/newsletter/features/newsletter/partilhado/modais/Fontes";
 import { FilaEntrada } from "@/newsletter/features/newsletter/partilhado/FilaEntrada";
 import { EmailsPage } from "@/newsletter/routes/_authenticated/emails";
@@ -24,6 +25,9 @@ export default function Curadoria() {
   const { user } = useAuth();
   const { isAdmin } = useCurrentUserRoles();
   const fontes = useQuery({ queryKey: ["fontes"], queryFn: listarFontes });
+  const [colarAberto, setColarAberto] = useState(false);
+  // Manual entry needs an edition; pasted items go to «Por rever» regardless.
+  const edicao = useQuery({ queryKey: ["edicao-atual"], queryFn: getEdicaoAtual, enabled: colarAberto });
   const ativas = fontes.data?.filter(f => f.activa).length;
   return <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6">
     <ConfirmacaoExternaHost />
@@ -42,12 +46,22 @@ export default function Curadoria() {
         <TabsTrigger className="min-h-11" value="fontes">Fontes e limites</TabsTrigger>
       </TabsList>
       <TabsContent value="noticias" className="space-y-4">
+        <div className="flex justify-end">
+          <Button size="sm" className="min-h-11" onClick={() => setColarAberto(true)}>Colar notícias</Button>
+        </div>
         <FilaEntrada compacto recolherAntes={isAdmin} onConcluido={(r) => {
           void qc.invalidateQueries();
           setVersaoLista(v => v + 1);
           toast.success(r.noticias > 0 ? `${r.noticias} ${r.noticias === 1 ? "notícia nova" : "notícias novas"} em «Por rever».` : "Processamento concluído, sem notícias novas.");
         }} />
         <CuradoriaNoticias key={versaoLista} />
+        {colarAberto && <AdicionarNoticias
+          edicaoId={edicao.data?.id ?? null}
+          isAdmin={isAdmin}
+          nomeExibicao={user?.email ?? "Equipa"}
+          notify={(m, opts) => opts?.tipo === "erro" ? toast.error(m === "Sem edição" ? "Não há nenhuma edição em rascunho para adicionar manualmente." : m) : toast.success(m)}
+          onFechar={() => { setColarAberto(false); void qc.invalidateQueries(); setVersaoLista(v => v + 1); }}
+        />}
       </TabsContent>
       <TabsContent value="emails"><EmailsPage embutido /></TabsContent>
       <TabsContent value="fontes" className="space-y-4">
