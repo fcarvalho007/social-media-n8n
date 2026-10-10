@@ -17,7 +17,7 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { estadoDestinosFn, prontidaoRevistaFn, publicarCronicaFn } from "@/newsletter/lib/destinos.functions";
+import { estadoDestinosFn, prontidaoRevistaFn, publicarCronicaFn, publicarArtigoCronicaFn } from "@/newsletter/lib/destinos.functions";
 import { baseUrlEdicoesFn } from "@/newsletter/lib/revista-web.functions";
 import { PreVisualizarEdicao, type VistaPrevia } from "@/newsletter/features/newsletter/revista/PreVisualizarEdicao";
 import { AvisoChecklistModal } from "@/newsletter/features/newsletter/AvisoChecklistModal";
@@ -82,6 +82,7 @@ export function EnvioNewsletter({
     setRegisto((r) => [...r, { hora: new Date().toLocaleTimeString("pt-PT", { timeZone: "Europe/Lisbon" }), texto, erro }]);
   const qc = useQueryClient();
   const publicarCronicaSrv = useServerFn(publicarCronicaFn);
+  const publicarArtigoSrv = useServerFn(publicarArtigoCronicaFn);
   const [aPublicarCronica, setAPublicarCronica] = useState(false);
 
   const envio = useEnvioNewsletter({
@@ -206,7 +207,11 @@ export function EnvioNewsletter({
     setAPublicarCronica(true);
     registar("A publicar a crónica em FredericoCarvalho.pt…");
     try {
-      await publicarCronicaSrv({ data: { edicao_id: edicaoId } });
+      const r1 = await publicarCronicaSrv({ data: { edicao_id: edicaoId } }) as { ok?: boolean; mensagem?: string };
+      if (r1 && r1.ok === false) throw new Error(r1.mensagem ?? "Não foi possível criar o rascunho.");
+      registar("Rascunho criado no site; a tornar público…");
+      const r2 = await publicarArtigoSrv({ data: { edicao_id: edicaoId } }) as { ok?: boolean; mensagem?: string };
+      if (r2 && r2.ok === false) throw new Error(r2.mensagem ?? "A crónica não ficou pública.");
       await qc.invalidateQueries({ queryKey: ["revista-destinos", edicaoId] });
       registar("Crónica publicada; o endereço ficou gravado.");
       toast.success("Crónica publicada em FredericoCarvalho.pt.");
