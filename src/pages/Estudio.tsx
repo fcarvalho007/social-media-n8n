@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { AlertCircle, FileText, GalleryHorizontal, Images, KeyRound, Mail, PlusCircle, RefreshCw, Upload } from "lucide-react";
+import { AlertCircle, FileText, GalleryHorizontal, KeyRound, Mail, PlusCircle, RefreshCw, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -18,10 +18,9 @@ interface Acao { titulo: string; desc: string; icon: typeof Mail; url: string }
 const PRODUCAO: Acao[] = [
   { titulo: "Curadoria", desc: "Uma seleção para todos os formatos", icon: FileText, url: "/curadoria" },
   { titulo: "Criar SM", desc: "Manual ou assistido por IA", icon: PlusCircle, url: "/pending?tab=create" },
-  { titulo: "Conteúdos visuais", desc: "Por publicar e publicados", icon: GalleryHorizontal, url: "/estudio/carrosseis" },
+  { titulo: "Conteúdos visuais", desc: "Meus conteúdos e carrosséis da crónica", icon: GalleryHorizontal, url: "/estudio/carrosseis" },
   { titulo: "Roteiros de Reels", desc: "Preparar a leitura e retomar roteiros", icon: FileText, url: "/estudio/roteiros" },
   { titulo: "Newsletter", desc: "Edições, crónica e arquivo", icon: Mail, url: "/newsletter" },
-  { titulo: "Carrosséis da crónica", desc: "A partir de edições enviadas", icon: Images, url: "/estudio/redes-sociais" },
   { titulo: "Artigos", desc: "Rascunhos de texto, sem publicação", icon: FileText, url: "/artigos" },
 ];
 const CONFIGURACAO: Acao[] = [

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, CalendarDays, CheckCircle2, Euro, FolderKanban } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PendingThumbnail } from "@/components/PendingThumbnail";
 import { useProjects } from "@/hooks/useProjects";
@@ -11,6 +12,12 @@ import { listarCustos } from "@/services/custos";
 import { taxaSucesso } from "@/lib/publicacao/taxaSucesso";
 import { supabase } from "@/integrations/supabase/client";
 import { eur as eurC, filtrar, FORNECEDORES, totais } from "@/features/custos/agregar";
+import type { PendingItem } from "@/hooks/usePendingContent";
+import { alvoEliminacaoPainel, eliminarConteudoPainel } from "@/services/conteudoPainel";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const eur = (v: number) => v.toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
 const mesAtual = () => new Date().toLocaleDateString("pt-PT", { month: "long", year: "numeric", timeZone: "Europe/Lisbon" });
@@ -63,7 +70,9 @@ export function CustosBloco() {
 
 export function ConteudoBloco() {
   const navigate = useNavigate();
-  const { items, totalCount, pendingApprovalCount, draftsCount, scheduledCount, loading } = usePendingContent(4);
+  const { items, totalCount, pendingApprovalCount, draftsCount, scheduledCount, loading, refresh } = usePendingContent(4);
+  const [aEliminar, setAEliminar] = useState<PendingItem | null>(null);
+  const [ocupado, setOcupado] = useState(false);
   const filtro = [
     { r: "Aprovar", n: pendingApprovalCount, to: "/pending" },
     { r: "Agendados", n: scheduledCount, to: "/calendar" },
@@ -79,6 +88,23 @@ export function ConteudoBloco() {
       return taxaSucesso((data ?? []) as never);
     },
   });
+  const confirmarEliminacao = async () => {
+    if (!aEliminar) return;
+    const alvo = alvoEliminacaoPainel(aEliminar.type);
+    setOcupado(true);
+    try {
+      await eliminarConteudoPainel(aEliminar);
+      toast.success(`${alvo.nome.charAt(0).toUpperCase()}${alvo.nome.slice(1)} eliminado com sucesso.`);
+      setAEliminar(null);
+      refresh();
+    } catch (error) {
+      toast.error(error instanceof Error && error.message === "sem-permissao"
+        ? "Não foi eliminado: esta conta não tem permissão para apagar este conteúdo."
+        : "Não foi possível eliminar o conteúdo.");
+    } finally {
+      setOcupado(false);
+    }
+  };
   return (
     <section className="space-y-4 lg:col-span-12">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -113,12 +139,35 @@ export function ConteudoBloco() {
             {items.map((item) => (
               <PendingThumbnail key={`${item.type}-${item.id}`} id={item.id} type={item.type} thumbnail={item.thumbnail} mediaUrl={item.mediaUrl}
                 mediaType={item.mediaType} hasPosterPreview={item.hasPosterPreview} mediaCount={item.mediaCount} caption={item.caption}
-                createdAt={item.createdAt} scheduledDate={item.scheduledDate} route={item.route} onNavigate={navigate} />
+                createdAt={item.createdAt} scheduledDate={item.scheduledDate} route={item.route} onNavigate={navigate}
+                onDelete={() => setAEliminar(item)} />
             ))}
           </div>
           {totalCount > items.length && <p className="text-center text-xs text-muted-foreground">+{totalCount - items.length} itens não mostrados</p>}
         </>
       )}
+      <AlertDialog open={aEliminar !== null} onOpenChange={(aberto) => !ocupado && !aberto && setAEliminar(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar {aEliminar ? alvoEliminacaoPainel(aEliminar.type).nome : "conteúdo"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {aEliminar?.type === "scheduled"
+                ? "A publicação e o respetivo agendamento serão eliminados. Esta ação não pode ser anulada."
+                : "Este conteúdo será eliminado definitivamente. Esta ação não pode ser anulada."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={ocupado}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={ocupado}
+              onClick={(event) => { event.preventDefault(); void confirmarEliminacao(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {ocupado ? "A eliminar…" : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

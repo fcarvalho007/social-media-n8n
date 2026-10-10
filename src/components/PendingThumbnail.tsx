@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { FileImage, ImagePlus, FileText, Calendar, Play, FileVideo, Files } from 'lucide-react';
+import { FileImage, ImagePlus, FileText, Calendar, Play, FileVideo, Files, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { MediaPreviewType } from '@/lib/mediaPreview';
@@ -19,6 +20,7 @@ interface PendingThumbnailProps {
   scheduledDate?: string | null;
   route: string;
   onNavigate: (route: string) => void;
+  onDelete?: () => void;
 }
 
 const getTypeLabel = (type: string) => {
@@ -71,6 +73,7 @@ export function PendingThumbnail({
   scheduledDate,
   route,
   onNavigate,
+  onDelete,
 }: PendingThumbnailProps) {
   const [imgError, setImgError] = useState(false);
   const [generatedPoster, setGeneratedPoster] = useState<string | null>(null);
@@ -142,6 +145,24 @@ export function PendingThumbnail({
         <Badge className={`absolute left-1.5 top-1.5 h-6 border px-2 py-0 text-xs font-semibold ${getTypeBadgeColor(type)}`}>
           {getTypeLabel(type)}
         </Badge>
+
+        {onDelete && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="absolute right-1.5 top-1.5 z-10 h-8 w-8 shadow-sm"
+            aria-label={`Eliminar ${getTypeLabel(type).toLowerCase()}`}
+            title={`Eliminar ${getTypeLabel(type).toLowerCase()}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete();
+            }}
+            onKeyDown={(event) => event.stopPropagation()}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" aria-hidden />
+          </Button>
+        )}
 
         {mediaType === 'video' && (
           <div className="absolute inset-0 flex items-center justify-center">

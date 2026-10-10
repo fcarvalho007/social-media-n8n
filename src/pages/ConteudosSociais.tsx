@@ -11,6 +11,7 @@ import {
   ESTADOS_JOB, ORIGENS_JOB, listarConteudos, prepararCarrossel, processarFila, retomarJob,
   type Listagem,
 } from "@/services/conteudos";
+import { BibliotecasConteudoTabs } from "@/components/conteudos/BibliotecasConteudoTabs";
 
 const dataPt = (s: string | null) => (s ? new Date(s).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }) : "—");
 
@@ -44,7 +45,8 @@ export default function ConteudosSociais() {
   const conteudoDe = (edicaoId: string) => dados?.conteudos.find((c) => c.edicao_id === edicaoId);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 p-4">
+    <div className="mc-estudio -m-0 min-h-[calc(100dvh-4rem)] sm:-m-4 md:-m-6">
+    <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 sm:py-10">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold">Carrosséis da crónica</h1>
@@ -63,6 +65,7 @@ export default function ConteudosSociais() {
           </Button>
         </div>
       </header>
+      <BibliotecasConteudoTabs ativa="cronica" />
       <p className="text-xs text-muted-foreground">O processo automático corre de hora a hora. «Processar fila agora» pede propostas à IA para os trabalhos pendentes.</p>
 
       {dados && (!dados.credenciais.deepseek || !dados.credenciais.egoi) && (
@@ -133,6 +136,7 @@ export default function ConteudosSociais() {
           })}
         </ul>
       )}
+    </div>
     </div>
   );
 }
