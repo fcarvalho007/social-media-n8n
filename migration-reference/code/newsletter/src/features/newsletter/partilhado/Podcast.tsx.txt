@@ -18,11 +18,13 @@ export interface PodcastProps {
   setFoldOpen: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   /** Nota opcional sobre o estado do episódio escolhido (usada no formato Revista). */
   aviso?: React.ReactNode;
+  /** Sub-cartão opcional (bloco do podcast), mostrado só com a secção aberta. */
+  children?: React.ReactNode;
 }
 
 export function Podcast({
   episodios, episodioActivoId, bloqueado, feedUrl, aSincronizarFeed, onSincronizar, onEscolher,
-  mostrarTodosEpisodios, setMostrarTodosEpisodios, foldOpen, setFoldOpen, aviso,
+  mostrarTodosEpisodios, setMostrarTodosEpisodios, foldOpen, setFoldOpen, aviso, children,
 }: PodcastProps) {
 
             const feedConfigurado = !!(feedUrl ?? "").trim();
@@ -99,6 +101,7 @@ export function Podcast({
                     );
                   })()}
                 </div>
+                {children && <div className="mt-4">{children}</div>}
               </Foldable>
             );
 }
