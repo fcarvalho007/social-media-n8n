@@ -295,6 +295,7 @@ def server_rewrite(s: str, here: str) -> str:
     s = s.replace('"@/integrations/supabase/types"', '"%s"' % rel_to(os.path.join(SRV, "_shim/types.ts")))
     s = s.replace('"zod"', '"npm:zod@3.25.76"')
     s = s.replace('"@supabase/supabase-js"', '"npm:@supabase/supabase-js@2.57.4"').replace("'@supabase/supabase-js'", '"npm:@supabase/supabase-js@2.57.4"')
+    s = re.sub(r'"npm:(?:npm:)?@supabase/supabase-js@2\.57\.4(?:@2\.57\.4)?"', '"npm:@supabase/supabase-js@2.57.4"', s)
     s = re.sub(r'from "crypto"', 'from "node:crypto"', s)
     s = tables(s)
     s = s.replace("process.env.WORDPRESS_APP_USER", "(process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username)")
@@ -389,7 +390,10 @@ def build_server():
         rel = os.path.relpath(f, os.path.join(SRC, "lib/newsletter-engine"))[:-4]
         if "__tests__" in rel or rel.endswith(".test.ts"):
             continue
-        files.append((f, os.path.join(ROOT, "supabase/functions/_shared/newsletter-engine", rel)))
+        dst = os.path.join(ROOT, "supabase/functions/_shared/newsletter-engine", rel)
+        # envio.server has project-specific delivery reconciliation and is maintained in shared edge code.
+        if rel != "envio.server.ts":
+            files.append((f, dst))
     # Internal hook handlers that server functions call directly (no public route here).
     for name in HOOKS_INTERNOS:
         files.append((os.path.join(SRC, "routes/api/public/hooks", name + ".ts.txt"), os.path.join(SRV, "hooks", name + ".ts")))
