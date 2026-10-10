@@ -3716,6 +3716,7 @@ export type Database = {
           recomendacao_activa: boolean
           recomendacao_meta: string
           recomendacao_nota: string
+          recomendacao_subtitulo: string
           recomendacao_tipo: string
           recomendacao_titulo: string
           recomendacao_url: string
@@ -3782,6 +3783,7 @@ export type Database = {
           recomendacao_activa?: boolean
           recomendacao_meta?: string
           recomendacao_nota?: string
+          recomendacao_subtitulo?: string
           recomendacao_tipo?: string
           recomendacao_titulo?: string
           recomendacao_url?: string
@@ -3848,6 +3850,7 @@ export type Database = {
           recomendacao_activa?: boolean
           recomendacao_meta?: string
           recomendacao_nota?: string
+          recomendacao_subtitulo?: string
           recomendacao_tipo?: string
           recomendacao_titulo?: string
           recomendacao_url?: string
