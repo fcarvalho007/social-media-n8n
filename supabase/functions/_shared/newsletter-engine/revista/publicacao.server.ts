@@ -17,7 +17,7 @@ import process from "node:process";
 // pública alguns instantes antes de sair o email. Só depois de efectivamente
 // enviada (estado 'enviada' + snapshot bloqueado) é que fica indexável.
 
-import { createClient, type SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { CATEGORIAS } from "../design-tokens.server.ts";
 import { lerEnvelope, type EdicaoRevista, type AtualidadeRevista } from "./compose.server.ts";
 import type { TipoBrief } from "./brief/tipos.ts";

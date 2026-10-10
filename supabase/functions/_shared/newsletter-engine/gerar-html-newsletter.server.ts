@@ -12,7 +12,7 @@ import process from "node:process";
 // resultado desta função (via preview-edicao) e o envio E-goi consome o mesmo
 // output byte a byte.
 
-import { createClient, SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
+import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { CATEGORIAS, FONT_CORPO, FONT_TITULO } from "./design-tokens.server.ts";
 import { ajustarDescricao, ajustarDescricaoDestaque } from "./ajustar-descricao.server.ts";
 import { resolverDestinos } from "./resolver-destinos.server.ts";

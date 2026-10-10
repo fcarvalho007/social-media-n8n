@@ -6,7 +6,7 @@ import process from "node:process";
 // `brief_versoes`. Nada aqui toca no email, no envio, no snapshot ou no hub.
 
 import { createHash } from "node:crypto";
-import { createClient, type SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
 import { calcularFingerprint } from "./fingerprint.ts";
 import { derivarSlug, slugUnico } from "./slug.ts";

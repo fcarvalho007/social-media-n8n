@@ -5,7 +5,7 @@
 // endereço só é aceite depois de resolvido. A fonte jornalística nunca é
 // substituída — a primária acrescenta-se.
 
-import type { SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
 import { chamarIaBrief } from "./adaptador-ia.server.ts";
 import { ligacoesExternas, validarCandidato, publisherDeUrl } from "./fontes.server.ts";

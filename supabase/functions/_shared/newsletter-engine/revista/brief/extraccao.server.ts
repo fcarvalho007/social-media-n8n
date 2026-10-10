@@ -3,7 +3,7 @@
 // Primeira chamada do motor: não escreve o Brief. Devolve apenas factos,
 // contexto e incertezas, sempre suportados pelo material fornecido.
 
-import type { SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
 import { chamarIaBrief } from "./adaptador-ia.server.ts";
 import type { FactoBrief, TipoFacto } from "./tipos.ts";

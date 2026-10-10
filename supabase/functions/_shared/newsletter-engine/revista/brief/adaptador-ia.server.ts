@@ -5,7 +5,7 @@
 // de cada papel são configuráveis em `configuracoes.brief_modelos`; por
 // omissão usa-se o cliente já existente do projecto.
 
-import type { SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
 export type PapelIa = "extraccao" | "redaccao" | "verificacao";
 

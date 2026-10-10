@@ -9,7 +9,7 @@ import process from "node:process";
 // «não configurada» e nunca lança erro de runtime. Os segredos são lidos
 // apenas aqui, dentro dos handlers, e nunca chegam ao browser.
 
-import { createClient, type SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
 import {
   construirPayloadArtigo,
