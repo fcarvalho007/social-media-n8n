@@ -1,0 +1,1 @@
+ALTER TABLE public.nl_episodios_podcast ADD COLUMN IF NOT EXISTS descricao text, ADD COLUMN IF NOT EXISTS resumo_ia text;
