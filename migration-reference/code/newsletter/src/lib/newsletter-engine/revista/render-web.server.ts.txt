@@ -130,6 +130,7 @@ export function montarHtmlRevistaWeb(e: EdicaoRevista): HtmlRevistaWeb {
   ${d.minhaLeitura ? painelLeitura(d.minhaLeitura) : ""}
   ${d.url ? `<p style="margin:16px 0 0 0;"><a href="${href(d.url)}" style="font-family:${SANS};font-size:15px;color:${R.azul};text-decoration:none;font-weight:700;">${esc(d.ctaRotulo || CTA_NOTICIA_PADRAO)} &rarr;</a></p>` : ""}
   </div>
+  </div>
 </article>`);
     });
   }
