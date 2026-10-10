@@ -6,6 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { chamarDeepSeek, parseJsonTolerante, MODELO_DEEPSEEK_PADRAO } from "@/lib/deepseek.server";
 import { custoUsd } from "../../supabase/functions/_shared/custos-ia";
 import { sanitizarSaidaIA } from "@/lib/sanitizar-ia";
+import { limparResumoPodcast } from "@/lib/resumo-podcast";
 
 
 interface SugerirAssuntoInput {
@@ -242,4 +243,52 @@ export const sugerirAssunto = createServerFn({ method: "POST" })
     const finais = sugestoes.slice(0, 3);
     if (finais.length === 0) throw new Error("A IA não devolveu sugestões utilizáveis. Tenta novamente.");
     return { sugestoes: finais };
+  });
+
+
+// ── Resumo de duas linhas do episódio do podcast ──────────────────────────
+const PROMPT_RESUMO_PODCAST = `Resumes episódios do podcast português «Marketing por Idiotas» para o bloco do podcast de uma newsletter.
+Recebes o título e a descrição do episódio tirada do RSS. Escreve UM resumo em português europeu (pt-PT), com no máximo 200 caracteres (cabe em duas linhas), que diga do que trata o episódio e porque vale a pena ouvir.
+Regras: sem emojis, sem links, sem hashtags, sem repetir o título, sem prefixos como "Resumo:", tom directo, nunca "você". Não inventes nada que não esteja na descrição.
+Devolve APENAS o texto do resumo.`;
+
+export const resumirEpisodioPodcast = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown): { episodioId: string; forcar: boolean } => {
+    if (!input || typeof input !== "object") throw new Error("Entrada inválida");
+    const { episodioId, forcar } = input as { episodioId?: unknown; forcar?: unknown };
+    if (typeof episodioId !== "string" || episodioId.length < 8) throw new Error("Episódio em falta");
+    return { episodioId, forcar: forcar === true };
+  })
+  .handler(async ({ data }): Promise<{ resumo: string; gerado: boolean; motivo?: string }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: ep, error } = await supabaseAdmin
+      .from("episodios_podcast").select("id, titulo, descricao, resumo_ia").eq("id", data.episodioId).maybeSingle();
+    if (error) throw error;
+    if (!ep) throw new Error("Episódio não encontrado");
+    // Gerado uma única vez por episódio; só volta a gastar IA a pedido explícito.
+    if (!data.forcar && (ep.resumo_ia ?? "").trim()) return { resumo: ep.resumo_ia!.trim(), gerado: false };
+    const descricao = (ep.descricao ?? "").trim();
+    if (descricao.length < 20) {
+      return { resumo: "", gerado: false, motivo: "O RSS não tem descrição deste episódio. Carrega em «Actualizar do RSS» ou escreve o resumo à mão." };
+    }
+    const r = await chamarDeepSeek(PROMPT_RESUMO_PODCAST, `Título: ${ep.titulo}\n\nDescrição:\n${descricao.slice(0, 3500)}`, {
+      modelo: MODELO_DEEPSEEK_PADRAO,
+    });
+    try {
+      await supabaseAdmin.from("ia_uso").insert({
+        modelo: r.modelo,
+        tokens_entrada_cache_hit: r.usage.cacheHit,
+        tokens_entrada_cache_miss: r.usage.cacheMiss,
+        tokens_saida: r.usage.saida,
+        custo_usd: custoUsd(r.modelo, r.usage.cacheHit, r.usage.cacheMiss, r.usage.saida),
+        origem: "resumo_podcast",
+      });
+    } catch (e) {
+      console.error("[resumo-podcast] falha a registar ia_uso:", (e as Error).message);
+    }
+    const resumo = limparResumoPodcast(sanitizarSaidaIA(r.conteudo));
+    if (!resumo) return { resumo: "", gerado: false, motivo: "A IA não devolveu um resumo. Escreve-o à mão ou tenta de novo." };
+    await supabaseAdmin.from("episodios_podcast").update({ resumo_ia: resumo }).eq("id", ep.id);
+    return { resumo, gerado: true };
   });

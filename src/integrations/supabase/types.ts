@@ -3147,7 +3147,9 @@ export type Database = {
           codigo: string | null
           criado_em: string
           data_publicacao: string | null
+          descricao: string | null
           id: string
+          resumo_ia: string | null
           titulo: string
           url: string | null
         }
@@ -3155,7 +3157,9 @@ export type Database = {
           codigo?: string | null
           criado_em?: string
           data_publicacao?: string | null
+          descricao?: string | null
           id?: string
+          resumo_ia?: string | null
           titulo: string
           url?: string | null
         }
@@ -3163,7 +3167,9 @@ export type Database = {
           codigo?: string | null
           criado_em?: string
           data_publicacao?: string | null
+          descricao?: string | null
           id?: string
+          resumo_ia?: string | null
           titulo?: string
           url?: string | null
         }

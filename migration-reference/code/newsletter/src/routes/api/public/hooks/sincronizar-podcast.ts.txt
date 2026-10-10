@@ -48,7 +48,7 @@ async function handler(request: Request): Promise<Response> {
     (existentes ?? []).map((r) => chaveTituloDia(r.titulo ?? "", r.data_publicacao ?? null)),
   );
 
-  const novos: { titulo: string; codigo: string | null; data_publicacao: string; url: string }[] = [];
+  const novos: { titulo: string; codigo: string | null; data_publicacao: string; url: string; descricao: string | null }[] = [];
   const vistos = new Set<string>();
   for (const it of itens) {
     if (urlsExistentes.has(it.url)) continue;
@@ -61,6 +61,7 @@ async function handler(request: Request): Promise<Response> {
       codigo: extrairCodigoEpisodio(it.titulo, it.descricao),
       data_publicacao: dataIso,
       url: it.url,
+      descricao: it.descricao.trim().slice(0, 4000) || null,
     });
   }
   novos.sort((a, b) => (a.data_publicacao < b.data_publicacao ? 1 : -1));
@@ -75,6 +76,17 @@ async function handler(request: Request): Promise<Response> {
       });
     }
     inseridos = novos.length;
+  }
+
+  // 4b) Completa a descrição dos episódios antigos que ainda não a têm
+  // (só esse campo; o resumo de IA nunca é gerado aqui).
+  const { data: semDescricao } = await supabaseAdmin
+    .from("episodios_podcast").select("id, url").is("descricao", null);
+  const descPorUrl = new Map(itens.map((i) => [i.url, i.descricao.trim().slice(0, 4000)]));
+  for (const ep of semDescricao ?? []) {
+    const d = ep.url ? descPorUrl.get(ep.url) : undefined;
+    if (!d) continue;
+    await supabaseAdmin.from("episodios_podcast").update({ descricao: d }).eq("id", ep.id);
   }
 
   // 5) Audit + carimbo de última sincronização
