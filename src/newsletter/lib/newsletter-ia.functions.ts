@@ -20,4 +20,5 @@ export interface SugestaoAssunto {
   caracteres: number;
 }
 export const sugerirAssunto = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/newsletter-ia.functions").sugerirAssunto>("newsletter-ia:sugerirAssunto");
+export const resumirEpisodioPodcast = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/newsletter-ia.functions").resumirEpisodioPodcast>("newsletter-ia:resumirEpisodioPodcast");
 

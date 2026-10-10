@@ -37,6 +37,7 @@ import { useAutoSave, type AutoSaveApi } from "../useAutoSave";
 import { ModalLinks } from "../ModalLinks";
 import PainelDestinos from "./PainelDestinos";
 import { CabecalhoRevista, type EstadoEdicao } from "./CabecalhoRevista";
+import { resumirEpisodioPodcast } from "@/newsletter/lib/newsletter-ia.functions";
 import { verificarLinksEdicao, type ItemLink, type ResumoLinks } from "@/newsletter/lib/verificar-links.functions";
 import { prontidaoRevistaFn } from "@/newsletter/lib/destinos.functions";
 import { rotuloWorkflow } from "@/newsletter/lib/newsletter-engine/revista/prontidao-rotulos";
@@ -691,7 +692,28 @@ export default function EditorRevista({
       podcast_tema: temaDoEpisodio(ep.titulo),
       podcast_url: ep.url ?? "",
       podcast_cta: (cfg?.podcast_cta ?? "").trim() || PODCAST_CTA,
+      podcast_pergunta: (ep.resumo_ia ?? "").trim(),
     };
+  }
+
+  const resumirFn = useServerFn(resumirEpisodioPodcast);
+  const [aResumir, setAResumir] = useState(false);
+  /** Gera (ou reutiliza) o resumo de duas linhas e coloca-o no bloco do podcast. */
+  async function resumirEpisodio(ep: Episodio, forcar: boolean) {
+    setAResumir(true);
+    try {
+      const r = await resumirFn({ data: { episodioId: ep.id, forcar } });
+      if (r.resumo) {
+        editarJa({ podcast_pergunta: r.resumo });
+        if (r.gerado) qc.invalidateQueries({ queryKey: ["episodios"] });
+      } else if (r.motivo) {
+        toast.warning(r.motivo);
+      }
+    } catch (e) {
+      toast.error(`Não foi possível gerar o resumo: ${(e as Error).message}`);
+    } finally {
+      setAResumir(false);
+    }
   }
 
   const mEscolherEp = useMutation({
@@ -706,7 +728,12 @@ export default function EditorRevista({
         const tipo = (cfg?.recomendacao_tipo ?? "").trim().toLowerCase();
         const vazia = !(cfg?.recomendacao_titulo ?? "").trim() && !(cfg?.recomendacao_url ?? "").trim();
         const tocaRecomendacao = vazia || tipo === "podcast";
-        editarJa({ ...(tocaRecomendacao ? patchDoPodcast(ep) : {}), ...patchBlocoPodcast(ep) });
+        const mesmo = ep.id === edicaoQ.data?.episodio_podcast_id && !!(cfg?.podcast_pergunta ?? "").trim();
+        const bloco = patchBlocoPodcast(ep);
+        // Resumo editado à mão no mesmo episódio nunca é reescrito.
+        if (mesmo) delete bloco.podcast_pergunta;
+        editarJa({ ...(tocaRecomendacao ? patchDoPodcast(ep) : {}), ...bloco });
+        if (!mesmo && !(ep.resumo_ia ?? "").trim()) void resumirEpisodio(ep, false);
         toast.success(tocaRecomendacao
           ? "Episódio actualizado no bloco do podcast e em «Esta semana recomendo»."
           : "Bloco do podcast actualizado com este episódio.");
@@ -1540,64 +1567,78 @@ export default function EditorRevista({
                 </div>
               );
             })()}
-          />
-
-          <BlocoEdicao
-            id="bloco_podcast" numero={3} titulo="Bloco do podcast" icone={Mic}
-            aberto={folds.bloco_podcast ?? false} alternar={alternar}
-            accao={{ rotulo: "Incluir nesta edição", desactivada: !!bloqueado, onClick: () => editar({ podcast_activo: true }) }}
-            resumo={opcional(
-              !!cfg?.podcast_activo,
-              !!cfg?.podcast_tema.trim(),
-              `${cfg?.podcast_programa || "Podcast"} · «${(cfg?.podcast_tema ?? "").slice(0, 55)}»`,
-              "Bloco ligado, mas falta o tema do episódio.",
-            )}
           >
-            {cfg && (
-              <>
-                {(() => {
-                  const ep = (episodiosQ.data ?? []).find((e) => e.id === edicaoQ.data?.episodio_podcast_id) ?? null;
-                  const sincronizado = !!ep
-                    && cfg.podcast_tema === temaDoEpisodio(ep.titulo)
-                    && cfg.podcast_url === (ep.url ?? "");
-                  return (
-                    <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
-                      <p className={`text-[13px] ${ep && !sincronizado ? "text-amber-700" : "text-muted-foreground"}`}>
-                        {!ep
-                          ? "Escolhe primeiro um episódio acima — o conteúdo deste bloco é preenchido a partir dele e pode depois ser alterado ou apagado."
-                          : sincronizado
-                            ? `Preenchido a partir do episódio «${recortar(ep.titulo, 60)}». Podes editar, acrescentar ou apagar qualquer campo.`
-                            : `Os campos já foram alterados à mão e não correspondem ao episódio «${recortar(ep.titulo, 60)}».`}
-                      </p>
+            <BlocoEdicao
+              id="bloco_podcast" numero={3} titulo="Bloco do podcast" icone={Mic}
+              aberto={folds.bloco_podcast ?? false} alternar={alternar}
+              accao={{ rotulo: "Incluir nesta edição", desactivada: !!bloqueado, onClick: () => editar({ podcast_activo: true }) }}
+              resumo={opcional(
+                !!cfg?.podcast_activo,
+                !!cfg?.podcast_tema.trim(),
+                `${cfg?.podcast_programa || "Podcast"} · «${(cfg?.podcast_tema ?? "").slice(0, 55)}»`,
+                "Bloco ligado, mas falta o tema do episódio.",
+              )}
+            >
+              {cfg && (
+                <>
+                  {(() => {
+                    const ep = (episodiosQ.data ?? []).find((e) => e.id === edicaoQ.data?.episodio_podcast_id) ?? null;
+                    const sincronizado = !!ep
+                      && cfg.podcast_tema === temaDoEpisodio(ep.titulo)
+                      && cfg.podcast_url === (ep.url ?? "");
+                    return (
+                      <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
+                        <p className={`text-[13px] ${ep && !sincronizado ? "text-amber-700" : "text-muted-foreground"}`}>
+                          {!ep
+                            ? "Escolhe primeiro um episódio acima — o conteúdo deste bloco é preenchido a partir dele e pode depois ser alterado ou apagado."
+                            : sincronizado
+                              ? `Preenchido a partir do episódio «${recortar(ep.titulo, 60)}». Podes editar, acrescentar ou apagar qualquer campo.`
+                              : `Os campos já foram alterados à mão e não correspondem ao episódio «${recortar(ep.titulo, 60)}».`}
+                        </p>
+                        <button
+                          type="button"
+                          disabled={!!bloqueado || !ep}
+                          onClick={() => { if (ep) editar(patchBlocoPodcast(ep)); }}
+                          className="rounded-lg border border-border px-3 py-2 text-[13px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+                        >
+                          Repor a partir do episódio escolhido
+                        </button>
+                      </div>
+                    );
+                  })()}
+                  <label className="flex items-center gap-3 text-[15px] text-foreground">
+                    <input
+                      type="checkbox" checked={cfg.podcast_activo}
+                      onChange={(e) => editar({ podcast_activo: e.target.checked })}
+                      className="h-5 w-5 accent-[hsl(var(--primary))]"
+                    />
+                    Mostrar o bloco amarelo do podcast
+                  </label>
+                  <Campo etiqueta="Etiqueta" valor={cfg.podcast_etiqueta} onChange={(v) => editar({ podcast_etiqueta: v })} dica="Por exemplo: Podcast semanal." />
+                  <Campo etiqueta="Nome do programa" valor={cfg.podcast_programa} onChange={(v) => editar({ podcast_programa: v })} />
+                  <Campo etiqueta="Tema do episódio" valor={cfg.podcast_tema} onChange={(v) => editar({ podcast_tema: v })} />
+                  <Campo etiqueta="Convidado (opcional)" valor={cfg.podcast_convidado} onChange={(v) => editar({ podcast_convidado: v })} />
+                  <Campo etiqueta="Resumo em duas linhas (aparece por baixo do título)" area linhas={2} valor={cfg.podcast_pergunta} onChange={(v) => editar({ podcast_pergunta: v })} dica="Gerado pela IA a partir da descrição do RSS. Podes editar ou apagar." />
+                  {(() => {
+                    const ep = (episodiosQ.data ?? []).find((e) => e.id === edicaoQ.data?.episodio_podcast_id) ?? null;
+                    return (
                       <button
                         type="button"
-                        disabled={!!bloqueado || !ep}
-                        onClick={() => { if (ep) editar(patchBlocoPodcast(ep)); }}
-                        className="rounded-lg border border-border px-3 py-2 text-[13px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+                        disabled={!!bloqueado || !ep || aResumir}
+                        onClick={() => { if (ep) void resumirEpisodio(ep, true); }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[13px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
                       >
-                        Repor a partir do episódio escolhido
+                        {aResumir ? "A gerar resumo…" : "Gerar resumo de novo"}
                       </button>
-                    </div>
-                  );
-                })()}
-                <label className="flex items-center gap-3 text-[15px] text-foreground">
-                  <input
-                    type="checkbox" checked={cfg.podcast_activo}
-                    onChange={(e) => editar({ podcast_activo: e.target.checked })}
-                    className="h-5 w-5 accent-[hsl(var(--primary))]"
-                  />
-                  Mostrar o bloco amarelo do podcast
-                </label>
-                <Campo etiqueta="Etiqueta" valor={cfg.podcast_etiqueta} onChange={(v) => editar({ podcast_etiqueta: v })} dica="Por exemplo: Podcast semanal." />
-                <Campo etiqueta="Nome do programa" valor={cfg.podcast_programa} onChange={(v) => editar({ podcast_programa: v })} />
-                <Campo etiqueta="Tema do episódio" valor={cfg.podcast_tema} onChange={(v) => editar({ podcast_tema: v })} />
-                <Campo etiqueta="Convidado (opcional)" valor={cfg.podcast_convidado} onChange={(v) => editar({ podcast_convidado: v })} />
-                <Campo etiqueta="Breve descrição (opcional)" area linhas={2} valor={cfg.podcast_pergunta} onChange={(v) => editar({ podcast_pergunta: v })} />
-                <Campo etiqueta="URL" mono valor={cfg.podcast_url} onChange={(v) => editar({ podcast_url: v })} />
-                <Campo etiqueta="Texto do botão" valor={cfg.podcast_cta} onChange={(v) => editar({ podcast_cta: v })} />
-              </>
-            )}
-          </BlocoEdicao>
+                    );
+                  })()}
+                  <Campo etiqueta="URL" mono valor={cfg.podcast_url} onChange={(v) => editar({ podcast_url: v })} />
+                  <Campo etiqueta="Texto do botão" valor={cfg.podcast_cta} onChange={(v) => editar({ podcast_cta: v })} />
+                </>
+              )}
+            </BlocoEdicao>
+          </Podcast>
+
 
           <BlocoEdicao
             id="recomendo" numero={4} titulo="Esta semana recomendo" icone={Sparkles}

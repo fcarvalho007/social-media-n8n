@@ -9,3 +9,8 @@ export interface SugestaoAssunto {
 export declare const sugerirAssunto: import("../_shim/start.ts").NlServerFn<unknown, {
     sugestoes: SugestaoAssunto[];
 }>;
+export declare const resumirEpisodioPodcast: import("../_shim/start.ts").NlServerFn<unknown, {
+    resumo: string;
+    gerado: boolean;
+    motivo?: string;
+}>;
