@@ -1,0 +1,12 @@
+/** Origin asset ids of the newsletter author avatar (known own resources, png + jpg). */
+export declare const AVATAR_ASSET_IDS: readonly ["64e62b56-bcaf-4d4a-b6d3-d80d1568af05", "cadec3e2-5dd7-4a75-b8dc-14c0202c4200"];
+/** Replaces known origin avatar URLs with `${base}/nl/frederico-avatar.png`. Returns the new string and count. */
+export declare function reescreverAvatar(s: string, base: string): {
+    valor: string;
+    n: number;
+};
+/**
+ * Moves a public edition/brief URL (any historical host) onto the destination base.
+ * Only `/edicoes/...` and `/brief/...` paths are remapped; anything else is returned unchanged.
+ */
+export declare function paraBaseDestino(url: string, base: string): string;

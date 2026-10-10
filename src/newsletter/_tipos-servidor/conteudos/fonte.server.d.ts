@@ -1,0 +1,8 @@
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import type { FonteCronica } from "./carrossel.ts";
+export declare class ErroFonte extends Error {
+    readonly codigo: "inelegivel" | "parcial" | "sem_texto" | "sem_url";
+    constructor(msg: string, codigo?: "inelegivel" | "parcial" | "sem_texto" | "sem_url");
+}
+export declare function hashFonte(f: Omit<FonteCronica, "hash" | "numero">): Promise<string>;
+export declare function carregarFonteCronica(sb: SupabaseClient, edicaoId: string): Promise<FonteCronica>;
