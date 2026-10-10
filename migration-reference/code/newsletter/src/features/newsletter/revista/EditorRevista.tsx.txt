@@ -1412,7 +1412,9 @@ export default function EditorRevista({
                     <Campo id={ID_EXCERTO} etiqueta="Excerto da crónica" destino="email" area linhas={6} valor={cfg.cronica_excerto} onChange={(v) => editar({ cronica_excerto: v })} dica={cfg.cronica_excerto.trim() ? "Uma linha em branco separa parágrafos." : "Vazio: a pré-visualização usa o início da crónica. Preenche aqui para personalizar."} />
                     <AvisoCampo texto={avisoExcerto} />
                   </div>
-                  <Campo etiqueta="URL da crónica completa" destino="email" mono valor={cfg.cronica_url} onChange={(v) => editar({ cronica_url: v })} dica={cfg.cronica_url.trim() ? undefined : "Ainda sem endereço no site — o botão «Ler a crónica completa» não aparece. Cria o rascunho em «Publicar → Destinos»."} />
+                  <p className="text-[12px] text-muted-foreground">
+                    O endereço público é preenchido automaticamente depois de publicares a crónica em «Publicar → Destinos».
+                  </p>
                 </Subgrupo>
 
                 <Subgrupo

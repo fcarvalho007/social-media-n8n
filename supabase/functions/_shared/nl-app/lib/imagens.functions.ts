@@ -1,9 +1,11 @@
+import process from "node:process";
 import { Buffer } from "node:buffer";
 // Imagem da crónica (formato Revista): pesquisa no Pexels e cópia para o
 // armazenamento da aplicação, para que o email nunca dependa de terceiros.
 
 import { createServerFn } from "../_shim/start.ts";
 import { requireSupabaseAuth } from "../_shim/auth.ts";
+import { normalizarUrlImagemEditorial, urlImagemEditorial } from "./imagem-editorial.ts";
 
 export type { FotoPexels } from "./pexels-tipos.ts";
 import type { FotoPexels } from "./pexels-tipos.ts";
@@ -32,8 +34,9 @@ async function guardar(
     .from("nl-imagens-edicao")
     .upload(caminho, bytes, { contentType: tipo, upsert: true });
   if (error) throw new Error(`Não foi possível guardar a imagem: ${error.message}`);
-  const { baseUrlEdicoes } = await import("../../newsletter-engine/revista/destinos.server.ts");
-  return `${await baseUrlEdicoes()}/api/public/imagem/${caminho}`;
+  const backendUrl = process.env.SUPABASE_URL;
+  if (!backendUrl) throw new Error("O serviço de imagens não está configurado.");
+  return urlImagemEditorial(backendUrl, caminho);
 }
 
 /** Copia uma foto do Pexels para o armazenamento e devolve o URL público. */
@@ -72,15 +75,18 @@ export const obterImagemBase64Fn = createServerFn({ method: "POST" })
   .inputValidator((d: { url: string }) => d)
   .handler(async ({ data }): Promise<{ base64: string; tipo: string; erro?: never } | { base64?: never; tipo?: never; erro: string }> => {
     if (!/^https?:\/\//i.test(data.url)) return { erro: "Endereço de imagem inválido." };
+    const backendUrl = process.env.SUPABASE_URL;
+    if (!backendUrl) return { erro: "O serviço de imagens não está configurado." };
+    const url = normalizarUrlImagemEditorial(data.url, backendUrl);
     let res: Response;
     try {
-      res = await fetch(data.url);
+      res = await fetch(url);
     } catch {
-      return { erro: "Não foi possível obter a imagem original." };
+      return { erro: "Não foi possível recuperar a imagem. Escolhe-a novamente ou carrega outra." };
     }
     // Uma imagem antiga pode já não existir. Isso impede o recorte, mas não
     // deve transformar uma operação opcional num erro 500 da aplicação.
-    if (!res.ok) return { erro: "Não foi possível obter a imagem original." };
+    if (!res.ok) return { erro: "Não foi possível recuperar a imagem. Escolhe-a novamente ou carrega outra." };
     const tipo = res.headers.get("content-type") ?? "image/jpeg";
     if (!tipo.startsWith("image/")) return { erro: "O endereço não é uma imagem." };
     const buf = await res.arrayBuffer();
