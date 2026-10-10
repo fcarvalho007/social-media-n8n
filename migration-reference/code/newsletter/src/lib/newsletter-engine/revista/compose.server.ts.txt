@@ -421,8 +421,8 @@ export function validarRevista(e: EdicaoRevista): string[] {
     if (!d.minhaLeitura.trim()) p.push(`Falta «A minha leitura» da notícia ${i + 1}.`);
     if (!d.url.trim()) p.push(`Falta o link da notícia ${i + 1}.`);
   });
-  if (e.radar.length < LIMITES_REVISTA.radarMin || e.radar.length > LIMITES_REVISTA.radarMax) {
-    p.push(`O Radar tem ${e.radar.length} notícias (entre ${LIMITES_REVISTA.radarMin} e ${LIMITES_REVISTA.radarMax}).`);
+  if (e.radar.length < LIMITES_REVISTA.radarMin) {
+    p.push(`«${ROTULOS_REVISTA.radar}» tem ${e.radar.length} notícias (mínimo ${LIMITES_REVISTA.radarMin}).`);
   }
   e.radar.forEach((r, i) => {
     if (!r.url.trim()) p.push(`Falta o link da entrada ${i + 1} do Radar.`);
