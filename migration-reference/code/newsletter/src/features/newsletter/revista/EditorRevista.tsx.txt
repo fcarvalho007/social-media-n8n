@@ -1044,13 +1044,13 @@ export default function EditorRevista({
     if (existente?.papel === papel) return;
     // Nunca substituir outra notícia em silêncio: se o papel está cheio, explicar.
     if (papel === "destaque" && destaques.length >= LIMITES_REVISTA.destaquesMax) {
-      toast.error(`Já tens ${LIMITES_REVISTA.destaquesMax} destaques. Passa um deles a Radar ou a Só site antes de escolher outro.`);
+      toast.error(`Já tens ${LIMITES_REVISTA.destaquesMax} destaques. Passa um deles a Novidades da semana ou a Só site antes de escolher outro.`);
       return;
     }
     if (!existente && aprovadas.find((n) => n.id === noticiaId)?.destino === "site") {
       mPatchNoticia.mutate({ id: noticiaId, patch: { destino: "news" } });
     }
-    registar(`Marcou «${titulo}» como ${papel === "destaque" ? "Destaque" : "Radar"}`);
+    registar(`Marcou «${titulo}» como ${papel === "destaque" ? "Destaque" : ROTULOS_REVISTA.radar}`);
     sincronizarBrief(noticiaId, papel);
     if (!existente) { mAdicionar.mutate({ noticiaId, papel }); return; }
     mMover.mutate({ id: existente.id, papel });
@@ -1066,7 +1066,7 @@ export default function EditorRevista({
   ];
   const destaquesCheios = destaques.length >= LIMITES_REVISTA.destaquesMax;
   const notaLimite = destaquesCheios
-      ? `Destaques no máximo (${LIMITES_REVISTA.destaquesMax}) — para trocar, passa um a Radar ou Só site.`
+      ? `Destaques no máximo (${LIMITES_REVISTA.destaquesMax}) — para trocar, passa um a Novidades da semana ou Só site.`
       : null;
 
   /* ─── Fases de trabalho: curar → compor → publicar ─── */

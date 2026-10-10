@@ -435,7 +435,9 @@ export interface CategoriaRepetida {
 }
 
 /** Categorias com duas ou mais entradas em «Novidades da semana». */
-export function categoriasRepetidasNoRadar(itens: ItemRevista[]): CategoriaRepetida[] {
+export function categoriasRepetidasNoRadar(
+  itens: Array<Pick<ItemRevista, "papel" | "noticia">>,
+): CategoriaRepetida[] {
   const contagens = new Map<string, CategoriaRepetida>();
   for (const item of itens) {
     if (item.papel !== "radar" || !item.noticia) continue;
@@ -734,7 +736,7 @@ export function Atualidade({
     return (
       <p className="text-[14px] leading-relaxed text-muted-foreground">
         Ainda não há notícias aprovadas nesta edição. Aprova em «Curar» e elas aparecem aqui,
-        prontas para organizar como Destaque, Radar ou Só site.
+        prontas para organizar como Destaque, Novidade da semana ou Só site.
       </p>
     );
   }

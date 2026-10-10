@@ -285,7 +285,7 @@ function admin(): SupabaseClient {
   });
 }
 
-/** Rótulo curto da categoria para o Radar (sem emoji, sem parêntesis). */
+/** Rótulo curto da categoria para «Novidades da semana» (sem emoji, sem parêntesis). */
 export function rotuloCategoria(id: string): string {
   const def = CATEGORIAS.find((c) => c.id === id);
   const nome = def?.nome ?? id;
@@ -425,11 +425,11 @@ export function validarRevista(e: EdicaoRevista): string[] {
     p.push(`«${ROTULOS_REVISTA.radar}» tem ${e.radar.length} notícias (mínimo ${LIMITES_REVISTA.radarMin}).`);
   }
   e.radar.forEach((r, i) => {
-    if (!r.url.trim()) p.push(`Falta o link da entrada ${i + 1} do Radar.`);
+    if (!r.url.trim()) p.push(`Falta o link da entrada ${i + 1} de «${ROTULOS_REVISTA.radar}».`);
   });
   const ids = new Set<string>();
   for (const n of [...e.destaques, ...e.radar]) {
-    if (ids.has(n.noticiaId)) p.push(`Existe uma notícia repetida entre «${ROTULOS_REVISTA.destaques}» e o Radar.`);
+    if (ids.has(n.noticiaId)) p.push(`Existe uma notícia repetida entre «${ROTULOS_REVISTA.destaques}» e «${ROTULOS_REVISTA.radar}».`);
     ids.add(n.noticiaId);
   }
   // Campos opcionais: ou ficam completos, ou ficam desligados.
@@ -739,7 +739,7 @@ export async function composeRevistaEdition(
     : null;
 
   // Atualidades: todas as aprovadas da edição. As que não entram em
-  // «Três coisas» nem no Radar são, por definição, «só site».
+  // Destaques nem «Novidades da semana» são, por definição, «só site».
   const papeis = new Map<string, "destaque" | "radar">();
   destaques.forEach((d) => papeis.set(d.noticiaId, "destaque"));
   radar.forEach((r) => papeis.set(r.noticiaId, "radar"));

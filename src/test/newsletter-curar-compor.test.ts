@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { separarDestinos } from "@/newsletter/features/newsletter/revista/Atualidade";
+import { categoriasRepetidasNoRadar, separarDestinos } from "@/newsletter/features/newsletter/revista/Atualidade";
 import type { NoticiaAprovada } from "@/newsletter/features/newsletter/revista/data-revista";
 import { modoRetirarNoticiaDaEdicao } from "@/newsletter/features/newsletter/data";
 
@@ -31,6 +31,24 @@ describe("Curar → Compor", () => {
     const resultado = separarDestinos([noticia("radar", "news")], [{ noticia_id: "radar" }]);
     expect(resultado.porOrganizar).toEqual([]);
     expect(resultado.soSite).toEqual([]);
+  });
+
+  it("avisa quando duas notícias de Novidades da semana têm a mesma categoria", () => {
+    const resultado = categoriasRepetidasNoRadar([
+      { papel: "radar", noticia: { id: "1", titulo: "A", descricao: null, url: null, url_curto: null, categoria: "ia" } },
+      { papel: "radar", noticia: { id: "2", titulo: "B", descricao: null, url: null, url_curto: null, categoria: "ia" } },
+      { papel: "destaque", noticia: { id: "3", titulo: "C", descricao: null, url: null, url_curto: null, categoria: "ia" } },
+    ]);
+    expect(resultado).toEqual([{ categoria: "ia", rotulo: "IA", quantidade: 2 }]);
+  });
+
+  it("não limita Novidades da semana a cinco entradas", () => {
+    const itens = Array.from({ length: 30 }, (_, i) => ({
+      papel: "radar" as const,
+      noticia: { id: String(i), titulo: `N${i}`, descricao: null, url: null, url_curto: null, categoria: `cat-${i}` },
+    }));
+    expect(categoriasRepetidasNoRadar(itens)).toEqual([]);
+    expect(itens).toHaveLength(30);
   });
 
   it("retirar uma cópia da edição apaga apenas essa cópia", () => {
