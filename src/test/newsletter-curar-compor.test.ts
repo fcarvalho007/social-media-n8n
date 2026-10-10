@@ -39,7 +39,7 @@ describe("Curar → Compor", () => {
       { papel: "radar", noticia: { id: "2", titulo: "B", descricao: null, url: null, url_curto: null, categoria: "ia" } },
       { papel: "destaque", noticia: { id: "3", titulo: "C", descricao: null, url: null, url_curto: null, categoria: "ia" } },
     ]);
-    expect(resultado).toEqual([{ categoria: "ia", rotulo: "IA", quantidade: 2 }]);
+    expect(resultado).toEqual([{ categoria: "ia", rotulo: "IA & Tecnologia", quantidade: 2 }]);
   });
 
   it("não limita Novidades da semana a cinco entradas", () => {
