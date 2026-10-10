@@ -119,14 +119,17 @@ export function montarHtmlRevistaWeb(e: EdicaoRevista): HtmlRevistaWeb {
   /* três coisas */
   if (e.destaques.length) {
     p.push(tituloSeccao(ROTULOS_REVISTA.destaques));
-    for (const d of e.destaques) {
-      p.push(`<article style="margin-top:32px;">
-  <h3 style="margin:0;font-family:${SANS};font-size:21px;line-height:30px;font-weight:700;letter-spacing:-0.015em;"><a href="${href(d.url)}" style="color:${R.navy};text-decoration:none;">${esc(d.titulo)}</a></h3>
+    e.destaques.forEach((d, i) => {
+      p.push(`<article style="margin-top:40px;display:flex;gap:28px;align-items:flex-start;">
+  <div style="flex:0 0 auto;font-family:${SERIF};font-size:72px;line-height:68px;color:${R.azul};">${i + 1}</div>
+  <div style="flex:1 1 auto;min-width:0;">
+  <h3 style="margin:0;font-family:${SERIF};font-size:23px;line-height:31px;letter-spacing:-0.01em;"><a href="${href(d.url)}" style="color:${R.navy};text-decoration:none;">${esc(d.titulo)}</a></h3>
   ${d.resumoFactual ? `<p style="margin:10px 0 0 0;font-family:${SANS};font-size:16px;line-height:27px;color:${R.textoSec};">${esc(d.resumoFactual)}</p>` : ""}
   ${d.minhaLeitura ? painelLeitura(d.minhaLeitura) : ""}
   ${d.url ? `<p style="margin:16px 0 0 0;"><a href="${href(d.url)}" style="font-family:${SANS};font-size:15px;color:${R.azul};text-decoration:none;font-weight:700;">${esc(d.ctaRotulo || CTA_NOTICIA_PADRAO)} &rarr;</a></p>` : ""}
+  </div>
 </article>`);
-    }
+    });
   }
 
   /* radar */
