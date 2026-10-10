@@ -5,7 +5,7 @@
 // `edicao_id`. Não existe qualquer fallback para outra edição: quando a
 // crónica não existe, o corpo vem vazio e a escrita é bloqueada a jusante.
 
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import type { SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
 
 import type { DadosArtigoCronica } from "./artigo-cronica.ts";
 import { urlCanonicaEdicao } from "./destinos.server.ts";

@@ -3,7 +3,7 @@ import process from "node:process";
 // Clássico → gerador existente. Revista → renderer web da Revista,
 // que inclui a área completa «Todas as atualidades desta edição».
 
-import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { createClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
 import { gerarHtmlWordpress, type HtmlWordpress } from "./gerar-html-wordpress.server.ts";
 import { composeRevistaEdition } from "./revista/compose.server.ts";
 import { montarHtmlRevistaWeb } from "./revista/render-web.server.ts";

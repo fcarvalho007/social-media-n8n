@@ -7,7 +7,7 @@
 //
 // Nada aqui corre com o interruptor `briefs_activos` desligado.
 
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import type { SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
 
 import { baseUrlEdicoes } from "../destinos.server.ts";
 import { prontoParaPublicar } from "./estados.ts";

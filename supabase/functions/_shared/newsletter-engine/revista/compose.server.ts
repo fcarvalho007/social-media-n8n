@@ -8,7 +8,7 @@ import process from "node:process";
 // O sistema Clássico não passa por aqui.
 
 import { excertoDaCronica } from "./sequencia-cronica.ts";
-import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { createClient, type SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
 import { CATEGORIAS } from "../design-tokens.server.ts";
 import { carregarNoticiasDaEdicao, type NoticiaDaEdicao } from "./universo.ts";
 import { caminhoCanonicoEdicao, urlCanonicaEdicao } from "./destinos.server.ts";

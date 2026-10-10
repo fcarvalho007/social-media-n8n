@@ -4,7 +4,7 @@
 // verificação factual → proximidade textual → estado editorial.
 // Nada aqui publica seja o que for.
 
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import type { SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
 
 import { extrairFactos } from "./extraccao.server.ts";
 import { identificarFontePrimaria } from "./fonte-primaria.server.ts";

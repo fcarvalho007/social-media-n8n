@@ -10,7 +10,7 @@ import process from "node:process";
 // diagnósticos acessórios nunca impedem o envio.
 
 import { encontrarDominiosBloqueados, lerListaDominios } from "./dominios-bloqueados.ts";
-import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { createClient, type SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
 
 import { composeRevistaEdition, lerSnapshotRevista } from "./compose.server.ts";
 import { estadoDestinos, urlCanonicaEdicao, caminhoCanonicoEdicao } from "./destinos.server.ts";

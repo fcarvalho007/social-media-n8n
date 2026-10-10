@@ -3,7 +3,7 @@ import process from "node:process";
 // `classic` mantém exactamente o motor anterior; `revista` usa o composer e o
 // renderer próprios. Nenhum código do sistema clássico é alterado.
 
-import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { createClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
 import { gerarHtmlNewsletter } from "./gerar-html-newsletter.server.ts";
 import { montarTexto } from "./gerar-texto-newsletter.server.ts";
 import { composeRevistaEdition, lerSnapshotRevista } from "./revista/compose.server.ts";

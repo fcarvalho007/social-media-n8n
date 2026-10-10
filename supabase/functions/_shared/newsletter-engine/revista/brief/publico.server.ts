@@ -14,7 +14,7 @@ import process from "node:process";
 // Nada aqui devolve leitura sugerida, factos, verificação ou custos: o DTO é
 // construído campo a campo.
 
-import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { createClient, type SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
 
 import { CATEGORIAS } from "../../design-tokens.server.ts";
 import type { ImplicacaoBrief, ParagrafoBrief, TipoBrief } from "./tipos.ts";

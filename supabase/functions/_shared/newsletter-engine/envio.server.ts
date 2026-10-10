@@ -4,7 +4,7 @@ import process from "node:process";
 // sincronizar-rascunho-egoi, disparar-egoi, publicar-wordpress) para o
 // runtime da aplicação, mantendo exactamente as mesmas regras.
 
-import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { createClient, type SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
 import { renderEdicaoEmail } from "./render.server.ts";
 import { gerarHtmlEdicaoWeb } from "./gerar-html-web.server.ts";
 import {

@@ -12,7 +12,7 @@ import process from "node:process";
 //   backup   → Lição no WordPress actual (nunca bloqueante)
 
 import { mensagemErroBackup } from "./erro-backup.ts";
-import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { createClient, type SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
 
 import { construirPayloadArtigo, impressaoArtigo } from "./artigo-cronica.ts";
 

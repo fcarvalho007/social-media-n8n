@@ -2,7 +2,7 @@
 // como por `disparar-egoi`. Cria ou actualiza (PATCH) a campanha na E-goi
 // por par (edicao_id, lista_id) e devolve o resultado por lista.
 
-import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { createClient, SupabaseClient } from "npm:npm:@supabase/supabase-js@2.57.4@2.57.4";
 import { renderEdicaoEmail } from "./render.server.ts";
 import { criarCampanha, patchCampanha } from "./egoi.server.ts";
 
