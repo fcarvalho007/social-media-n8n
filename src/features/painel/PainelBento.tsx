@@ -94,7 +94,7 @@ export function ConteudoBloco() {
     setOcupado(true);
     try {
       await eliminarConteudoPainel(aEliminar);
-      toast.success(`${alvo.nome.charAt(0).toUpperCase()}${alvo.nome.slice(1)} eliminada${alvo.nome === "rascunho" || alvo.nome === "carrossel" ? "o" : ""}`);
+      toast.success(`${alvo.nome.charAt(0).toUpperCase()}${alvo.nome.slice(1)} eliminado com sucesso.`);
       setAEliminar(null);
       refresh();
     } catch (error) {
