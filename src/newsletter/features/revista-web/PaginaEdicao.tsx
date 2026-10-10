@@ -198,21 +198,24 @@ export function PaginaEdicao({
                 titulo={ROTULOS_REVISTA.destaques}
                 nota={NOTAS_REVISTA.destaques}
               />
-              <div className={`grid gap-x-8 gap-y-10 ${e.destaques.length >= 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+              <div className={`grid gap-x-8 gap-y-8 ${e.destaques.length >= 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
                 {e.destaques.map((d, i) => {
                   const brief = briefDe(d.noticiaId);
                   const podeAbrirBrief = briefUtilizavel(brief);
                   return (
-                  <article key={d.itemId} className="rw-card pt-4">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rw-blue">
-                        {d.categoriaRotulo}
-                      </span>
-                      <span className="text-[11px] font-semibold tabular-nums text-rw-ink-2/70">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                    </div>
-                    <h3 className="mt-2 text-[23px] font-semibold leading-[1.2] tracking-[-0.015em] sm:text-[26px]">
+                  <article key={d.itemId} className="rw-card flex items-start gap-3 pt-4">
+                    <span
+                      className="w-12 shrink-0 text-[64px] leading-[0.88] text-rw-blue sm:w-14 sm:text-[74px]"
+                      style={{ fontFamily: SERIF }}
+                      aria-hidden
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                    <span className="block pt-0.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-rw-blue">
+                      {d.categoriaRotulo}
+                    </span>
+                    <h3 className="mt-1.5 text-[23px] font-semibold leading-[1.2] tracking-[-0.015em] sm:text-[26px]">
                       {podeAbrirBrief && brief ? (
                         <Link
                           to={previaInterna ? "/pre-visualizar/brief/$slug" : "/brief/$slug"}
@@ -266,6 +269,7 @@ export function PaginaEdicao({
                         {brief ? "Fonte original" : d.ctaRotulo || "Ler notícia"} <span aria-hidden>↗</span>
                       </a>
                     </p>
+                    </div>
                   </article>
                   );
                 })}
