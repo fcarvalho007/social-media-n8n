@@ -2,7 +2,7 @@
 const TAGS = new Set(["p", "br", "strong", "em", "u"]);
 
 function escTexto(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s.replace(/&(?!(?:amp|lt|gt|quot|#\d+|#x[0-9a-f]+);)/gi, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 /** Mantém apenas parágrafos, quebras, negrito, itálico e sublinhado. */
