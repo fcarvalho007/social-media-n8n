@@ -66,7 +66,7 @@ async function lerConfig(sb: SupabaseClient): Promise<ConfigFrederico> {
     return Number.isFinite(n) && n > 0 ? n : fallback;
   };
   const estado = map.get("frederico_wp_status") === "publish" ? "publish" : "draft";
-  const siteUrl = (process.env["FREDERICO_WP_URL"] ?? "").trim().replace(/\/+$/, "");
+  const siteUrl = (process.env["FREDERICO_WP_URL"] || process.env["WORDPRESS_SITE_URL"] || "").trim().replace(/\/+$/, "");
   return {
     postType: map.get("frederico_wp_post_type") || "posts",
     status: estado,
@@ -74,8 +74,8 @@ async function lerConfig(sb: SupabaseClient): Promise<ConfigFrederico> {
     autor: map.get("frederico_wp_autor") ? num("frederico_wp_autor", 0) || null : null,
     timeoutMs: num("frederico_wp_timeout_ms", 20000),
     siteUrl: siteUrl || null,
-    utilizador: (process.env["FREDERICO_WP_USER"] ?? "").trim() || null,
-    password: (process.env["FREDERICO_WP_APP_PASSWORD"] ?? "").trim() || null,
+    utilizador: (process.env["FREDERICO_WP_USER"] || process.env["WORDPRESS_APP_USER"] || process.env["wordpress_site_username"] || "").trim() || null,
+    password: (process.env["FREDERICO_WP_APP_PASSWORD"] || process.env["WORDPRESS_APP_PASSWORD"] || process.env["wordpress_site_key"] || "").trim() || null,
   };
 }
 
