@@ -9,6 +9,7 @@ import type { EdicaoRevista, AtualidadeRevista } from "./compose.server";
 import { R, SANS, SERIF, ctaRecomendacao, CTA_NOTICIA_PADRAO } from "./tokens";
 import { esc, fmtDataLonga } from "./render-email.server";
 import { sequenciaCronica } from "./sequencia-cronica";
+import { contagemSeleccao } from "./contagens";
 import { ROTULOS_REVISTA } from "./rotulos";
 import { paletaFerramenta } from "./cores-ferramenta";
 
@@ -17,6 +18,8 @@ export interface HtmlRevistaWeb {
   resumoTexto: string;
   tituloLesson: string;
 }
+
+const ANCORA_ATUALIDADES = "atualidades";
 
 function href(u: string): string {
   const v = (u || "").trim();
@@ -49,6 +52,7 @@ ${linhas}
 
 export function montarHtmlRevistaWeb(e: EdicaoRevista): HtmlRevistaWeb {
   const p: string[] = [];
+  const cont = contagemSeleccao(e);
 
   /* cabeçalho */
   p.push(`<header style="padding-bottom:18px;border-bottom:2px solid ${R.navy};">
