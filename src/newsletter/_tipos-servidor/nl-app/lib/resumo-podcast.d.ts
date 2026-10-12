@@ -2,3 +2,7 @@
 export declare const RESUMO_PODCAST_MAX = 200;
 /** Remove links, emojis e aspas, colapsa espaços e corta em ~200 caracteres numa fronteira de palavra. */
 export declare function limparResumoPodcast(texto: string | null | undefined): string;
+/** Só aceita páginas https do site do podcast. */
+export declare function urlEpisodioPermitido(url: string | null | undefined): boolean;
+/** Extrai o texto principal da página do episódio (sem menus, scripts, relacionados). */
+export declare function extrairTextoEpisodio(html: string, max?: number): string;

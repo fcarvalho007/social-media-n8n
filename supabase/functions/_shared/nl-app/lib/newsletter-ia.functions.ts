@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from "../_shim/auth.ts";
 import { chamarDeepSeek, parseJsonTolerante, MODELO_DEEPSEEK_PADRAO } from "./deepseek.server.ts";
 import { custoUsd } from "../edge-shared/custos-ia.ts";
 import { sanitizarSaidaIA } from "./sanitizar-ia.ts";
-import { limparResumoPodcast } from "./resumo-podcast.ts";
+import { limparResumoPodcast, urlEpisodioPermitido, extrairTextoEpisodio } from "./resumo-podcast.ts";
 
 
 interface SugerirAssuntoInput {
@@ -263,14 +263,27 @@ export const resumirEpisodioPodcast = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ resumo: string; gerado: boolean; motivo?: string }> => {
     const { supabaseAdmin } = await import("../_shim/admin.ts");
     const { data: ep, error } = await supabaseAdmin
-      .from("nl_episodios_podcast").select("id, titulo, descricao, resumo_ia").eq("id", data.episodioId).maybeSingle();
+      .from("nl_episodios_podcast").select("id, titulo, descricao, resumo_ia, url").eq("id", data.episodioId).maybeSingle();
     if (error) throw error;
     if (!ep) throw new Error("Episódio não encontrado");
     // Gerado uma única vez por episódio; só volta a gastar IA a pedido explícito.
     if (!data.forcar && (ep.resumo_ia ?? "").trim()) return { resumo: ep.resumo_ia!.trim(), gerado: false };
-    const descricao = (ep.descricao ?? "").trim();
+    let descricao = (ep.descricao ?? "").trim();
     if (descricao.length < 20) {
-      return { resumo: "", gerado: false, motivo: "O RSS não tem descrição deste episódio. Carrega em «Actualizar do RSS» ou escreve o resumo à mão." };
+      // O RSS chega sem descrição: lê-se a página do episódio no site do podcast.
+      const semPagina = { resumo: "", gerado: false, motivo: "Não foi possível ler a página do episódio. Escreve o resumo à mão." };
+      if (!urlEpisodioPermitido(ep.url)) return semPagina;
+      try {
+        const resp = await fetch(ep.url!, { signal: AbortSignal.timeout(10000), headers: { "User-Agent": "DigitalSprint/1.0" } });
+        if (!resp.ok) return semPagina;
+        const html = (await resp.text()).slice(0, 1_500_000);
+        descricao = extrairTextoEpisodio(html);
+      } catch (e) {
+        console.error("[resumo-podcast] falha a ler página:", (e as Error).message);
+        return semPagina;
+      }
+      if (descricao.length < 20) return semPagina;
+      await supabaseAdmin.from("nl_episodios_podcast").update({ descricao }).eq("id", ep.id);
     }
     const r = await chamarDeepSeek(PROMPT_RESUMO_PODCAST, `Título: ${ep.titulo}\n\nDescrição:\n${descricao.slice(0, 3500)}`, {
       modelo: MODELO_DEEPSEEK_PADRAO,

@@ -283,7 +283,7 @@ export const resumirEpisodioPodcast = createServerFn({ method: "POST" })
         return semPagina;
       }
       if (descricao.length < 20) return semPagina;
-      await supabaseAdmin.from("nl_episodios_podcast" as never).update({ descricao } as never).eq("id", ep.id);
+      await supabaseAdmin.from("episodios_podcast").update({ descricao }).eq("id", ep.id);
     }
     const r = await chamarDeepSeek(PROMPT_RESUMO_PODCAST, `Título: ${ep.titulo}\n\nDescrição:\n${descricao.slice(0, 3500)}`, {
       modelo: MODELO_DEEPSEEK_PADRAO,
