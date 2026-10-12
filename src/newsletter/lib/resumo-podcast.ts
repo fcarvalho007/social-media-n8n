@@ -41,7 +41,7 @@ export function extrairTextoEpisodio(html: string, max = 3500): string {
   if (ini >= 0) {
     s = s.slice(ini);
     const fim = s.search(/qodef-podcast-hosts|swiper-slide|<footer/);
-    if (fim > 0) s = s.slice(0, fim);
+    if (fim > 0) s = s.slice(0, Math.max(0, s.lastIndexOf("<", fim)));
   } else {
     const m = s.match(/<article[\s\S]*?<\/article>/i) ?? s.match(/<main[\s\S]*?<\/main>/i);
     if (!m) return "";
