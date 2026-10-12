@@ -3,7 +3,8 @@
 // Para "actualizar rascunho" fazemos PATCH aos dois recursos.
 
 /** Cabeçalhos de cancelamento de um clique enviados com a campanha. */
-const URL_UM_CLIQUE = "https://newsletter-digital-sprint.lovable.app/api/public/hooks/unsubscribe?e={!email:URLENCODE}";
+const URL_UM_CLIQUE = linkUmClique();
+import { linkUmClique } from "../nl-publico-config.ts";
 const CABECALHOS_UNSUBSCRIBE = {
   "List-Unsubscribe": `<${URL_UM_CLIQUE}>`,
   "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
