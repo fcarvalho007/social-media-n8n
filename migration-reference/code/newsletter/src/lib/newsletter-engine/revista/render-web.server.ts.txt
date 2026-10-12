@@ -9,7 +9,6 @@ import type { EdicaoRevista, AtualidadeRevista } from "./compose.server";
 import { R, SANS, SERIF, ctaRecomendacao, CTA_NOTICIA_PADRAO } from "./tokens";
 import { esc, fmtDataLonga } from "./render-email.server";
 import { sequenciaCronica } from "./sequencia-cronica";
-import { contagemSeleccao } from "./contagens";
 import { ROTULOS_REVISTA } from "./rotulos";
 import { paletaFerramenta } from "./cores-ferramenta";
 
@@ -18,8 +17,6 @@ export interface HtmlRevistaWeb {
   resumoTexto: string;
   tituloLesson: string;
 }
-
-const ANCORA_ATUALIDADES = "atualidades";
 
 function href(u: string): string {
   const v = (u || "").trim();
@@ -52,12 +49,11 @@ ${linhas}
 
 export function montarHtmlRevistaWeb(e: EdicaoRevista): HtmlRevistaWeb {
   const p: string[] = [];
-  const cont = contagemSeleccao(e);
 
   /* cabeçalho */
-  p.push(`<header style="padding-bottom:16px;border-bottom:2px solid ${R.navy};">
-  <div style="font-family:${SANS};font-size:14px;line-height:20px;letter-spacing:0.24em;text-transform:uppercase;color:${R.navy};font-weight:700;">Digital Sprint</div>
-  <div style="font-family:${SANS};font-size:13px;line-height:22px;color:${R.textoSec};padding-top:8px;">${esc(fmtDataLonga(e.edicao.data_envio_prevista))} &nbsp;&middot;&nbsp; Edição ${e.edicao.numero}</div>
+  p.push(`<header style="padding-bottom:18px;border-bottom:2px solid ${R.navy};">
+  <div style="font-family:${SANS};font-size:44px;line-height:36px;letter-spacing:-0.04em;text-transform:uppercase;color:${R.navy};font-weight:900;">DIGITAL<br><span style="color:${R.azul};">SPRINT<span style="color:${R.navy};">.</span></span></div>
+  <div style="font-family:${SANS};font-size:13px;line-height:22px;color:${R.textoSec};padding-top:14px;">${esc(fmtDataLonga(e.edicao.data_envio_prevista))} &nbsp;&middot;&nbsp; Edição ${e.edicao.numero}</div>
 </header>`);
 
   if (e.promocao) {
@@ -145,12 +141,6 @@ export function montarHtmlRevistaWeb(e: EdicaoRevista): HtmlRevistaWeb {
       ${r.nota ? `<div style="font-family:${SANS};font-size:14px;line-height:24px;color:${R.textoSec};padding-top:4px;">${esc(r.nota)}</div>` : ""}
     </li>`).join("\n");
     p.push(`<ul style="margin:20px 0 0 0;padding:0;">\n${linhas}\n</ul>`);
-    p.push(`<aside style="margin-top:24px;background:${R.azul};padding:26px 28px;color:${R.branco};">
-      <div style="font-family:${SANS};font-size:12px;line-height:18px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;">Edição completa</div>
-      <div style="font-family:${SANS};font-size:30px;line-height:38px;font-weight:700;padding-top:6px;">${esc(cont.botao)}</div>
-      <p style="margin:8px 0 0 0;font-family:${SANS};font-size:15px;line-height:25px;">${esc(cont.intro)}</p>
-      <p style="margin:18px 0 0 0;"><a href="#${ANCORA_ATUALIDADES}" style="display:inline-block;background:${R.branco};padding:12px 20px;font-family:${SANS};font-size:15px;color:${R.azul};text-decoration:none;font-weight:700;">Abrir todas as notícias &rarr;</a></p>
-    </aside>`);
   }
 
   /* recomendação */

@@ -236,9 +236,11 @@ export function PaginaEdicao({
                       <p className="mt-3 text-[15.5px] leading-7 text-rw-ink-2">{d.resumoFactual}</p>
                     ) : null}
                     {d.minhaLeitura ? (
-                      <div className="mt-4 border-l-[3px] border-rw-amarelo bg-rw-panel px-4 py-3">
-                        <Etiqueta>A minha leitura</Etiqueta>
-                        <p className="pt-1 text-[16px] leading-[1.6] text-rw-ink" style={{ fontFamily: SERIF }}>
+                      <div className="mt-3.5 border-l-[3px] border-rw-blue bg-rw-blue-soft px-4 py-3.5">
+                        <p className="text-[14px] font-bold leading-5 text-rw-blue" style={{ fontFamily: SERIF }}>
+                          A minha leitura
+                        </p>
+                        <p className="pt-1.5 text-[16px] leading-[1.6] text-rw-ink" style={{ fontFamily: SERIF }}>
                           {d.minhaLeitura}
                         </p>
                       </div>
@@ -345,24 +347,6 @@ export function PaginaEdicao({
                 })}
               </ol>
             </section>
-          ) : null}
-
-          {e.radar.length && e.atualidades.length ? (
-            <aside className="mt-10 bg-rw-blue px-5 py-7 text-rw-paper sm:px-8 sm:py-9">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rw-paper/80">Edição completa</p>
-              <p className="mt-2 text-[30px] font-bold leading-tight sm:text-[38px]">
-                Ver as {e.atualidades.length} {e.atualidades.length === 1 ? "notícia" : "notícias"}
-              </p>
-              <p className="mt-2 max-w-[42rem] text-[15px] leading-6 text-rw-paper/85">
-                Explora toda a seleção desta edição, incluindo as notícias que não seguiram no email.
-              </p>
-              <a
-                href="#atualidades"
-                className="mt-5 inline-flex min-h-[46px] items-center bg-rw-paper px-5 text-[15px] font-semibold text-rw-blue"
-              >
-                Abrir todas as notícias <span aria-hidden className="ml-2">↓</span>
-              </a>
-            </aside>
           ) : null}
 
           {/* 04 — seleção completa */}
