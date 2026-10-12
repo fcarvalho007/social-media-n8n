@@ -15,10 +15,10 @@ export function Cabecalho({ numero, data, dataISO }: Props) {
       <div className="flex items-end justify-between gap-5 border-b border-rw-ink pb-5 pt-7 sm:gap-8 sm:pb-6 sm:pt-8">
         <p
           aria-label="Digital Sprint"
-          className="min-w-0 font-display text-[clamp(42px,7vw,82px)] font-black leading-[0.76] tracking-[-0.045em]"
+          className="min-w-0 font-display text-[36px] font-black leading-[0.78] tracking-[-0.045em] sm:text-[clamp(48px,7vw,82px)]"
         >
-          <span className="block">DIGITAL</span>
-          <span className="mt-[0.18em] block text-rw-blue">
+          <span className="block whitespace-nowrap">DIGITAL</span>
+          <span className="mt-[0.18em] block whitespace-nowrap text-rw-blue">
             SPRINT<span className="text-rw-ink">.</span>
           </span>
         </p>
