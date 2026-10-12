@@ -8,7 +8,9 @@ export const ERRO_SEM_CHAVE = "A DeepSeek não está configurada no servidor (DE
 type EnvLike = { Deno?: { env: { get(k: string): string | undefined } }; process?: { env: Record<string, string | undefined> } };
 export function chaveDeepSeek(): string | undefined {
   const g = globalThis as unknown as EnvLike;
-  return g.Deno?.env.get("DEEPSEEK_API_KEY") ?? g.process?.env?.DEEPSEEK_API_KEY;
+  // In the Edge runtime only the Edge secret counts; never fall back to an unrelated process env.
+  const k = g.Deno ? g.Deno.env.get("DEEPSEEK_API_KEY") : g.process?.env?.DEEPSEEK_API_KEY;
+  return k?.trim() || undefined;
 }
 
 export interface PedidoDeepSeek {

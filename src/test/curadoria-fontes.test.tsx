@@ -17,8 +17,8 @@ afterEach(cleanup);
 it('abre na curadoria o módulo original, as fontes existentes e todos os limites sem recolher nem processar', async () => {
  const qc=new QueryClient({defaultOptions:{queries:{retry:false}}});
  render(<MemoryRouter><QueryClientProvider client={qc}><Curadoria /></QueryClientProvider></MemoryRouter>);
- expect(await screen.findByText('1 de 1 fontes ativas.')).toBeInTheDocument();
- fireEvent.click(screen.getByRole('button',{name:'Gerir fontes e RSS'}));
+ expect(await screen.findByText('1 de 1 fontes ativas')).toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Gerir fontes'}));
  expect(await screen.findByText('Fonte existente')).toBeInTheDocument();
  expect(screen.getByRole('button',{name:'Adicionar fonte'})).toBeInTheDocument();
  expect(screen.getByRole('button',{name:'Correr agora'})).toBeInTheDocument();
