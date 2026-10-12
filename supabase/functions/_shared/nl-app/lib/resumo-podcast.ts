@@ -37,7 +37,7 @@ const ENTIDADES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"
 /** Extrai o texto principal da página do episódio (sem menus, scripts, relacionados). */
 export function extrairTextoEpisodio(html: string, max = 3500): string {
   let s = html ?? "";
-  const ini = s.indexOf("qodef-podcast-content");
+  const ini = s.search(/class="[^"]*\bqodef-podcast-content"/);
   if (ini >= 0) {
     s = s.slice(ini);
     const fim = s.search(/qodef-podcast-hosts|swiper-slide|<footer/);
