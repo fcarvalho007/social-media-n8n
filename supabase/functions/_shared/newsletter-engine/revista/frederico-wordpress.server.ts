@@ -22,6 +22,7 @@ import {
 } from "./artigo-cronica.ts";
 import { lerCronicaCanonica } from "./cronica-canonica.server.ts";
 import { gravarDestino } from "./destinos.server.ts";
+import { normalizarCredenciaisWp, mensagemErroWp } from "../credenciais-wp.ts";
 
 /**
  * Fase E2B: o artigo é sempre escrito como rascunho, mesmo que a configuração
@@ -67,6 +68,10 @@ async function lerConfig(sb: SupabaseClient): Promise<ConfigFrederico> {
   };
   const estado = map.get("frederico_wp_status") === "publish" ? "publish" : "draft";
   const siteUrl = (process.env["FREDERICO_WP_URL"] || process.env["WORDPRESS_SITE_URL"] || "").trim().replace(/\/+$/, "");
+  const cred = normalizarCredenciaisWp(
+    process.env["FREDERICO_WP_USER"] || process.env["WORDPRESS_APP_USER"] || process.env["wordpress_site_username"],
+    process.env["FREDERICO_WP_APP_PASSWORD"] || process.env["WORDPRESS_APP_PASSWORD"] || process.env["wordpress_site_key"],
+  );
   return {
     postType: map.get("frederico_wp_post_type") || "posts",
     status: estado,
@@ -74,8 +79,8 @@ async function lerConfig(sb: SupabaseClient): Promise<ConfigFrederico> {
     autor: map.get("frederico_wp_autor") ? num("frederico_wp_autor", 0) || null : null,
     timeoutMs: num("frederico_wp_timeout_ms", 20000),
     siteUrl: siteUrl || null,
-    utilizador: (process.env["FREDERICO_WP_USER"] || process.env["WORDPRESS_APP_USER"] || process.env["wordpress_site_username"] || "").trim() || null,
-    password: (process.env["FREDERICO_WP_APP_PASSWORD"] || process.env["WORDPRESS_APP_PASSWORD"] || process.env["wordpress_site_key"] || "").trim() || null,
+    utilizador: cred.utilizador || null,
+    password: cred.password || null,
   };
 }
 
@@ -316,7 +321,7 @@ export async function verificarAutenticacao(
         utilizador: null,
         id: null,
         podeEscrever: false,
-        mensagem: `Integração configurada, mas autenticação falhou [${r.status}]: ${r.body?.message ?? "sem detalhe"}`,
+        mensagem: mensagemErroWp(r.status, r.body?.message),
       };
     }
     const u = r.body as unknown as {

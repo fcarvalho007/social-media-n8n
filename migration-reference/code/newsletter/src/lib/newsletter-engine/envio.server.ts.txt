@@ -5,6 +5,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { renderEdicaoEmail } from "./render.server";
+import { normalizarCredenciaisWp } from "./credenciais-wp";
 import { gerarHtmlEdicaoWeb } from "./gerar-html-web.server";
 import {
   bloquearSnapshotRevista, composeRevistaEdition, descartarSnapshotPreparado,
@@ -737,8 +738,10 @@ export async function publicarWordpress(opts: {
   const quem = opts.userId ? (await autorizar(sb, opts.userId, "real")).nome : (opts.quemNome ?? "agendamento");
 
   const siteUrl = process.env.WORDPRESS_SITE_URL ?? "";
-  const wpUser = process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username || "";
-  const wpPass = process.env.WORDPRESS_APP_PASSWORD || process.env.wordpress_site_key || "";
+  const { utilizador: wpUser, password: wpPass } = normalizarCredenciaisWp(
+    process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username,
+    process.env.WORDPRESS_APP_PASSWORD || process.env.wordpress_site_key,
+  );
   if (!siteUrl || !wpUser || !wpPass) {
     throw new ErroEnvio("WordPress não configurado (falta WORDPRESS_SITE_URL, WORDPRESS_APP_USER ou WORDPRESS_APP_PASSWORD).");
   }

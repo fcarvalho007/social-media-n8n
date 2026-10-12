@@ -4,6 +4,7 @@
 // garante que "Criar rascunho" e "Criar e enviar" partilham a mesma Lição.
 
 import { gerarHtmlEdicaoWeb } from "./gerar-html-web.server";
+import { mensagemErroWp } from "./credenciais-wp";
 // deno-lint-ignore no-explicit-any
 type Admin = any;
 
@@ -77,7 +78,7 @@ export async function publicarNoWordpress(input: PublicarInput): Promise<Publica
   const body = await r.json().catch(() => ({}));
   if (!r.ok) {
     const msg = (body as { message?: string })?.message ?? r.statusText;
-    return { ok: false, status: r.status, mensagem: `LearnDash: ${msg}`, detalhe: body };
+    return { ok: false, status: r.status, mensagem: r.status === 401 ? mensagemErroWp(401, msg) : `LearnDash: ${msg}`, detalhe: body };
   }
   const b = body as { id?: number; link?: string; permalink?: string; url?: string; guid?: { rendered?: string } };
   const id = b?.id ?? (actualizar ? input.existingPostId! : undefined);
