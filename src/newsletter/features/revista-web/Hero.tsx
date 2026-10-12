@@ -12,20 +12,23 @@ interface Props {
 export function Cabecalho({ numero, data, dataISO }: Props) {
   return (
     <header className="mx-auto w-full max-w-[79rem] px-5 sm:px-8 lg:px-12">
-      <div className="flex flex-col items-start gap-4 border-b border-rw-ink pb-6 pt-8 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:pb-7 sm:pt-9">
+      <div className="flex items-end justify-between gap-5 border-b border-rw-ink pb-5 pt-7 sm:gap-8 sm:pb-6 sm:pt-8">
         <p
           aria-label="Digital Sprint"
-          className="font-display font-bold leading-[0.9] tracking-[-0.045em] text-[clamp(38px,7vw,84px)]"
+          className="min-w-0 font-display text-[clamp(42px,7vw,82px)] font-black leading-[0.76] tracking-[-0.045em]"
         >
-          DIGITAL <span className="text-rw-blue">SPRINT.</span>
+          <span className="block">DIGITAL</span>
+          <span className="mt-[0.18em] block text-rw-blue">
+            SPRINT<span className="text-rw-ink">.</span>
+          </span>
         </p>
-        <div className="flex w-full shrink-0 items-center justify-between gap-3 text-right sm:w-auto sm:justify-end sm:gap-4">
-          <div className="text-left sm:text-right">
+        <div className="flex shrink-0 items-end gap-2.5 text-right sm:gap-4">
+          <div className="pb-0.5 text-right sm:pb-1">
             <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-rw-ink-2 sm:text-[12px]">
               Edição
             </span>
             {data ? (
-              <time dateTime={dataISO ?? undefined} className="block whitespace-nowrap text-[11px] text-rw-ink-2 sm:text-[13px]">
+              <time dateTime={dataISO ?? undefined} className="mt-1 block max-w-[7.5rem] text-[11px] leading-4 text-rw-ink-2 sm:max-w-none sm:whitespace-nowrap sm:text-[13px]">
                 {data}
               </time>
             ) : null}
@@ -40,7 +43,7 @@ export function Cabecalho({ numero, data, dataISO }: Props) {
       </div>
 
 
-      <div className="flex items-center justify-between gap-4 py-4 text-[13px] text-rw-ink-2 sm:py-5 sm:text-[14px]">
+      <div className="flex items-center justify-between gap-4 py-3.5 text-[13px] text-rw-ink-2 sm:py-4 sm:text-[14px]">
         <p className="min-w-0">
           <strong className="mr-2 block font-semibold text-rw-ink sm:inline">Frederico Carvalho</strong>
           <span>Consultor, autor e docente</span>
