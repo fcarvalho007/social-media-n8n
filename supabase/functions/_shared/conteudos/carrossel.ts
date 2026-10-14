@@ -54,25 +54,32 @@ export function paragrafoDestaque(d: DestaqueFonte, i: number): string {
   return partes.join(" ");
 }
 
-export const LIMITES = { slidesMin: 6, slidesMax: 8, titulo: 100, texto: 360, legenda: 2200, fontesPorSlide: 12 } as const;
+export const LIMITES = { slidesMin: 6, slidesMax: 8, slidesMaxNewsletter: 20, titulo: 100, texto: 360, legenda: 2200, fontesPorSlide: 12 } as const;
+
+/** Newsletter carousels (with highlights) may grow up to Instagram's 20 images so approved readings are never cut. */
+export function maxSlides(fonte: Pick<FonteCronica, "destaques">): number {
+  return fonte.destaques?.length ? LIMITES.slidesMaxNewsletter : LIMITES.slidesMax;
+}
 export const DIMENSOES = { largura: 1080, altura: 1350 } as const;
 
-const MSG_ESTRUTURA =
-  "A proposta precisa de 6–8 slides, títulos até 100 caracteres e textos até 360. Ajusta o conteúdo e tenta novamente.";
+const msgEstrutura = (max: number) =>
+  `A proposta precisa de ${LIMITES.slidesMin}–${max} slides, títulos até 100 caracteres e textos até 360. Ajusta o conteúdo e tenta novamente.`;
 
 function objeto(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
 
 /** Strict structural + evidence validation. Never truncates silently. */
-export function validarCarrossel(valor: unknown, fonte: Pick<FonteCronica, "paragrafos">): Carrossel {
+export function validarCarrossel(valor: unknown, fonte: Pick<FonteCronica, "paragrafos" | "destaques">): Carrossel {
+  const max = maxSlides(fonte);
+  const MSG_ESTRUTURA = msgEstrutura(max);
   if (!objeto(valor) || !Array.isArray(valor.slides) || typeof valor.legenda !== "string") throw new Error(MSG_ESTRUTURA);
   const extra = Object.keys(valor).filter((k) => k !== "slides" && k !== "legenda");
   if (extra.length) throw new Error(MSG_ESTRUTURA);
   const legenda = valor.legenda.trim();
   if (!legenda || legenda.length > LIMITES.legenda) throw new Error("A legenda tem de ter entre 1 e 2200 caracteres.");
   const n = valor.slides.length;
-  if (n < LIMITES.slidesMin || n > LIMITES.slidesMax) throw new Error(MSG_ESTRUTURA);
+  if (n < LIMITES.slidesMin || n > max) throw new Error(MSG_ESTRUTURA);
   const slides: Slide[] = valor.slides.map((s: unknown, i: number) => {
     if (!objeto(s) || typeof s.titulo !== "string" || typeof s.texto !== "string" || !Array.isArray(s.fontes)) {
       throw new Error(MSG_ESTRUTURA);
