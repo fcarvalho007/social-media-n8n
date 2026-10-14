@@ -92,11 +92,11 @@ export async function gerarFicheiros(carrossel: Carrossel, fonte: FonteCronica):
   const pngs = await Promise.all(telas.map(paraPng));
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: [540, 675], orientation: "portrait", compress: true });
-  doc.setProperties({ title: fonte.titulo, author: "Frederico Carvalho", subject: "DIGITALSPRINT · Carrossel da crónica" });
+  doc.setProperties({ title: fonte.titulo, author: "Frederico Carvalho", subject: fonte.destaques?.length ? "DIGITALSPRINT · Carrossel da newsletter" : "DIGITALSPRINT · Carrossel da crónica" });
   telas.forEach((c, i) => {
     if (i) doc.addPage([540, 675], "portrait");
     doc.addImage(c.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 540, 675);
-    if (i === telas.length - 1) doc.link(0, 0, 540, 675, { url: fonte.url });
+    if (i === telas.length - 1) doc.link(0, 0, 540, 675, { url: fonte.edicaoUrl || fonte.url });
   });
   return { pngs, pdf: doc.output("blob") };
 }
