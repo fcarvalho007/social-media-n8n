@@ -407,6 +407,13 @@
       "when": 1791652239061,
       "tag": "0057_newsletter_recomendacao_subtitulo_rico",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1792000554563,
+      "tag": "0058_social_rls_acesso_minimo",
+      "breakpoints": true
     }
   ]
 }
