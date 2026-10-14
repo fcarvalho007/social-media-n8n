@@ -250,31 +250,16 @@ export async function disparaCampanha(cfg: EgoiConfig, hash: string, listaId: st
 }
 
 /**
- * GET /campaigns/email/{hash} — lê o estado real da campanha na E-goi.
- * Serve de fonte da verdade quando um disparo não devolveu resposta fiável.
+ * Lê o estado real da campanha na E-goi pela listagem documentada
+ * GET /campaigns?channel=email&campaign_hash=… (a ficha GET /campaigns/email/{hash}
+ * responde 403 com a chave actual). Só "sent" confirma a entrega.
  */
 export async function estadoCampanha(
   cfg: EgoiConfig,
   hash: string,
 ): Promise<{ ok: true; estado: "enviada" | "a_enviar" | "rascunho" | "desconhecido"; bruto: string } | EgoiErro> {
-  const p = await pedidoComRepeticao(() =>
-    fetch(`${BASE}/campaigns/email/${hash}`, { method: "GET", headers: headers(cfg.apiKey) }),
-  );
-  if (!p.ok) return erroRede("E-goi (estado da campanha)", p.erroRede);
-  const r = p.resposta;
-  if (!r.ok) return parseErro(r, "E-goi (estado da campanha)");
-  const body = (await r.json().catch(() => ({}))) as { status?: string; state?: string };
-  const bruto = String(body.status ?? body.state ?? "").toLowerCase();
-  // Só "sent" confirma a entrega. "sending"/"processing" confirmam que a
-  // ordem foi aceite, sem permitir repetir nem fechar ainda a edição.
-  const estado = bruto === "sent"
-    ? "enviada"
-    : bruto === "sending" || bruto === "processing"
-      ? "a_enviar"
-    : bruto === "draft" || bruto === "scheduled"
-      ? "rascunho"
-      : "desconhecido";
-  return { ok: true, estado, bruto };
+  const { consultarEstadoCampanha } = await import("./egoi-estado.ts");
+  return consultarEstadoCampanha(cfg.apiKey, hash);
 }
 
 

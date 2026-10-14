@@ -432,7 +432,14 @@ export default function PainelDestinos({
               texto={ROTULO_BACKUP[d.backup.estado]?.[0] ?? d.backup.estado}
               tom={ROTULO_BACKUP[d.backup.estado]?.[1] ?? "neutro"}
             />
-            {d.backup.erro && (
+            {d.backup.estado === "nao_configurado" && (
+              <span className="w-full pl-7 text-[13px] text-muted-foreground">
+                Faltam os dados de acesso próprios do digitalsprint.pt (DIGITALSPRINT_WP_URL,
+                DIGITALSPRINT_WP_USER, DIGITALSPRINT_WP_APP_PASSWORD). Os dados do
+                fredericocarvalho.pt nunca são usados no backup.
+              </span>
+            )}
+            {d.backup.erro && d.backup.estado !== "nao_configurado" && (
               <span className="w-full pl-7 text-[13px] text-destructive">
                 {d.backup.erro}
                 {d.backup.tentado_em && (
