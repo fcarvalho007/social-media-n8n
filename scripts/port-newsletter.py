@@ -298,8 +298,13 @@ def server_rewrite(s: str, here: str) -> str:
     s = re.sub(r'"npm:(?:npm:)?@supabase/supabase-js@2\.57\.4(?:@2\.57\.4)?"', '"npm:@supabase/supabase-js@2.57.4"', s)
     s = re.sub(r'from "crypto"', 'from "node:crypto"', s)
     s = tables(s)
-    s = s.replace("process.env.WORDPRESS_APP_USER", "(process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username)")
-    s = s.replace("process.env.WORDPRESS_APP_PASSWORD", "(process.env.WORDPRESS_APP_PASSWORD || process.env.wordpress_site_key)")
+    # The DigitalSprint.pt LearnDash backup has its own credentials; it never reuses the
+    # FredericoCarvalho.pt (chronicle) secrets, which point at a site without LearnDash.
+    s = s.replace("process.env.WORDPRESS_SITE_URL", "process.env.DIGITALSPRINT_WP_URL")
+    s = s.replace("process.env.WORDPRESS_APP_USER", "process.env.DIGITALSPRINT_WP_USER")
+    s = s.replace("process.env.WORDPRESS_APP_PASSWORD", "process.env.DIGITALSPRINT_WP_APP_PASSWORD")
+    s = s.replace("WordPress não configurado (falta WORDPRESS_SITE_URL, WORDPRESS_APP_USER ou WORDPRESS_APP_PASSWORD).",
+                  "Backup DigitalSprint.pt não configurado (falta DIGITALSPRINT_WP_URL, DIGITALSPRINT_WP_USER ou DIGITALSPRINT_WP_APP_PASSWORD).")
     def addts(m):
         p = m.group(2)
         if re.search(r"\.(ts|tsx|json)$", p):

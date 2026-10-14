@@ -804,11 +804,12 @@ export async function publicarWordpress(opts: {
   const sb = admin();
   const quem = opts.userId ? (await autorizar(sb, opts.userId, "real")).nome : (opts.quemNome ?? "agendamento");
 
-  const siteUrl = process.env.WORDPRESS_SITE_URL ?? "";
-  const wpUser = process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username || "";
-  const wpPass = process.env.WORDPRESS_APP_PASSWORD || process.env.wordpress_site_key || "";
+  // DigitalSprint.pt (LearnDash) backup: own credentials, never the FredericoCarvalho.pt chronicle ones.
+  const siteUrl = (process.env.DIGITALSPRINT_WP_URL ?? "").trim();
+  const wpUser = (process.env.DIGITALSPRINT_WP_USER ?? "").trim();
+  const wpPass = (process.env.DIGITALSPRINT_WP_APP_PASSWORD ?? "").trim();
   if (!siteUrl || !wpUser || !wpPass) {
-    throw new ErroEnvio("WordPress não configurado (falta WORDPRESS_SITE_URL, WORDPRESS_APP_USER ou WORDPRESS_APP_PASSWORD).");
+    throw new ErroEnvio("Backup DigitalSprint.pt não configurado (falta DIGITALSPRINT_WP_URL, DIGITALSPRINT_WP_USER ou DIGITALSPRINT_WP_APP_PASSWORD).");
   }
 
   const config = await lerConfig(sb);

@@ -10,6 +10,8 @@ export type EstadoBackup =
 /** edição preparada, backup ainda por escrever */
  | "aguardar" | "guardado" | "erro";
 export type EstadoEmail = "nao_enviado" | "agendado" | "parcial" | "enviado" | "erro";
+import { type EnvioTeste } from "./regras-publicacao.ts";
+export type { EnvioTeste };
 export interface DestinoEstado {
     estado: string;
     url: string | null;
@@ -36,6 +38,8 @@ export interface DestinosEdicao {
         external_id: null;
         erro: string | null;
         tentado_em: string | null;
+        /** Último envio para uma lista de teste — nunca conta como envio real nem fecha a edição. */
+        teste: EnvioTeste | null;
     };
     web: DestinoEstado & {
         estado: EstadoWeb;

@@ -41,9 +41,10 @@ Deno.serve(async (req) => {
       if (!Number.isInteger(numero) || numero <= 0 || numero > 100000) return json({ error: "Edição inválida" }, 400);
       const { obterPaginaEdicaoPublica } = await import("../_shared/newsletter-engine/revista/publicacao.server.ts");
       const p = await obterPaginaEdicaoPublica(numero);
-      // Published-only: an edition that was not sent is never exposed publicly.
-      if (!p || p.enviada !== true) return json({ error: "Não encontrada" }, 404);
-      return json(p, 200, "public, max-age=300");
+      // Only editions whose web page was published (sent, or web destination "publica") are reachable.
+      // Not-yet-sent pages open by direct link only, marked noindex; the archive lists sent editions only.
+      if (!p) return json({ error: "Não encontrada" }, 404);
+      return json({ ...p, noindex: p.enviada !== true }, 200, p.enviada ? "public, max-age=300" : "public, max-age=60");
     }
 
     if (req.method === "GET" && a === "brief" && b) {
