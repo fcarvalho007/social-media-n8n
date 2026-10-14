@@ -24,6 +24,87 @@ export interface DadosArtigoCronica {
   corpoHtml: string;
   /** URL canónica absoluta da edição pública (`/edicoes/:numero`). */
   urlEdicao: string;
+  /** Imagem da crónica escolhida na edição (recorte preferido). */
+  imagem?: ImagemArtigoCronica | null;
+  /** `cronicas.leituras_recomendadas` — uma leitura por linha. */
+  leiturasRecomendadas?: string;
+}
+
+export interface ImagemArtigoCronica {
+  url: string;
+  alt: string;
+  credito: string;
+  creditoUrl: string;
+}
+
+export interface LeituraRecomendada {
+  titulo: string;
+  url: string | null;
+}
+
+/**
+ * Interpreta as leituras recomendadas com as mesmas regras do email:
+ * `[Título](url)`, `Título - url`, URL isolado, URL no meio do texto ou texto.
+ */
+export function interpretarLeituras(texto: string): LeituraRecomendada[] {
+  return (texto ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      let titulo = "";
+      let url = "";
+      const md = l.match(/^\[(.+?)\]\((https?:\/\/\S+?)\)\s*$/);
+      if (md) { titulo = md[1]!.trim(); url = md[2]!.trim(); }
+      if (!url) {
+        const misto = l.match(/^(.+?)\s*[\-—–|]\s*(https?:\/\/\S+)\s*$/);
+        if (misto) { titulo = misto[1]!.trim(); url = misto[2]!.trim(); }
+      }
+      if (!url) {
+        const inline = l.match(/(https?:\/\/\S+)/);
+        if (inline) {
+          url = inline[1]!.trim();
+          titulo = l.replace(inline[1]!, "").replace(/[\-—–|:·•]\s*$/, "").trim();
+        }
+      }
+      if (!url) return { titulo: l, url: null };
+      titulo = titulo.replace(/^\s*(?:\d+[.)]\s*|[-•]\s*)/, "").trim();
+      if (!titulo) {
+        try { titulo = new URL(url).hostname.replace(/^www\./, ""); } catch { titulo = "Leitura recomendada"; }
+      }
+      return { titulo, url };
+    });
+}
+
+function escaparAtributo(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Figura da crónica para WordPress: imagem, texto alternativo e crédito. */
+export function figuraImagemArtigo(img: ImagemArtigoCronica | null | undefined): string {
+  const url = (img?.url ?? "").trim();
+  if (!/^https:\/\//i.test(url)) return "";
+  const alt = escaparAtributo((img?.alt ?? "").trim());
+  const credito = (img?.credito ?? "").trim();
+  const creditoUrl = (img?.creditoUrl ?? "").trim();
+  const legenda = credito
+    ? `<figcaption>${/^https?:\/\//i.test(creditoUrl)
+        ? `<a href="${escaparAtributo(creditoUrl)}" rel="noopener">${escaparAtributo(credito)}</a>`
+        : escaparAtributo(credito)}</figcaption>`
+    : "";
+  return `<figure class="wp-block-image size-large"><img src="${escaparAtributo(url)}" alt="${alt}" />${legenda}</figure>`;
+}
+
+/** Bloco «Leituras recomendadas» com links válidos para WordPress. */
+export function blocoLeiturasArtigo(texto: string | null | undefined): string {
+  const itens = interpretarLeituras(texto ?? "");
+  if (itens.length === 0) return "";
+  const li = itens
+    .map((i) => i.url
+      ? `<li><a href="${escaparAtributo(i.url)}" rel="noopener">${escaparAtributo(i.titulo)}</a></li>`
+      : `<li>${escaparAtributo(i.titulo)}</li>`)
+    .join("");
+  return `<h3>Leituras recomendadas</h3>\n<ul>${li}</ul>`;
 }
 
 export interface ArtigoCronica {
@@ -244,7 +325,12 @@ export function construirPayloadArtigo(
   const corpo = sanitizarHtmlArtigo(d.corpoHtml);
   // O rodapé só existe quando há corpo: nunca pode ser o conteúdo do artigo.
   const publicavel = corpoEditorialValido(d.corpoHtml);
-  const content = publicavel ? `${corpo}\n${referenciaEdicao(d.numeroEdicao, d.urlEdicao)}` : corpo;
+  // Imagem e leituras são geradas depois da allowlist, com valores escapados.
+  const figura = figuraImagemArtigo(d.imagem);
+  const leituras = blocoLeiturasArtigo(d.leiturasRecomendadas);
+  const content = publicavel
+    ? [figura, corpo, leituras, referenciaEdicao(d.numeroEdicao, d.urlEdicao)].filter(Boolean).join("\n")
+    : corpo;
   return {
     title,
     slug: slugArtigo(title),

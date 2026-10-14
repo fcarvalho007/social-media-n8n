@@ -19,7 +19,30 @@ export interface DadosArtigoCronica {
     corpoHtml: string;
     /** URL canónica absoluta da edição pública (`/edicoes/:numero`). */
     urlEdicao: string;
+    /** Imagem da crónica escolhida na edição (recorte preferido). */
+    imagem?: ImagemArtigoCronica | null;
+    /** `cronicas.leituras_recomendadas` — uma leitura por linha. */
+    leiturasRecomendadas?: string;
 }
+export interface ImagemArtigoCronica {
+    url: string;
+    alt: string;
+    credito: string;
+    creditoUrl: string;
+}
+export interface LeituraRecomendada {
+    titulo: string;
+    url: string | null;
+}
+/**
+ * Interpreta as leituras recomendadas com as mesmas regras do email:
+ * `[Título](url)`, `Título - url`, URL isolado, URL no meio do texto ou texto.
+ */
+export declare function interpretarLeituras(texto: string): LeituraRecomendada[];
+/** Figura da crónica para WordPress: imagem, texto alternativo e crédito. */
+export declare function figuraImagemArtigo(img: ImagemArtigoCronica | null | undefined): string;
+/** Bloco «Leituras recomendadas» com links válidos para WordPress. */
+export declare function blocoLeiturasArtigo(texto: string | null | undefined): string;
 export interface ArtigoCronica {
     title: string;
     slug: string;
