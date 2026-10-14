@@ -59,7 +59,8 @@ export interface BriefConteudo {
   contar?: boolean;
 }
 
-const URL_CONSULTORIA = "https://fredericocarvalho.pt/consultoria";
+const URL_CONSULTORIA = "https://fredericocarvalho.pt/consultoria-digital/";
+const URL_FORMACAO_IA = "https://fredericocarvalho.pt/curso-de-inteligencia-artificial/";
 
 function VoltarAEdicao({ conteudo, className = "" }: { conteudo: BriefConteudo; className?: string }) {
   if (!conteudo.edicaoNumero) return null;
@@ -165,6 +166,14 @@ function Rail({ conteudo }: { conteudo: BriefConteudo }) {
               </Link>
             </dd>
           </div>
+        <div>
+          <dt className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rw-chalk-2">Formação</dt>
+          <dd className="mt-1">
+            <a className="rw-link inline-flex items-center gap-1 text-[14px] text-rw-ciano" href={conteudo.categoria.toLowerCase().includes("ia") || conteudo.categoria.toLowerCase().includes("inteligência") ? URL_FORMACAO_IA : "https://fredericocarvalho.pt/formacao-para-empresas/"} target="_blank" rel="noreferrer noopener">
+              Cursos e Workshops <ArrowUpRight size={13} aria-hidden />
+            </a>
+          </dd>
+        </div>
         ) : null}
       </dl>
     </aside>
