@@ -10,3 +10,4 @@
 - Newsletter candidate exclusions are edition-scoped; hiding never changes the shared editorial decision or an included item.
 - Current public web compositions are stored in destinos.web.snapshot and refreshed only through the publication action; email/campaign snapshots remain untouched, and unsent Brief access is restricted to the first three frozen highlight links.
 - A revista_snapshot written by test-list sends only is history: preview, readiness and the next real send ignore it, and a real send nests it verbatim in historico_testes; keeps test HTML faithful without freezing later edits.
+- Post-send carousel: after E-goi "sent" a job waits in aguarda_criacao for an explicit "Criar carrossel" (proposal state in _shared/conteudos/proposta.ts, "Mais tarde" in adiado_em); pre-send tests use tipo carrossel_edicao_teste with no job, so they never trigger nor block the real carousel.
