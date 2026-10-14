@@ -32,12 +32,12 @@ export async function lerCronicaCanonica(
     sb.from("nl_edicoes").select("id, numero, destinos").eq("id", alvo).maybeSingle(),
     sb
       .from("nl_revista_edicao")
-      .select("edicao_id, cronica_titulo, cronica_subtitulo, cronica_lede")
+      .select("edicao_id, cronica_titulo, cronica_subtitulo, cronica_lede, cronica_imagem_url, cronica_imagem_recorte_url, cronica_imagem_alt, cronica_imagem_credito, cronica_imagem_credito_url")
       .eq("edicao_id", alvo)
       .maybeSingle(),
     sb
       .from("nl_cronicas")
-      .select("id, edicao_id, titulo, conteudo_html, conteudo")
+      .select("id, edicao_id, titulo, conteudo_html, conteudo, leituras_recomendadas")
       .eq("edicao_id", alvo)
       .maybeSingle(),
   ]);
@@ -51,6 +51,11 @@ export async function lerCronicaCanonica(
     cronica_titulo?: string;
     cronica_subtitulo?: string;
     cronica_lede?: string;
+    cronica_imagem_url?: string;
+    cronica_imagem_recorte_url?: string;
+    cronica_imagem_alt?: string;
+    cronica_imagem_credito?: string;
+    cronica_imagem_credito_url?: string;
   };
   const c = (cro ?? {}) as {
     id?: string;
@@ -58,6 +63,7 @@ export async function lerCronicaCanonica(
     titulo?: string | null;
     conteudo_html?: string | null;
     conteudo?: string | null;
+    leituras_recomendadas?: string | null;
   };
 
   // Cinto e suspensórios: a proveniência é verificada aqui e outra vez ao
@@ -84,5 +90,12 @@ export async function lerCronicaCanonica(
     corpoHtml: (c.conteudo_html ?? c.conteudo ?? "").trim(),
     urlEdicao: await urlCanonicaEdicao(linha.numero ?? 0, sb),
     externalId: destinoCronica.external_id ?? null,
+    imagem: {
+      url: (r.cronica_imagem_recorte_url ?? "").trim() || (r.cronica_imagem_url ?? "").trim(),
+      alt: (r.cronica_imagem_alt ?? "").trim(),
+      credito: (r.cronica_imagem_credito ?? "").trim(),
+      creditoUrl: (r.cronica_imagem_credito_url ?? "").trim(),
+    },
+    leiturasRecomendadas: (c.leituras_recomendadas ?? "").trim(),
   };
 }
