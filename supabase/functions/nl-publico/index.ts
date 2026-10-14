@@ -15,8 +15,8 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
-const json = (b: unknown, s = 200, cache = "no-store") =>
-  new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": cache } });
+const json = (b: unknown, s = 200, cache = "no-store", robots?: string) =>
+  new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": cache, ...(robots ? { "X-Robots-Tag": robots } : {}) } });
 
 const ACCOES = new Set(["cancelar", "pausar", "mensal", "reverter"]);
 const tokenValido = (t: unknown): t is string => typeof t === "string" && t.length > 20 && t.length < 600 && /^[A-Za-z0-9_\-.]+$/.test(t);
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       // Only editions whose web page was published (sent, or web destination "publica") are reachable.
       // Not-yet-sent pages open by direct link only, marked noindex; the archive lists sent editions only.
       if (!p) return json({ error: "Não encontrada" }, 404);
-      return json({ ...p, noindex: p.enviada !== true }, 200, p.enviada ? "public, max-age=300" : "public, max-age=60");
+      return json({ ...p, noindex: p.enviada !== true }, 200, p.enviada ? "public, max-age=300" : "public, max-age=60", p.enviada ? undefined : "noindex, nofollow");
     }
 
     if (req.method === "GET" && a === "brief" && b) {
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       const { obterBriefPublico } = await import("../_shared/newsletter-engine/revista/brief/publico.server.ts");
       const brief = await obterBriefPublico(slug);
       if (!brief) return json({ error: "Não encontrado" }, 404);
-      return json(brief, 200, brief.enviada ? "public, max-age=300" : "public, max-age=60");
+      return json(brief, 200, brief.enviada ? "public, max-age=300" : "public, max-age=60", brief.enviada ? (brief.indexavel ? undefined : "noindex, follow") : "noindex, nofollow");
     }
 
     if (req.method === "GET" && a === "sitemap.xml") {
