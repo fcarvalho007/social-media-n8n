@@ -40,8 +40,9 @@ export declare function patchCampanha(cfg: EgoiConfig, hash: string, opts: {
  */
 export declare function disparaCampanha(cfg: EgoiConfig, hash: string, listaId: string): Promise<OkVoid | EgoiErro>;
 /**
- * GET /campaigns/email/{hash} — lê o estado real da campanha na E-goi.
- * Serve de fonte da verdade quando um disparo não devolveu resposta fiável.
+ * Lê o estado real da campanha na E-goi pela listagem documentada
+ * GET /campaigns?channel=email&campaign_hash=… (a ficha GET /campaigns/email/{hash}
+ * responde 403 com a chave actual). Só "sent" confirma a entrega.
  */
 export declare function estadoCampanha(cfg: EgoiConfig, hash: string): Promise<{
     ok: true;
