@@ -12,7 +12,7 @@ import process from "node:process";
 import { encontrarDominiosBloqueados, lerListaDominios } from "./dominios-bloqueados.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-import { composeRevistaEdition, lerSnapshotRevista } from "./compose.server.ts";
+import { composeRevistaEdition, lerSnapshotVigente } from "./compose.server.ts";
 import { estadoDestinos, urlCanonicaEdicao, caminhoCanonicoEdicao } from "./destinos.server.ts";
 import { rotuloWorkflow, type EstadoWorkflow } from "./prontidao-rotulos.ts";
 import { briefsActivos } from "./brief/modelo.server.ts";
@@ -142,7 +142,7 @@ export async function avaliarProntidao(
 
   const [destinos, snapshot, estrutura] = await Promise.all([
     estadoDestinos(edicaoId),
-    lerSnapshotRevista(edicaoId),
+    lerSnapshotVigente(edicaoId),
     composeRevistaEdition(edicaoId, { ignorarSnapshot: true }).catch(() => null),
   ]);
 

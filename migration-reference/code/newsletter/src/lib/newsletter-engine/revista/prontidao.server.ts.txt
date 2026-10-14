@@ -11,7 +11,7 @@
 import { encontrarDominiosBloqueados, lerListaDominios } from "./dominios-bloqueados";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-import { composeRevistaEdition, lerSnapshotRevista } from "./compose.server";
+import { composeRevistaEdition, lerSnapshotVigente } from "./compose.server";
 import { estadoDestinos, urlCanonicaEdicao, caminhoCanonicoEdicao } from "./destinos.server";
 import { rotuloWorkflow, type EstadoWorkflow } from "./prontidao-rotulos";
 import { briefsActivos } from "./brief/modelo.server";
@@ -141,7 +141,7 @@ export async function avaliarProntidao(
 
   const [destinos, snapshot, estrutura] = await Promise.all([
     estadoDestinos(edicaoId),
-    lerSnapshotRevista(edicaoId),
+    lerSnapshotVigente(edicaoId),
     composeRevistaEdition(edicaoId, { ignorarSnapshot: true }).catch(() => null),
   ]);
 

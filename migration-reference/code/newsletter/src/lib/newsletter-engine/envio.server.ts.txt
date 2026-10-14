@@ -9,7 +9,7 @@ import { normalizarCredenciaisWp } from "./credenciais-wp";
 import { gerarHtmlEdicaoWeb } from "./gerar-html-web.server";
 import {
   bloquearSnapshotRevista, composeRevistaEdition, descartarSnapshotPreparado,
-  lerSnapshotRevista, prepararSnapshotRevista,
+  lerSnapshotRevista, prepararSnapshotRevista, snapshotSoDeTeste,
 } from "./revista/compose.server";
 import { montarHtmlRevista } from "./revista/render-email.server";
 import { montarTextoRevista } from "./revista/texto.server";
@@ -205,10 +205,10 @@ export async function reconciliarEdicao(edicaoId: string): Promise<{
 }> {
   const sb = admin();
   const { data: campsRaw } = await sb.from("egoi_campanhas")
-    .select("lista_id, campaign_hash, estado, egoi_listas(nome)").eq("edicao_id", edicaoId);
+    .select("lista_id, campaign_hash, estado, egoi_listas(nome, tipo)").eq("edicao_id", edicaoId);
   const camps = (campsRaw ?? []) as unknown as Array<{
     lista_id: string; campaign_hash: string; estado: string;
-    egoi_listas: { nome: string } | { nome: string }[] | null;
+    egoi_listas: { nome: string; tipo?: string } | { nome: string; tipo?: string }[] | null;
   }>;
   const pendentes = camps.filter((c) => c.estado !== "enviada" && c.campaign_hash);
   if (!pendentes.length) return { ok: true, actualizadas: [] };
@@ -221,6 +221,7 @@ export async function reconciliarEdicao(edicaoId: string): Promise<{
   }
 
   const actualizadas: Array<{ lista_id: string; lista_nome: string }> = [];
+  let realConfirmada = false;
   for (const c of pendentes) {
     const r = await estadoCampanha({ apiKey }, c.campaign_hash);
     if (!r.ok || r.estado !== "enviada") continue;
@@ -229,6 +230,7 @@ export async function reconciliarEdicao(edicaoId: string): Promise<{
       .eq("edicao_id", edicaoId).eq("lista_id", c.lista_id);
     const rel = Array.isArray(c.egoi_listas) ? c.egoi_listas[0] : c.egoi_listas;
     const nome = rel?.nome ?? "lista";
+    if ((rel?.tipo ?? "") !== "teste") realConfirmada = true;
     actualizadas.push({ lista_id: c.lista_id, lista_nome: nome });
     await sb.from("audit_log").insert({
       quem: "sistema",
@@ -237,7 +239,8 @@ export async function reconciliarEdicao(edicaoId: string): Promise<{
     });
   }
   // Se a E-goi confirma envios, a edição já não pode voltar atrás.
-  if (actualizadas.length) await bloquearSnapshotRevista(edicaoId);
+  // Só um envio real fixa a edição; testes confirmados ficam como histórico.
+  if (realConfirmada) await bloquearSnapshotRevista(edicaoId);
   return { ok: true, actualizadas };
 }
 
@@ -261,6 +264,11 @@ const LOCK_MS = 10 * 60_000;
  * a primeira lista for aceite pela E-goi.
  * Não faz nada em edições Clássicas nem em edições já bloqueadas ou preparadas.
  */
+async function envioReal(sb: SupabaseClient, listaIds: string[]): Promise<boolean> {
+  const r = await resolverListas(sb, listaIds);
+  return r.ok && r.modo === "real";
+}
+
 async function prepararEdicaoRevista(
   sb: SupabaseClient,
   edicaoId: string,
@@ -273,7 +281,12 @@ async function prepararEdicaoRevista(
   if (!ed || ed.template_version !== "revista") return;
 
   const existente = await lerSnapshotRevista(edicaoId);
-  if (existente) return; // bloqueada (histórico) ou já preparada nesta tentativa
+  // Fotografia só de teste: histórico. Um envio real prepara uma nova,
+  // guardando a de teste literalmente dentro do envelope.
+  const anteriorDeTeste = existente && listaIds.length && await snapshotSoDeTeste(sb, edicaoId) && await envioReal(sb, listaIds)
+    ? (await sb.from("edicoes").select("revista_snapshot").eq("id", edicaoId).maybeSingle()).data?.revista_snapshot
+    : undefined;
+  if (existente && !anteriorDeTeste) return; // bloqueada (histórico) ou já preparada nesta tentativa
 
   await sb.from("audit_log").insert({ quem, accao: "Workflow Revista iniciado" });
 
@@ -345,7 +358,7 @@ async function prepararEdicaoRevista(
     emailHtml: montarHtmlRevista(estrutura),
     emailText: montarTextoRevista(estrutura),
     urlWeb: estrutura.urlPagina,
-  });
+  }, anteriorDeTeste);
 
   await sb.from("audit_log").insert({
     quem,

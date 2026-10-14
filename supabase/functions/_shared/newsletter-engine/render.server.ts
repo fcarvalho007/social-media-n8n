@@ -6,7 +6,7 @@ import process from "node:process";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { gerarHtmlNewsletter } from "./gerar-html-newsletter.server.ts";
 import { montarTexto } from "./gerar-texto-newsletter.server.ts";
-import { composeRevistaEdition, lerSnapshotRevista } from "./revista/compose.server.ts";
+import { composeRevistaEdition, lerSnapshotVigente } from "./revista/compose.server.ts";
 import { montarHtmlRevista } from "./revista/render-email.server.ts";
 import { montarTextoRevista } from "./revista/texto.server.ts";
 
@@ -29,7 +29,7 @@ export async function renderEdicaoEmail(edicaoId: string): Promise<{
   if (versao === "revista") {
     // Se já existe fotografia com artefacto preservado, é ela que sai — o
     // reenvio é rigorosamente igual ao que foi enviado da primeira vez.
-    const env = await lerSnapshotRevista(edicaoId);
+    const env = await lerSnapshotVigente(edicaoId);
     if (env?.email_html) {
       return { versao, html: env.email_html, plainText: env.email_text, problemas: [] };
     }
