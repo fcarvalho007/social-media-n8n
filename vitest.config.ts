@@ -11,7 +11,7 @@ export default defineConfig({
     hookTimeout: 5000,
     teardownTimeout: 5000,
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'supabase/functions/_shared/newsletter-engine/revista/briefs-destinos.test.ts'],
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
