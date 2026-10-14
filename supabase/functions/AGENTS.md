@@ -7,3 +7,6 @@
 - nl-api authorises every operation through the explicit map in supabase/functions/_shared/nl-ops.ts (fail-closed); external-effect operations need admin plus a confirmation flag, which prevents accidents but is not a substitute for the admin check.
 - nl-worker-conteudos (hourly pg_cron, key read from nl_worker_estado at call time) only reconciles E-goi delivery and processes carousel jobs; automatic jobs only for campaigns accepted after AUTO_DESDE, history only via explicit "preparar"; send/publish crons stay off.
 - The DigitalSprint.pt LearnDash backup uses its own DIGITALSPRINT_WP_* credentials, never the FredericoCarvalho.pt chronicle ones; the two sites differ and only DigitalSprint.pt has LearnDash.
+- Newsletter candidate exclusions are edition-scoped; hiding never changes the shared editorial decision or an included item.
+- Current public web compositions are stored in destinos.web.snapshot and refreshed only through the publication action; email/campaign snapshots remain untouched, and unsent Brief access is restricted to the first three frozen highlight links.
+- A revista_snapshot written by test-list sends only is history: preview, readiness and the next real send ignore it, and a real send nests it verbatim in historico_testes; keeps test HTML faithful without freezing later edits.
