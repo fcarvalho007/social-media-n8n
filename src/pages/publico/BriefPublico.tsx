@@ -20,7 +20,7 @@ export default function BriefPublico() {
     // Radar and non-indexable briefs stay out of search engines.
     if (!brief || brief.indexavel) return;
     const m = document.createElement("meta");
-    m.name = "robots"; m.content = "noindex, follow";
+    m.name = "robots"; m.content = brief.enviada ? "noindex, follow" : "noindex, nofollow";
     document.head.appendChild(m);
     return () => { m.remove(); };
   }, [brief]);

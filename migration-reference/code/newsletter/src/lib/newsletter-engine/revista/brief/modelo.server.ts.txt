@@ -9,7 +9,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { calcularFingerprint } from "./fingerprint";
 import { derivarSlug, slugUnico } from "./slug";
-import { garantirTransicao } from "./estados";
+import { garantirTransicao, conteudoRevistoAlterado } from "./estados";
 import {
   LIMITES_BRIEF_PADRAO,
   type Brief,
@@ -392,9 +392,7 @@ export async function actualizarConteudo(
   const db = sb ?? admin();
   const actual = await obterBrief(id, db);
 
-  const mexeuNaLeitura =
-    alteracao.leitura_aprovada !== undefined &&
-    alteracao.leitura_aprovada.trim() !== actual.leitura_aprovada.trim();
+  const mexeuNaLeitura = conteudoRevistoAlterado({ ...actual }, { ...alteracao });
 
   const registo: Record<string, unknown> = { ...alteracao };
 

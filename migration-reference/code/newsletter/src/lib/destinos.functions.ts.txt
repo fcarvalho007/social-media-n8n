@@ -185,3 +185,12 @@ export const prontidaoRevistaFn = createServerFn({ method: "POST" })
     if (!data.edicao_id) throw new Error("edicao_id em falta");
     return avaliarProntidao(data.edicao_id, { listaIds: data.lista_ids });
   });
+
+/** Refresh only the explicitly published web snapshot; never send or update a campaign. */
+export const actualizarPublicacaoWebFn = createServerFn({ method: "POST" })
+ .middleware([requireSupabaseAuth])
+ .inputValidator((d: { edicao_id: string }) => d)
+ .handler(async ({ data }) => {
+  const { actualizarPublicacaoWeb } = await import("./newsletter-engine/revista/publicacao.server");
+  return actualizarPublicacaoWeb(data.edicao_id);
+ });

@@ -50,3 +50,8 @@ export function prontoParaPublicar(b: Pick<
   if (b.estado === "erro") motivos.push("O Brief está em erro.");
   return { ok: motivos.length === 0, motivos };
 }
+
+/** Any reviewed editorial change requires a fresh explicit approval. */
+export function conteudoRevistoAlterado(actual: Record<string, unknown>, alteracao: Record<string, unknown>): boolean {
+ return ["leitura_aprovada", "em_30_segundos", "porque_interessa", "fonte_url", "fonte_publisher"].some(k => alteracao[k] !== undefined && JSON.stringify(alteracao[k]) !== JSON.stringify(actual[k]));
+}

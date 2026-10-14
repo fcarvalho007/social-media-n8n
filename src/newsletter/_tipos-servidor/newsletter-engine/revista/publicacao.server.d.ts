@@ -50,3 +50,8 @@ export declare function briefsDoSnapshot(e: EdicaoRevista): Record<string, Ligac
  * a edição não é pública — a rota traduz isso num 404.
  */
 export declare function obterPaginaEdicaoPublica(numero: number): Promise<PaginaEdicaoPublica | null>;
+/** Freeze the current public-web composition without touching sent artifacts. */
+export declare function actualizarPublicacaoWeb(edicaoId: string): Promise<{
+    ok: true;
+    numero: number;
+}>;

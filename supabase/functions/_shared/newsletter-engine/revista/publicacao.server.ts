@@ -113,7 +113,9 @@ async function carregarPublicadas(): Promise<EdicaoPublicaInterna[]> {
       destinoWeb: destinoWeb(linha.destinos),
     });
     if (!publica) continue;
-    out.push({ numero: linha.numero, estrutura: env.edicao, data: linha.data_envio_prevista, enviada });
+    const destinos = linha.destinos as { web?: { snapshot?: EdicaoRevista } } | null;
+    const web = destinos?.web?.snapshot;
+    out.push({ numero: linha.numero, estrutura: web?.edicao?.numero === linha.numero ? web : env.edicao, data: linha.data_envio_prevista, enviada });
   }
   return out;
 }
@@ -158,9 +160,6 @@ export function briefsDoSnapshot(e: EdicaoRevista): Record<string, LigacaoBriefP
   for (const d of e.destaques ?? []) {
     if (d.brief?.slug) out[d.noticiaId] = { slug: d.brief.slug, tipo: "destaque" };
   }
-  for (const r of e.radar ?? []) {
-    if (r.brief?.slug) out[r.noticiaId] = { slug: r.brief.slug, tipo: "radar" };
-  }
   return out;
 }
 
@@ -200,4 +199,19 @@ export async function obterPaginaEdicaoPublica(numero: number): Promise<PaginaEd
       ? { numero: maisRecente.numero, titulo: maisRecente.estrutura.cronica.titulo || `Edição ${maisRecente.numero}` }
       : null,
   };
+}
+
+/** Freeze the current public-web composition without touching sent artifacts. */
+export async function actualizarPublicacaoWeb(edicaoId: string): Promise<{ ok: true; numero: number }> {
+ const sb = admin();
+ const { data: ed, error } = await sb.from("nl_edicoes").select("numero, destinos, estado, revista_snapshot").eq("id", edicaoId).single();
+ if (error || !ed) throw new Error("Edição não encontrada.");
+ const destinos = ed.destinos as Record<string, unknown>;
+ const web = (destinos?.web ?? {}) as Record<string, unknown>;
+ if (web.estado !== "publica") throw new Error("A página web desta edição não tem publicação autorizada.");
+ const { composeRevistaEdition } = await import("./compose.server.ts");
+ const snapshot = await composeRevistaEdition(edicaoId, { ignorarSnapshot: true });
+ const { error: gravar } = await sb.from("nl_edicoes").update({ destinos: { ...destinos, web: { ...web, snapshot, actualizado_em: new Date().toISOString() } } }).eq("id", edicaoId);
+ if (gravar) throw gravar;
+ return { ok: true, numero: ed.numero };
 }
