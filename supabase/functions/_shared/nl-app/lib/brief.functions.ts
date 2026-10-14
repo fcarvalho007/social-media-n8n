@@ -388,3 +388,25 @@ export const guardarIdentidadeBriefFn = createServerFn({ method: "POST" })
     });
     return { ok: true };
   });
+
+/** Publish only an explicit selection, without email or edition side effects. */
+export const publicarBriefsSelecionadosFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicaoId: string; ids: string[] }) => ({
+    edicaoId: String(d?.edicaoId ?? ""),
+    ids: Array.isArray(d?.ids) ? [...new Set(d.ids.map(String))] : [],
+  }))
+  .handler(async ({ data }) => {
+    if (!data.edicaoId || data.ids.length !== 3) throw new Error("Selecionar exatamente três Destaques.");
+    const { listarBriefsDaEdicao } = await import("../../newsletter-engine/revista/brief/modelo.server.ts");
+    const { validarBriefsDaEdicao, publicarBriefsDaEdicao } = await import("../../newsletter-engine/revista/brief/publicacao.server.ts");
+    const lista = await listarBriefsDaEdicao(data.edicaoId);
+    if (!data.ids.every((id) => lista.some((b) => b.id === id && b.papel === "destaque"))) {
+      throw new Error("A seleção não corresponde aos Destaques desta edição.");
+    }
+    const validacao = await validarBriefsDaEdicao(data.edicaoId);
+    if (!data.ids.every((id) => validacao.prontos.some((b) => b.id === id && Boolean(b.aprovada_em)))) {
+      throw new Error("Os três Destaques precisam de conteúdo completo e leitura aprovada.");
+    }
+    return publicarBriefsDaEdicao(data.edicaoId, undefined, data.ids);
+  });

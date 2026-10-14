@@ -163,6 +163,7 @@ export interface ResultadoPublicacaoBriefs {
 export async function publicarBriefsDaEdicao(
   edicaoId: string,
   sb?: SupabaseClient,
+  ids?: string[],
 ): Promise<ResultadoPublicacaoBriefs> {
   const db = sb ?? clienteBrief();
   if (!(await briefsActivos(db))) {
@@ -178,6 +179,7 @@ export async function publicarBriefsDaEdicao(
   let reutilizados = 0;
 
   for (const b of validacao.prontos) {
+    if (ids && !ids.includes(b.id)) continue;
     if (!b.noticia_id) continue;
 
     const jaPublicado = b.estado === "publicado" && !b.alterado_apos_publicacao;

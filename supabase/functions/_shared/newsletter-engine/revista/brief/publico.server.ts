@@ -18,7 +18,7 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.5
 
 import { CATEGORIAS } from "../../design-tokens.server.ts";
 import type { ImplicacaoBrief, ParagrafoBrief, TipoBrief } from "./tipos.ts";
-import { avaliarPublicacao, briefIndexavel } from "../regras-publicacao.ts";
+import { avaliarPublicacao, briefIndexavel, briefPublicavel } from "../regras-publicacao.ts";
 
 function admin(): SupabaseClient {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -159,10 +159,9 @@ function dominio(url: string | null): string {
 /** Um Brief só é público com conteúdo próprio e, nos Destaques, leitura aprovada. */
 function visivel(b: LinhaBrief, preview = false): boolean {
   if (preview) return true;
-  if (b.estado !== "aprovado" && b.estado !== "publicado") return false;
-  if (!(b.em_30_segundos ?? []).length) return false;
-  if (b.tipo === "destaque" && !(b.leitura_aprovada ?? "").trim()) return false;
-  return true;
+  return briefPublicavel({ estado: b.estado, tipo: b.tipo,
+    resumo: (b.em_30_segundos ?? []).length, implicacoes: (b.porque_interessa ?? []).length,
+    leitura: b.leitura_aprovada ?? "", fonte: b.fonte_url ?? "" });
 }
 
 interface Candidato {
@@ -329,7 +328,7 @@ export async function obterBriefPublico(
     fonteUrl: b.fonte_url ?? "",
     resumo,
     implicacoes,
-    leitura: b.tipo === "destaque" ? (b.leitura_aprovada ?? "").trim() : "",
+    leitura: b.tipo === "destaque" ? (b.leitura_aprovada ?? "") : "",
     edicaoNumero: alvo.numero,
     relacionados: escolherRelacionados(alvo, todos),
   };
