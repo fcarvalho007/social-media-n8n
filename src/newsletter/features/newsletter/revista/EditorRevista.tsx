@@ -36,6 +36,7 @@ import { AssuntoField } from "../AssuntoField";
 import { useAutoSave, type AutoSaveApi } from "../useAutoSave";
 import { ModalLinks } from "../ModalLinks";
 import PainelDestinos from "./PainelDestinos";
+import { PropostaCarrossel } from "@/components/newsletter/PropostaCarrossel";
 import { CabecalhoRevista, type EstadoEdicao } from "./CabecalhoRevista";
 import { resumirEpisodioPodcast } from "@/newsletter/lib/newsletter-ia.functions";
 import { verificarLinksEdicao, type ItemLink, type ResumoLinks } from "@/newsletter/lib/verificar-links.functions";
@@ -1840,6 +1841,7 @@ export default function EditorRevista({
 
       {fase === "publicar" && (
         <>
+          <PropostaCarrossel edicaoId={edicaoId} numero={numero} enviada={edicaoQ.data?.estado === "enviada"} />
           <PainelDestinos
             edicaoId={edicaoId}
             numero={numero}

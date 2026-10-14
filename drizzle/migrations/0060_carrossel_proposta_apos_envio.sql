@@ -1,0 +1,10 @@
+ALTER TABLE public.nl_conteudos_derivados DROP CONSTRAINT nl_conteudos_derivados_tipo_check;
+ALTER TABLE public.nl_conteudos_derivados ADD CONSTRAINT nl_conteudos_derivados_tipo_check CHECK (tipo IN ('carrossel_cronica', 'carrossel_edicao_teste'));
+ALTER TABLE public.nl_conteudos_jobs DROP CONSTRAINT nl_conteudos_jobs_tipo_check;
+ALTER TABLE public.nl_conteudos_jobs ADD CONSTRAINT nl_conteudos_jobs_tipo_check CHECK (tipo = 'carrossel_cronica');
+ALTER TABLE public.nl_conteudos_jobs DROP CONSTRAINT nl_conteudos_jobs_estado_check;
+ALTER TABLE public.nl_conteudos_jobs ADD CONSTRAINT nl_conteudos_jobs_estado_check CHECK (estado IN ('aguarda_confirmacao','aguarda_revisao_fonte','aguarda_criacao','pendente','aguarda_credencial','a_processar','concluido','erro','cancelado'));
+ALTER TABLE public.nl_conteudos_derivados ADD COLUMN IF NOT EXISTS adiado_em timestamptz;
+ALTER TABLE public.nl_conteudos_derivados ADD COLUMN IF NOT EXISTS adiado_por uuid;
+COMMENT ON COLUMN public.nl_conteudos_derivados.adiado_em IS 'Post-send carousel proposal postponed ("Mais tarde"); written only by the nl-conteudos function (service role).';
+COMMENT ON COLUMN public.nl_conteudos_jobs.estado IS 'aguarda_criacao = real send confirmed by E-goi, proposal waiting for an explicit human "Criar carrossel" (no automatic AI).';

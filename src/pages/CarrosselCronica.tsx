@@ -167,7 +167,13 @@ export default function CarrosselCronica() {
         <div className="min-w-0">
           <Link to="/estudio/redes-sociais" className="text-xs text-muted-foreground hover:underline"
             onClick={(e) => { if (alterado) { e.preventDefault(); setSairPendente("/estudio/redes-sociais"); } }}>← Carrosséis</Link>
-          <h1 className="text-2xl font-semibold">Carrossel da crónica</h1>
+          <h1 className="flex flex-wrap items-center gap-2 text-2xl font-semibold">
+            Carrossel da crónica
+            {fonte.teste && <Badge variant="outline" className="border-warning text-warning">Teste · pré-envio</Badge>}
+          </h1>
+          {fonte.teste && (
+            <p className="text-xs text-muted-foreground">Rascunho de verificação feito a partir da composição atual. Não é a versão enviada nem bloqueia o carrossel real desta edição.</p>
+          )}
           <p className="text-sm text-muted-foreground">Edição #{fonte.numero} · {fonte.titulo}</p>
           <p className="text-xs text-muted-foreground">
             <span className={alterado ? "font-medium text-destructive" : ""}>{alterado ? "Alterações por guardar" : c.versao ? "Guardado" : "Sem versão guardada"}</span> · Versão {c.versao}{dados.job ? ` · ${ESTADOS_JOB[dados.job.estado] ?? dados.job.estado}` : ""} ·{" "}
@@ -175,7 +181,7 @@ export default function CarrosselCronica() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" disabled={!!acao || fontePorRever} onClick={() => (carrossel ? setConfirmar("gerar") : gerar())}>
+          <Button variant="outline" disabled={!!acao || fontePorRever} onClick={() => setConfirmar("gerar")}>
             {acao === "gerar" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1 h-4 w-4" />}
             {carrossel ? "Gerar nova proposta" : "Gerar proposta"}
           </Button>
@@ -308,7 +314,7 @@ export default function CarrosselCronica() {
         <AlertDialogContent className={confirmar === "fonte" ? "max-w-2xl" : undefined}>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmar === "gerar" ? "Gerar nova proposta?" : confirmar === "social" ? (c.social_draft_id ? "Atualizar o rascunho social?" : "Criar rascunho social?") : "Confirmar a fonte histórica"}
+              {confirmar === "gerar" ? (carrossel ? "Gerar nova proposta?" : "Gerar proposta?") : confirmar === "social" ? (c.social_draft_id ? "Atualizar o rascunho social?" : "Criar rascunho social?") : "Confirmar a fonte histórica"}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">

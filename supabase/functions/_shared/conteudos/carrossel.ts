@@ -11,6 +11,16 @@ export interface Carrossel {
   legenda: string;
 }
 export type OrigemFonte = "snapshot" | "historico_actual";
+/** One of the edition's three highlights, copied from the sent snapshot (approved reading kept literal). */
+export interface DestaqueFonte {
+  titulo: string;
+  sintese: string;
+  /** Approved editorial reading, verbatim. Never rewritten by the model. */
+  leitura: string;
+  fonteUrl: string;
+  publisher: string;
+  briefUrl?: string;
+}
 export interface FonteCronica {
   edicaoId: string;
   numero: number;
@@ -19,6 +29,29 @@ export interface FonteCronica {
   url: string;
   origem: OrigemFonte;
   hash: string;
+  /** Present in sources built after the post-send proposal: highlights are appended to `paragrafos`. */
+  destaques?: DestaqueFonte[];
+  edicaoUrl?: string;
+  cursoUrl?: string;
+  /** Explicit pre-send test draft: never part of the real send path. */
+  teste?: boolean;
+}
+
+export const CURSO_IA_URL = "https://fredericocarvalho.pt/curso-de-inteligencia-artificial/";
+export const PREFIXO_DESTAQUE = "[Destaque";
+
+/** Hostname without "www." — used as the visible source attribution. */
+export function publisherDe(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; }
+}
+
+/** Paragraph appended for each highlight so slides can cite it like any other source paragraph. */
+export function paragrafoDestaque(d: DestaqueFonte, i: number): string {
+  const partes = [`${PREFIXO_DESTAQUE} ${i + 1}] ${d.titulo}.`];
+  if (d.sintese) partes.push(d.sintese);
+  if (d.leitura) partes.push(`Leitura de Frederico Carvalho (aprovada, citar só literalmente): «${d.leitura}»`);
+  if (d.publisher) partes.push(`Fonte: ${d.publisher}.`);
+  return partes.join(" ");
 }
 
 export const LIMITES = { slidesMin: 6, slidesMax: 8, titulo: 100, texto: 360, legenda: 2200, fontesPorSlide: 12 } as const;
@@ -60,8 +93,16 @@ export function validarCarrossel(valor: unknown, fonte: Pick<FonteCronica, "para
   return { slides, legenda };
 }
 
-export function legendaComLink(carrossel: Carrossel, fonte: Pick<FonteCronica, "url">): string {
-  const legenda = `${carrossel.legenda}\n\nLer a crónica: ${fonte.url}`;
+export function legendaComLink(
+  carrossel: Carrossel,
+  fonte: Pick<FonteCronica, "url" | "destaques" | "edicaoUrl" | "cursoUrl">,
+): string {
+  const linhas = [`Ler a crónica: ${fonte.url}`];
+  if (fonte.edicaoUrl) linhas.push(`Edição completa: ${fonte.edicaoUrl}`);
+  const fontes = [...new Set((fonte.destaques ?? []).map((d) => d.publisher).filter(Boolean))];
+  if (fontes.length) linhas.push(`Fontes dos destaques: ${fontes.join(", ")}`);
+  if (fonte.cursoUrl) linhas.push(`Curso de inteligência artificial: ${fonte.cursoUrl}`);
+  const legenda = `${carrossel.legenda}\n\n${linhas.join("\n")}`;
   if (legenda.length > LIMITES.legenda) {
     throw new Error("A legenda com o endereço ultrapassa 2200 caracteres. Encurta a legenda antes de exportar.");
   }
@@ -78,6 +119,7 @@ Cria 6 a 8 slides. O primeiro é a capa; o último convida a ler a crónica. Cad
 A legenda é breve: 2 a 4 parágrafos curtos, no máximo ${LEGENDA_ALVO} caracteres no total. Não resumas a crónica inteira na legenda; a aplicação acrescenta depois o endereço da crónica.
 Os slides intermédios desenvolvem a tese, o argumento, exemplos existentes e implicações práticas. Identifica em fontes os números dos parágrafos que sustentam cada slide intermédio.
 Não inventes números, citações, exemplos, resultados ou recomendações. Não apresentes paráfrases entre aspas. Mantém a perspetiva do autor sem acrescentar opinião. Não acrescentes URLs: a aplicação associa o endereço da crónica.
+Se houver parágrafos que começam por "[Destaque N]", são os destaques da edição da newsletter: dedica um slide a cada um, cita esse parágrafo em fontes e nomeia a fonte original. A leitura de Frederico Carvalho nesses parágrafos só pode aparecer copiada literalmente entre «», sem alterações, ou não aparecer.
 Evita clickbait, jargão, slogans e hashtags genéricas. Produz um rascunho editorial para revisão humana.`;
 
 /** Measured sizes of a raw answer, to steer a repair without guessing. */
@@ -112,7 +154,7 @@ export interface DepsGerador<R extends RespostaGerador> {
  * Never truncates: the result passes validarCarrossel and fits legendaComLink, or it throws.
  */
 export async function gerarComReparacao<R extends RespostaGerador>(
-  fonte: Pick<FonteCronica, "titulo" | "paragrafos" | "url">,
+  fonte: Pick<FonteCronica, "titulo" | "paragrafos" | "url" | "destaques" | "edicaoUrl" | "cursoUrl">,
   deps: DepsGerador<R>,
 ): Promise<Carrossel> {
   const base = JSON.stringify({ titulo: fonte.titulo, paragrafos: fonte.paragrafos.map((texto, i) => ({ numero: i + 1, texto })) });
