@@ -1,5 +1,11 @@
 # Roadmap
 
+## Complemento obrigatório 319 — verificação final
+- [ ] Confirmar três Briefs anónimos com noindex/nofollow e proteção dos restantes
+- [ ] Verificar HTML/texto/site/backup, fontes, formação e leituras literais
+- [ ] Verificar desktop/375px, navegação por teclado, Security e testes
+- [ ] Confirmar ausência de envios e preservação de campanha970, crónica99178 e backup5264; reportar URLs e limitações
+
 ## Briefs em Compor e publicação de teste 319
 - [x] Integrar gerar/rever/aprovar/abrir apenas os três destaques; preservar leituras prontas sem custos
 - [x] Garantir destaques aprovados → Brief e restantes notícias → fonte em HTML/texto/web/backup
