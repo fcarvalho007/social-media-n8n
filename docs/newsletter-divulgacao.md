@@ -47,7 +47,11 @@ As quatro capturas de revisão foram comparadas localmente com a identidade e os
 
 ## Instalação no Lovable
 
-A instalação/publicação desta extensão ainda não está confirmada. Consumir o código commitado da branch `codex/newsletter-divulgacao`, preservando as migrações anteriores e os dados existentes:
+Instalação confirmada em 14 de outubro de 2026: migração 0061 aplicada, cinco funções republicadas e aplicação publicada a partir de `codex/newsletter-divulgacao`. O rascunho de teste da 319 foi aberto na aplicação publicada, com Story guardado por rever e o carrossel anterior de 12 slides preservado. Guardar/reabrir e exportar PNG/ZIP foram verificados, incluindo revisão móvel. Não foram enviados emails, publicados conteúdos no Instagram nem executada geração paga de conteúdo. O próximo envio real continua necessário para observar o disparo completo em produção.
+
+Validação: 630 testes passaram (um teste anterior ignorado); após o ajuste final do excerto, os 14 testes focados passaram. Typecheck, build Vite e verificação Deno de 248 ficheiros passaram no estado final. O verificador próprio do Lovable apresenta um aviso de resolução da versão Supabase nas funções; não impediu os cinco deploys nem a publicação da aplicação. PDF e criação de rascunho social pertencem ao fluxo existente e não foram repetidos nesta instalação.
+
+Para reinstalar a extensão, consumir o código commitado da mesma branch, preservando as migrações anteriores e os dados existentes:
 
 1. Aplicar uma vez `drizzle/migrations/0061_newsletter_divulgacao.sql`. Acrescenta `divulgacao` e `divulgacao_versao` à tabela existente; não altera grants nem RLS.
 2. Fazer deploy de `nl-conteudos`, `nl-worker-conteudos`, `nl-api`, `nl-newsletter` e `nl-hooks`, incluindo o respetivo grafo de módulos partilhados.
