@@ -1,0 +1,43 @@
+// Contagem agregada de interações com os Briefs. Sem dados pessoais: só o tipo
+// de evento, o slug do Brief, o número da edição e o dia.
+
+import { createServerFn } from "../_shim/start.ts";
+
+const EVENTOS = [
+  // «abertura a partir do email»: pode incluir pré-carregamentos e varrimentos
+  // de segurança dos servidores de correio, por isso é sempre um limite
+  // superior. A referência para cliques de email continua a ser a E-goi.
+  "brief_open_from_email",
+  "edition_brief_click",
+  "brief_source_click",
+  "brief_related_click",
+  "brief_commercial_cta",
+] as const;
+
+export type EventoBrief = (typeof EVENTOS)[number];
+
+interface EntradaEvento {
+  evento: string;
+  slug: string;
+  edicaoNumero?: number | null;
+}
+
+export const registarEventoBriefFn = createServerFn({ method: "POST" })
+  .inputValidator((input: EntradaEvento) => input)
+  .handler(async ({ data }) => {
+    const evento = (EVENTOS as readonly string[]).includes(data.evento) ? data.evento : null;
+    if (!evento) return { ok: false };
+
+    try {
+      const { supabaseAdmin } = await import("../_shim/admin.ts");
+      await supabaseAdmin.rpc("nl_registar_evento_brief", {
+        _evento: evento,
+        _slug: (data.slug ?? "").slice(0, 200),
+        _edicao_numero: (data.edicaoNumero ?? null) as unknown as number,
+      });
+      return { ok: true };
+    } catch {
+      // A contagem nunca pode partir a página pública.
+      return { ok: false };
+    }
+  });

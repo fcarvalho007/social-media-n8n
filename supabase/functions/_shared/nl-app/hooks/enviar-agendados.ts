@@ -1,0 +1,30 @@
+import process from "node:process";
+import { createFileRoute } from "../_shim/router.ts";
+
+// Cron (pg_cron, de 5 em 5 minutos): executa envios agendados que já venceram.
+// Protegido pela apikey do projecto — o corpo do pedido é ignorado.
+
+export const Route = createFileRoute("/api/public/hooks/enviar-agendados")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const chave = request.headers.get("apikey") ?? request.headers.get("authorization")?.replace("Bearer ", "") ?? "";
+        const esperada = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
+        if (!esperada || chave !== esperada) {
+          return new Response(JSON.stringify({ ok: false, mensagem: "Não autorizado" }), {
+            status: 401, headers: { "Content-Type": "application/json" },
+          });
+        }
+        try {
+          const { executarAgendamentos } = await import("../../newsletter-engine/agendamento.server.ts");
+          const r = await executarAgendamentos();
+          return Response.json({ ok: true, ...r });
+        } catch (e) {
+          return new Response(JSON.stringify({ ok: false, mensagem: (e as Error).message }), {
+            status: 500, headers: { "Content-Type": "application/json" },
+          });
+        }
+      },
+    },
+  },
+});

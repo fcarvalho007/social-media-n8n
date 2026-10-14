@@ -1,0 +1,162 @@
+// Extracção de uma notícia com o texto real do artigo. Server-only.
+//
+// Reúne num único sítio o que antes só existia no processamento manual da
+// fila: ler o artigo original, pedir a extracção à IA com esse material e,
+// quando a descrição se limita a repetir o título, pedir uma reescrita.
+//
+// Usado pela fila de entrada (`fila-curadoria.server.ts`) e pela recolha
+// automática por fontes (`routes/api/public/hooks/curadoria-rss.ts`).
+
+import type { DeepSeekUsage } from "./deepseek.server.ts";
+import type { IaResultado } from "./ia-extractor.server.ts";
+
+export type RegistarUso = (u: {
+  modelo: string;
+  usage: DeepSeekUsage;
+  origem: string;
+}) => void | Promise<void>;
+
+export interface EntradaExtraccao {
+  titulo: string;
+  descricao: string;
+  url?: string | null;
+  /** Material já disponível (ex.: corpo do email); evita ir à rede. */
+  corpoConhecido?: string;
+  /** Quando falso, não vai buscar a página original. */
+  lerCorpo?: boolean;
+  /** Origem registada em `ia_uso` para a extracção. */
+  origemUso?: string;
+}
+
+export interface ResultadoExtraccao {
+  ia: IaResultado | null;
+  titulo: string;
+  descricao: string;
+  /** Texto do artigo lido (vazio quando não foi possível). */
+  corpo: string;
+  /** A descrição continua a repetir o título depois da reescrita. */
+  repete: boolean;
+  /** Causa real quando a IA não devolveu resultado (null quando correu bem). */
+  motivo: string | null;
+}
+
+/** Traduz a falha da chamada para uma causa legível no registo da fila. */
+function descreverFalha(e: unknown): string {
+  const err = e as { name?: string; message?: string };
+  const msg = String(err?.message ?? e);
+  if (err?.name === "AbortError" || /timeout|timed out|abort/i.test(msg)) return "tempo esgotado";
+  if (/\b429\b|rate limit/i.test(msg)) return "limite de pedidos da IA";
+  if (/\b(401|403)\b/.test(msg)) return "chave da IA recusada";
+  if (/\b5\d\d\b/.test(msg)) return "serviço da IA indisponível";
+  if (/token|context length|too long/i.test(msg)) return "texto demasiado longo";
+  return msg.slice(0, 160) || "erro desconhecido";
+}
+
+
+/** Uma única tentativa de reescrita quando a descrição repete o título. */
+export async function corrigirDescricaoRepetida(
+  args: { titulo: string; descricao: string; corpo?: string },
+  registarUso?: RegistarUso,
+): Promise<{ descricao: string; repete: boolean; reescrita: boolean }> {
+  const { avaliarDescricao } = await import("./similaridade-texto.ts");
+  if (!avaliarDescricao(args.titulo, args.descricao).repete) {
+    return { descricao: args.descricao, repete: false, reescrita: false };
+  }
+
+  try {
+    const { reescreverDescricao } = await import("./ia-extractor.server.ts");
+    const r = await reescreverDescricao({
+      titulo: args.titulo,
+      descricao: args.descricao,
+      corpoArtigo: args.corpo,
+    });
+    try {
+      await registarUso?.({ modelo: r.modelo, usage: r.usage, origem: "descricao_reescrita" });
+    } catch {
+      /* o registo de custo nunca bloqueia */
+    }
+    if (r.descricao && !avaliarDescricao(args.titulo, r.descricao).repete) {
+      return { descricao: r.descricao, repete: false, reescrita: true };
+    }
+  } catch {
+    /* mantém a descrição original; fica assinalada no editor */
+  }
+  return { descricao: args.descricao, repete: true, reescrita: false };
+}
+
+/**
+ * Lê o artigo (quando há URL), extrai a notícia com a IA e garante que a
+ * descrição acrescenta informação ao título. Nunca lança por causa da leitura
+ * do artigo: sem corpo, segue com o material que houver.
+ */
+export async function extrairNoticiaComCorpo(
+  entrada: EntradaExtraccao,
+  registarUso?: RegistarUso,
+): Promise<ResultadoExtraccao> {
+  const { chamarIaExtrator } = await import("./ia-extractor.server.ts");
+
+  let corpo = (entrada.corpoConhecido ?? "").trim();
+  if (!corpo && entrada.lerCorpo !== false) {
+    const { lerArtigo } = await import("./ler-artigo.server.ts");
+    corpo = (await lerArtigo(entrada.url)).corpo;
+  }
+
+  const bloco = `${entrada.titulo}\n\n${entrada.descricao}\n\n${entrada.url ?? ""}`;
+
+  const registar = async (c: { modelo: string; usage: DeepSeekUsage }) => {
+    try {
+      await registarUso?.({
+        modelo: c.modelo,
+        usage: c.usage,
+        origem: entrada.origemUso ?? "extraccao_noticia",
+      });
+    } catch {
+      /* o registo de custo nunca bloqueia */
+    }
+  };
+
+  let motivo: string | null = null;
+  let ia: IaResultado | null = null;
+
+  // 1.ª tentativa: com o texto do artigo.
+  try {
+    const chamada = await chamarIaExtrator(bloco, undefined, corpo);
+    await registar(chamada);
+    ia = chamada.resultado;
+    if (!ia) motivo = "a IA devolveu uma resposta inválida";
+  } catch (e) {
+    motivo = descreverFalha(e);
+  }
+
+  // 2.ª tentativa, mais curta: sem o texto do artigo.
+  if (!ia && corpo) {
+    try {
+      const chamada = await chamarIaExtrator(bloco, undefined, undefined);
+      await registar(chamada);
+      ia = chamada.resultado;
+      if (ia) motivo = null;
+      else motivo = `${motivo ?? "sem resultado"} (também sem o texto do artigo)`;
+    } catch (e) {
+      motivo = `${motivo ?? "sem resultado"} · 2.ª tentativa: ${descreverFalha(e)}`;
+    }
+  }
+
+  const titulo = (typeof ia?.titulo === "string" && ia.titulo.trim()) || entrada.titulo;
+  const descricaoBruta =
+    (typeof ia?.descricao === "string" && ia.descricao.trim()) || entrada.descricao || "";
+
+  const corrigida = await corrigirDescricaoRepetida(
+    { titulo, descricao: descricaoBruta, corpo },
+    registarUso,
+  );
+
+  return {
+    ia,
+    titulo,
+    descricao: corrigida.descricao,
+    corpo,
+    repete: corrigida.repete,
+    motivo: ia ? null : (motivo ?? "a IA não devolveu resultado"),
+  };
+
+}

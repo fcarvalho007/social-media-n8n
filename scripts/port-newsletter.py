@@ -329,8 +329,8 @@ SERVER_FIXES = {
          '  void sb;\n  const { baseParaLinks } = await import("../../nl-publico-config.ts");\n  return baseParaLinks();'),
     ],
     "engine/revista/texto.server.ts": [
-        ('import { sequenciaCronica } from "./sequencia-cronica";',
-         'import { sequenciaCronica } from "./sequencia-cronica";\nimport { linkSubscricao } from "../../nl-publico-config.ts";'),
+        ('import { sequenciaCronica } from "./sequencia-cronica.ts";',
+         'import { sequenciaCronica } from "./sequencia-cronica.ts";\nimport { linkSubscricao } from "../../nl-publico-config.ts";'),
         ('L.push("Gerir a subscrição: https://edicoes.digitalsprint.pt/subscricao?e={!email:URLENCODE}");',
          'L.push(`Gerir a subscrição: ${linkSubscricao()}`);'),
         ('L.push("Cancelar a subscrição: https://edicoes.digitalsprint.pt/subscricao?a=cancelar&e={!email:URLENCODE}");',

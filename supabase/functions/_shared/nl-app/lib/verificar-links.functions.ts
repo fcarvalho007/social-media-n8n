@@ -1,0 +1,212 @@
+// Server functions: verificação de URLs de uma edição.
+// Apenas pedidos HTTP, sem IA. Os utilitários vivem em `verificar-links.server.ts`.
+
+import { createServerFn } from "../_shim/start.ts";
+import { requireSupabaseAuth } from "../_shim/auth.ts";
+import {
+  verificarUm,
+  correrEmFila,
+  computarResumo,
+  recolherEntradas,
+  chaveEntrada,
+  urlComparavel,
+  cacheCobreEntradas,
+  normalizarUrlPublico,
+  CACHE_MS,
+  type ItemLink,
+  type ContextoLink,
+  type EstadoLink,
+  type ResumoLinks,
+  type ResultadoVerificarLinks,
+} from "./verificar-links.server.ts";
+
+export type { ItemLink, ContextoLink, EstadoLink, ResumoLinks, ResultadoVerificarLinks };
+
+export const verificarLinksEdicao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { edicao_id: string; forcar?: boolean }) => {
+    if (!input?.edicao_id || typeof input.edicao_id !== "string") {
+      throw new Error("edicao_id obrigatório");
+    }
+    return { edicao_id: input.edicao_id, forcar: Boolean(input.forcar) };
+  })
+  .handler(async ({ data, context }): Promise<ResultadoVerificarLinks> => {
+    const { supabase } = context;
+    const { edicao_id, forcar } = data;
+
+    // 1) Estado da edição + retrato anterior.
+    const { data: ed, error: eEd } = await supabase
+      .from("nl_edicoes")
+      .select("id, numero, links_verificados, links_verificados_em, links_ignorados")
+      .eq("id", edicao_id)
+      .maybeSingle();
+    if (eEd) throw eEd;
+    if (!ed) throw new Error("Edição não encontrada");
+
+    const cacheEm = (ed as { links_verificados_em: string | null }).links_verificados_em;
+    const cacheItensRaw = (ed as { links_verificados: ItemLink[] | null }).links_verificados;
+    const cacheItens = Array.isArray(cacheItensRaw) ? cacheItensRaw.filter((it) => !!it?.contexto) : [];
+
+    // 2) URLs reais da edição, agora.
+    const entradas = await recolherEntradas(supabase, edicao_id);
+
+    // 3) A cache só serve se for recente E cobrir exactamente estes URLs.
+    const recente = !!cacheEm && (Date.now() - new Date(cacheEm).getTime()) < CACHE_MS;
+    if (!forcar && recente && cacheItens.length > 0 && cacheCobreEntradas(cacheItens, entradas)) {
+      return {
+        items: cacheItens,
+        resumo: computarResumo(cacheItens),
+        verificado_em: cacheEm!,
+        cache: true,
+      };
+    }
+
+    // 4) Reaproveita resultados de URLs que não mudaram; verifica só o resto.
+    //    Numa reverificação forçada não se reaproveita nada.
+    const anteriores = new Map<string, ItemLink>();
+    if (!forcar) {
+      for (const it of cacheItens) {
+        anteriores.set(`${chaveEntrada(it.contexto)}|${urlComparavel(it.url)}`, it);
+      }
+    }
+
+    const items: ItemLink[] = [];
+    const aVerificar: Array<{ url: string; contexto: ContextoLink }> = [];
+    const vistos = new Map<string, ContextoLink>();
+
+    for (const e of entradas) {
+      const norm = normalizarUrlPublico(e.url);
+      if (!norm) {
+        items.push({ url: e.url || "(vazio)", estado: "quebrado", status: 0, contexto: e.contexto });
+        continue;
+      }
+      const reutilizavel = recente ? anteriores.get(`${chaveEntrada(e.contexto)}|${urlComparavel(norm)}`) : undefined;
+      if (reutilizavel) {
+        items.push({ ...reutilizavel, url: norm, contexto: e.contexto });
+        continue;
+      }
+      if (vistos.has(norm)) continue;
+      vistos.set(norm, e.contexto);
+      aVerificar.push({ url: norm, contexto: e.contexto });
+    }
+
+    const parciais: Record<string, Omit<ItemLink, "contexto">> = {};
+    await correrEmFila(aVerificar, async (entry) => {
+      parciais[entry.url] = await verificarUm(entry.url);
+    });
+    for (const entry of aVerificar) {
+      const r = parciais[entry.url];
+      if (r) items.push({ ...r, contexto: entry.contexto });
+    }
+
+    const resumo = computarResumo(items);
+    const verificado_em = new Date().toISOString();
+
+    // 5) Limpa confirmações manuais («link aprovado») de URLs que já não existem.
+    const urlsActuais = new Set(items.map((it) => urlComparavel(it.url)));
+    const ignoradosRaw = (ed as { links_ignorados: unknown }).links_ignorados;
+    const ignorados = Array.isArray(ignoradosRaw)
+      ? ignoradosRaw.filter((x): x is string => typeof x === "string")
+      : [];
+    const ignoradosLimpos = ignorados.filter((u) => urlsActuais.has(urlComparavel(u)));
+    const mudouIgnorados = ignoradosLimpos.length !== ignorados.length;
+
+    const { error: eUp } = await supabase
+      .from("nl_edicoes")
+      .update({
+        links_verificados: items,
+        links_verificados_em: verificado_em,
+        ...(mudouIgnorados ? { links_ignorados: ignoradosLimpos } : {}),
+      } as never)
+      .eq("id", edicao_id);
+    if (eUp) throw eUp;
+
+    // 6) Auditoria (não-crítica).
+    try {
+      const { data: perfil } = await supabase
+        .from("nl_perfis")
+        .select("nome")
+        .eq("id", context.userId)
+        .maybeSingle();
+      const quem = perfil?.nome ?? "Utilizador";
+      await supabase.from("nl_audit_log").insert({
+        quem,
+        accao: "Verificou links",
+        detalhe: `Edição #${(ed as { numero: number }).numero}: ${resumo.ok} ok · ${resumo.redireccionado} 3xx · ${resumo.suspeito} suspeitos · ${resumo.quebrado} quebrados`,
+      });
+    } catch { /* auditoria não-crítica */ }
+
+    return { items, resumo, verificado_em, cache: false };
+  });
+
+/* ─── Verificação de um único URL (para o UrlEditor) ─── */
+
+export interface ResultadoUmLink {
+  url: string;
+  estado: EstadoLink;
+  status: number;
+  redirect_para?: string;
+}
+
+export const verificarUmLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { url: string }) => {
+    if (!input?.url || typeof input.url !== "string") throw new Error("url obrigatório");
+    return { url: input.url };
+  })
+  .handler(async ({ data }): Promise<ResultadoUmLink> => {
+    const r = await verificarUm(data.url);
+    return { url: r.url, estado: r.estado, status: r.status, redirect_para: r.redirect_para };
+  });
+
+/* ─── Confirmar/reactivar aviso de um link ─── */
+
+export const ignorarLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { edicao_id: string; url: string }) => {
+    if (!input?.edicao_id) throw new Error("edicao_id obrigatório");
+    if (!input?.url) throw new Error("url obrigatório");
+    return { edicao_id: input.edicao_id, url: input.url };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { lerLinksIgnorados } = await import("./verificar-links.server.ts");
+    const actuais = await lerLinksIgnorados(supabase, data.edicao_id);
+    if (!actuais.includes(data.url)) actuais.push(data.url);
+    const { error } = await supabase
+      .from("nl_edicoes")
+      .update({ links_ignorados: actuais } as never)
+      .eq("id", data.edicao_id);
+    if (error) throw error;
+
+    try {
+      const { data: perfil } = await supabase
+        .from("nl_perfis").select("nome").eq("id", context.userId).maybeSingle();
+      const quem = perfil?.nome ?? "Utilizador";
+      let dominio = data.url;
+      try { dominio = new URL(data.url).hostname.replace(/^www\./, ""); } catch { /* ignore */ }
+      await supabase.from("nl_audit_log").insert({ quem, accao: "Confirmou link OK", detalhe: dominio });
+    } catch { /* auditoria não-crítica */ }
+
+    return { ok: true as const, links_ignorados: actuais };
+  });
+
+export const reactivarLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { edicao_id: string; url: string }) => {
+    if (!input?.edicao_id) throw new Error("edicao_id obrigatório");
+    if (!input?.url) throw new Error("url obrigatório");
+    return { edicao_id: input.edicao_id, url: input.url };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { lerLinksIgnorados } = await import("./verificar-links.server.ts");
+    const actuais = await lerLinksIgnorados(supabase, data.edicao_id);
+    const novos = actuais.filter((u) => u !== data.url);
+    const { error } = await supabase
+      .from("nl_edicoes")
+      .update({ links_ignorados: novos } as never)
+      .eq("id", data.edicao_id);
+    if (error) throw error;
+    return { ok: true as const, links_ignorados: novos };
+  });
