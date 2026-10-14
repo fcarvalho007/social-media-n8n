@@ -4,6 +4,8 @@
 // AI runs only inside the job processor (never in the send response) and never overwrites
 // human edits. Publishing to social networks is always a separate human action.
 import process from "node:process";
+import { garantirDivulgacao } from "./divulgacao.server.ts";
+import { campanhaReal } from "./divulgacao.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { carregarFonteCronica, carregarFonteTeste, ErroFonte } from "./fonte.server.ts";
 import { ESTADO_APOS_CONFIRMACAO, estadoProposta, type EstadoProposta } from "./proposta.ts";
@@ -64,10 +66,10 @@ export async function enfileirarCarrossel(
     const fonte = await carregarFonteCronica(sb, edicaoId);
     const conteudo = await garantirConteudo(sb, fonte);
     const { data: camps } = await sb.from("nl_egoi_campanhas")
-      .select("lista_id, campaign_hash, estado, aceite_em").eq("edicao_id", edicaoId);
+      .select("lista_id, campaign_hash, estado, aceite_em, nl_egoi_listas(tipo)").eq("edicao_id", edicaoId);
     // Candidates only: delivery is always re-confirmed against E-goi by the processor.
-    let candidatas = ((camps ?? []) as { lista_id: string; campaign_hash: string | null; estado: string; aceite_em: string | null }[])
-      .filter((c) => (c.estado === "aceite" || c.estado === "enviada") && c.campaign_hash);
+    let candidatas = ((camps ?? []) as { lista_id: string; campaign_hash: string | null; estado: string; aceite_em: string | null; nl_egoi_listas: { tipo: string } | { tipo: string }[] | null }[])
+      .filter((c) => campanhaReal(Array.isArray(c.nl_egoi_listas) ? c.nl_egoi_listas[0] ?? {} : c.nl_egoi_listas ?? {}) && (c.estado === "aceite" || c.estado === "enviada") && c.campaign_hash);
     if (origem !== "manual") {
       candidatas = candidatas.filter((c) => c.aceite_em && c.aceite_em >= AUTO_DESDE);
       if (!candidatas.length) return { ok: false, motivo: "Sem campanha aceite pela E-goi depois da ativação automática." };
@@ -183,7 +185,17 @@ export async function processarJobs(limite = 2): Promise<{ processados: number }
           await gravarJob(sb, job, { erro: "A aguardar a chave E-goi para confirmar a entrega.", proxima_tentativa_em: backoff(4) });
           continue;
         }
-        const campanhas = [...job.campanhas];
+        const { data: listas, error: erroListas } = await sb.from("nl_egoi_listas").select("id, tipo").in("id", job.campanhas.map((c) => c.lista_id));
+        if (erroListas) {
+          await gravarJob(sb, job, { estado: "aguarda_confirmacao", erro: "Não foi possível verificar as listas do envio.", proxima_tentativa_em: backoff(3) });
+          continue;
+        }
+        const reais = new Set((listas ?? []).filter(campanhaReal).map((l: { id: string }) => l.id));
+        const campanhas = job.campanhas.filter((c) => reais.has(c.lista_id));
+        if (!campanhas.length) {
+          await gravarJob(sb, job, { estado: "cancelado", erro: "Envios internos não iniciam a divulgação real." });
+          continue;
+        }
         const errosApi: string[] = [];
         for (const c of campanhas) {
           if (c.confirmada) continue;
@@ -192,8 +204,12 @@ export async function processarJobs(limite = 2): Promise<{ processados: number }
           else c.confirmada = r.bruto === "sent";
         }
         if (campanhas.length && campanhas.some((c) => c.confirmada)) {
-          // Delivery confirmed: the proposal waits for an explicit "Criar carrossel" (no automatic AI cost).
-          await gravarJob(sb, job, { campanhas, estado: ESTADO_APOS_CONFIRMACAO, confirmado_em: new Date().toISOString(), erro: null, proxima_tentativa_em: new Date().toISOString() });
+          const confirmadoEm = new Date().toISOString();
+          // Free editorial kit only. A failure stays in the human-action state, never falls into paid AI retries.
+          let erroKit: string | null = null;
+          try { await garantirDivulgacao(sb, job.conteudo_id, confirmadoEm); }
+          catch (e) { erroKit = `Envio confirmado; falta preparar a divulgação: ${(e as Error).message}`; }
+          await gravarJob(sb, job, { campanhas, estado: erroKit ? ESTADO_APOS_CONFIRMACAO : "concluido", confirmado_em: confirmadoEm, erro: erroKit, proxima_tentativa_em: confirmadoEm });
         } else if (errosApi.length) {
           await gravarJob(sb, job, { campanhas, erro: `Não foi possível confirmar a entrega na E-goi: ${errosApi.join(" | ").slice(0, 400)}`, proxima_tentativa_em: backoff(3) });
         } else {
@@ -328,6 +344,7 @@ export async function prepararTeste(edicaoId: string, userId: string): Promise<{
   const sb = admin();
   const fonte = await carregarFonteTeste(sb, edicaoId);
   const c = await garantirConteudo(sb, fonte, TIPO_TESTE);
+  await garantirDivulgacao(sb, c.id, null, userId);
   await sb.from("nl_audit_log").insert({ quem: userId, accao: "Rascunho de teste do carrossel (pré-envio) preparado", detalhe: `edição ${fonte.numero}` }).then(() => {}, () => {});
   return { conteudo_id: c.id };
 }

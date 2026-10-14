@@ -7,7 +7,7 @@ interface BibliotecasConteudoTabsProps {
 
 const ABAS = [
   { id: "meus" as const, nome: "Meus conteúdos", url: "/estudio/carrosseis" },
-  { id: "cronica" as const, nome: "Carrosséis da crónica", url: "/estudio/redes-sociais" },
+  { id: "cronica" as const, nome: "Divulgação da newsletter", url: "/estudio/redes-sociais" },
 ];
 
 export function BibliotecasConteudoTabs({ ativa }: BibliotecasConteudoTabsProps) {

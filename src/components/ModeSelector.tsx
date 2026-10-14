@@ -126,7 +126,7 @@ export const ModeSelector = ({ onModeSelect, className }: ModeSelectorProps) => 
                 <div className="flex flex-wrap gap-1">
                   <Button asChild variant="ghost" size="sm"><Link to="/estudio/roteiros"><FileText aria-hidden />Meus roteiros</Link></Button>
                   <Button asChild variant="ghost" size="sm"><Link to="/estudio/carrosseis"><Layers aria-hidden />Meus carrosséis</Link></Button>
-                  <Button asChild variant="ghost" size="sm"><Link to="/estudio/redes-sociais"><Images aria-hidden />Carrosséis da crónica</Link></Button>
+                  <Button asChild variant="ghost" size="sm"><Link to="/estudio/redes-sociais"><Images aria-hidden />Divulgação da newsletter</Link></Button>
                 </div>
               </div>
             </CardContent>

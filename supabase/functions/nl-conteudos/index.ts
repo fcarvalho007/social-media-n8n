@@ -6,6 +6,9 @@ import { z } from "npm:zod@3.25.76";
 import { adiarProposta, admin, enfileirarCarrossel, gerarProposta, pedirCriacao, prepararTeste, processarJobs, propostaDaEdicao, reconciliarEdicoesSemJob, TIPO } from "../_shared/conteudos/jobs.server.ts";
 import { legendaComLink, validarCarrossel, type FonteCronica } from "../_shared/conteudos/carrossel.ts";
 
+import { garantirDivulgacao, guardarDivulgacao } from "../_shared/conteudos/divulgacao.server.ts";
+import { validarStory, type DivulgacaoEdicao } from "../_shared/conteudos/divulgacao.ts";
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -47,6 +50,11 @@ const Body = z.discriminatedUnion("acao", [
   z.object({ acao: z.literal("listar"), project_id: uuid.nullable().optional() }),
   z.object({ acao: z.literal("render_prova"), pacote: z.unknown(), variante: z.enum(["A", "B"]), pagina: z.number().int().min(0).max(19) }),
   z.object({ acao: z.literal("obter"), conteudo_id: uuid }),
+  z.object({ acao: z.literal("preparar_divulgacao"), conteudo_id: uuid }),
+  z.object({ acao: z.literal("guardar_divulgacao"), conteudo_id: uuid, versao: z.number().int().positive(),
+    story: z.object({ titulo: z.string().max(140), texto: z.string().max(260), cta: z.string().max(40), url: z.string().max(1500) }).strict(),
+    estado: z.enum(["rascunho", "revisto"]),
+  }),
   z.object({ acao: z.literal("preparar"), edicao_id: uuid }),
   z.object({ acao: z.literal("aceitar_fonte"), conteudo_id: uuid }),
   z.object({ acao: z.literal("estado_edicao"), edicao_id: uuid }),
@@ -84,7 +92,7 @@ Deno.serve(async (req) => {
   const lerConteudo = async (id: string) => {
     const { data, error } = await sb.from("nl_conteudos_derivados").select("*").eq("id", id).maybeSingle();
     if (error || !data) throw Object.assign(new Error("Conteúdo não encontrado"), { status: 404 });
-    return data as { id: string; edicao_id: string; tipo: string; fonte: FonteCronica; fonte_aceite_em: string | null; carrossel: unknown; versao: number; social_draft_id: string | null; project_id: string | null };
+    return data as { id: string; edicao_id: string; tipo: string; fonte: FonteCronica; fonte_aceite_em: string | null; carrossel: unknown; versao: number; social_draft_id: string | null; project_id: string | null; divulgacao: DivulgacaoEdicao | null; divulgacao_versao: number };
   };
   const exigirFonte = (c: { fonte: FonteCronica; fonte_aceite_em: string | null }) => {
     if (c.fonte.origem === "historico_actual" && !c.fonte_aceite_em) {
@@ -138,6 +146,19 @@ Deno.serve(async (req) => {
           sb.from("nl_conteudos_jobs").select("id, estado, erro, tentativas, max_tentativas, proxima_tentativa_em").eq("conteudo_id", c.id).maybeSingle(),
         ]);
         return json({ conteudo: c, versoes: versoes ?? [], job });
+      }
+      case "preparar_divulgacao": {
+        const c = await lerConteudo(b.conteudo_id);
+        exigirFonte(c);
+        const { data: j } = await sb.from("nl_conteudos_jobs").select("confirmado_em").eq("conteudo_id", c.id).maybeSingle();
+        await garantirDivulgacao(sb, c.id, j?.confirmado_em ?? null, userId);
+        return json({ ok: true });
+      }
+      case "guardar_divulgacao": {
+        const c = await lerConteudo(b.conteudo_id);
+        if (!c.divulgacao) return json({ error: "Prepara primeiro o conjunto de divulgação." }, 409);
+        const story = validarStory(b.story);
+        return json(await guardarDivulgacao(sb, c.id, b.versao, { ...c.divulgacao, story, estado: b.estado }));
       }
       case "preparar": {
         const r = await enfileirarCarrossel(b.edicao_id, "manual");

@@ -1,35 +1,31 @@
 // Post-send Instagram carousel proposal for one newsletter edition.
 // Real proposal appears only after E-goi confirms a real send; the pre-send test draft is a
 // separate, explicitly labelled action that never touches the real send path.
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Images, Loader2, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  adiarCarrosselEdicao, criarCarrosselEdicao, estadoPropostaEdicao, prepararRascunhoTeste, type PropostaEdicao,
+  adiarCarrosselEdicao, prepararDivulgacao, estadoPropostaEdicao, prepararRascunhoTeste, type PropostaEdicao,
 } from "@/services/conteudos";
 
 const TEXTOS: Record<PropostaEdicao["estado"], string> = {
-  nenhuma: "Aparece aqui depois de a E-goi confirmar um envio real. Envios de teste não contam.",
+  nenhuma: "Após o envio real confirmado, o Hub prepara um Story da crónica e um carrossel dos destaques. O envio interno serve apenas para testar.",
   a_confirmar: "Envio real aceite. A aguardar a confirmação de entrega da E-goi.",
   rever_fonte: "É preciso confirmar a fonte antes de criar o carrossel.",
-  pronta_criar: "Envio real confirmado pela E-goi. Cria o carrossel desta edição para rever antes de publicar.",
+  pronta_criar: "Envio real confirmado. Prepara duas peças editáveis, sem chamadas à IA, para rever antes de publicar.",
   adiada: "Ficou para mais tarde. Podes criá-lo quando quiseres.",
   a_criar: "A preparar a proposta de carrossel…",
-  rascunho: "Rascunho pronto para rever. Nada é publicado sem a tua revisão.",
+  rascunho: "Story no dia do envio; carrossel no dia seguinte. Abre para preparar ou rever as duas peças no Hub. A publicação é manual.",
   erro: "Não foi possível preparar o carrossel.",
 };
 
 export function PropostaCarrossel({ edicaoId, numero, enviada }: { edicaoId: string; numero: number; enviada: boolean }) {
   const qc = useQueryClient();
-  const [confirmar, setConfirmar] = useState(false);
+  const nav = useNavigate();
   const chave = ["proposta-carrossel", edicaoId];
   const q = useQuery({
     queryKey: chave,
@@ -38,19 +34,24 @@ export function PropostaCarrossel({ edicaoId, numero, enviada }: { edicaoId: str
     // Poll only while a confirmation or generation is pending, so the proposal shows up in-session.
     refetchInterval: (query) => {
       const e = (query.state.data as PropostaEdicao | undefined)?.estado;
-      return e === "a_confirmar" || e === "a_criar" ? 30_000 : false;
+      return e === "nenhuma" || e === "a_confirmar" || e === "a_criar" ? 30_000 : false;
     },
   });
+  useEffect(() => { if (enviada) void q.refetch(); }, [enviada]); // eslint-disable-line react-hooks/exhaustive-deps
   const actualizar = (d: PropostaEdicao) => qc.setQueryData(chave, d);
-  const criar = useMutation({ mutationFn: () => criarCarrosselEdicao(edicaoId), onSuccess: actualizar, onError: (e: Error) => toast.error(e.message) });
+  const criar = useMutation({ mutationFn: async () => {
+    if (!q.data?.conteudo_id) throw new Error("Ainda não há uma fonte confirmada para esta edição.");
+    await prepararDivulgacao(q.data.conteudo_id); return q.data.conteudo_id;
+  }, onSuccess: (id) => { qc.invalidateQueries({ queryKey: chave }); nav(`/estudio/redes-sociais/${id}`); }, onError: (e: Error) => toast.error(e.message) });
   const adiar = useMutation({ mutationFn: () => adiarCarrosselEdicao(edicaoId), onSuccess: actualizar, onError: (e: Error) => toast.error(e.message) });
   const teste = useMutation({
     mutationFn: () => prepararRascunhoTeste(edicaoId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: chave }); toast.success("Rascunho de teste pronto. Abre-o para gerar e rever."); },
+    onSuccess: (d) => { qc.invalidateQueries({ queryKey: chave }); nav(`/estudio/redes-sociais/${d.conteudo_id}`); },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (q.isError || !q.data) return null; // non-staff or unreachable: no card
+  if (q.isError) return <section className="rounded-xl border p-4 text-sm" role="alert"><p>Não foi possível ler o estado da divulgação.</p><Button variant="outline" size="sm" onClick={() => q.refetch()}>Tentar de novo</Button></section>;
+  if (!q.data) return <p role="status" className="text-sm text-muted-foreground">A ler o estado da divulgação…</p>;
   const p = q.data;
   const ocupado = criar.isPending || adiar.isPending;
 
@@ -58,15 +59,15 @@ export function PropostaCarrossel({ edicaoId, numero, enviada }: { edicaoId: str
     <section aria-labelledby={`carrossel-${edicaoId}`} className="rounded-xl border border-border bg-card p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <Images size={16} className="text-muted-foreground" aria-hidden />
-        <h2 id={`carrossel-${edicaoId}`} className="text-[15px] font-semibold">Carrossel para Instagram</h2>
+        <h2 id={`carrossel-${edicaoId}`} className="text-[15px] font-semibold">Divulgação no Instagram</h2>
         {p.estado === "rascunho" && <Badge variant="secondary">Rascunho</Badge>}
       </div>
       <p className="text-[13.5px] text-muted-foreground">{p.erro ? `${TEXTOS.erro} ${p.erro}` : TEXTOS[p.estado]}</p>
 
       <div className="flex flex-wrap gap-2">
         {(p.estado === "pronta_criar" || p.estado === "adiada") && (
-          <Button size="sm" disabled={ocupado} onClick={() => setConfirmar(true)}>
-            {criar.isPending && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Criar carrossel
+          <Button size="sm" disabled={ocupado} onClick={() => criar.mutate()}>
+            {criar.isPending && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Preparar divulgação · sem IA
           </Button>
         )}
         {p.estado === "pronta_criar" && (
@@ -74,7 +75,7 @@ export function PropostaCarrossel({ edicaoId, numero, enviada }: { edicaoId: str
         )}
         {(p.estado === "rascunho" || p.estado === "rever_fonte" || p.estado === "erro" || p.estado === "a_criar") && p.conteudo_id && (
           <Button size="sm" variant={p.estado === "rascunho" ? "default" : "outline"} asChild>
-            <Link to={`/estudio/redes-sociais/${p.conteudo_id}`}>{p.estado === "rascunho" ? "Abrir rascunho" : "Abrir"}</Link>
+            <Link to={`/estudio/redes-sociais/${p.conteudo_id}`}>{p.estado === "rascunho" ? "Rever Story e carrossel" : "Abrir"}</Link>
           </Button>
         )}
       </div>
@@ -86,34 +87,20 @@ export function PropostaCarrossel({ edicaoId, numero, enviada }: { edicaoId: str
             <span className="text-[13px] font-semibold">Teste · pré-envio</span>
           </div>
           <p className="text-[12.5px] text-muted-foreground">
-            Rascunho de verificação a partir da composição atual da #{numero}. Não conta como envio, não cria campanhas e não bloqueia o carrossel da versão enviada.
+            Experimenta as duas peças a partir da composição atual da #{numero}. Não conta como envio real e não interfere com os rascunhos da versão enviada.
           </p>
           {p.teste ? (
             <Button size="sm" variant="outline" asChild>
-              <Link to={`/estudio/redes-sociais/${p.teste.conteudo_id}`}>Abrir rascunho de teste</Link>
+              <Link to={`/estudio/redes-sociais/${p.teste.conteudo_id}`}>Rever divulgação de teste</Link>
             </Button>
           ) : (
             <Button size="sm" variant="outline" disabled={teste.isPending} onClick={() => teste.mutate()}>
-              {teste.isPending && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Criar rascunho de teste (pré-envio)
+              {teste.isPending && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Preparar divulgação de teste · sem IA
             </Button>
           )}
         </div>
       )}
 
-      <AlertDialog open={confirmar} onOpenChange={setConfirmar}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Criar o carrossel da edição #{numero}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              A proposta é gerada com IA (tem custo) a partir da versão enviada: crónica, os três destaques com a leitura aprovada e as fontes. Fica como rascunho para rever; nada é publicado nem agendado.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => criar.mutate()}>Criar carrossel</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </section>
   );
 }
