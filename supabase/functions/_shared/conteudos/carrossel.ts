@@ -265,6 +265,24 @@ Cada slide tem título até 90 caracteres e texto até 300 (limites rígidos: 10
 A legenda é breve: 2 a 4 parágrafos curtos, no máximo ${LEGENDA_ALVO} caracteres. Pode mencionar os temas dos destaques e as fontes, mas a leitura de Frederico Carvalho só pode aparecer copiada literalmente entre «» ou não aparecer. A aplicação acrescenta as ligações.
 Não inventes números, citações, exemplos, resultados ou recomendações. Não apresentes paráfrases entre aspas. Não acrescentes URLs. Evita clickbait, jargão, slogans e hashtags genéricas. Produz um rascunho editorial para revisão humana.`;
 
+/**
+ * Spreads an over-long chronicle slide written by the model across consecutive slides, keeping its text
+ * complete and in order (no cut, no rewrite). Non-string fields are left for the validator to reject.
+ */
+export function repartirSlidesLongos(valor: unknown): unknown {
+  if (!objeto(valor) || !Array.isArray(valor.slides)) return valor;
+  const slides = valor.slides.flatMap((s: unknown) => {
+    if (!objeto(s) || typeof s.texto !== "string" || typeof s.titulo !== "string" || normalizar(s.texto).length <= LIMITES.texto) return [s];
+    const partes = dividirTexto(s.texto, LIMITES.texto);
+    const titulo = s.titulo.trim();
+    return partes.map((texto, k) => {
+      const sufixo = ` · ${k + 1}/${partes.length}`;
+      return { ...s, titulo: titulo.length + sufixo.length <= LIMITES.titulo ? `${titulo}${sufixo}` : titulo, texto };
+    });
+  });
+  return { ...valor, slides };
+}
+
 /** Validates the model's chronicle part (cover + chronicle slides) of a newsletter carousel. */
 export function validarParteCronica(valor: unknown, nCronica: number, min: number, max: number): Carrossel {
   if (!objeto(valor) || !Array.isArray(valor.slides) || typeof valor.legenda !== "string") {
@@ -331,7 +349,7 @@ export async function gerarComReparacao<R extends RespostaGerador>(fonte: FonteG
     let carrossel: Carrossel | null = null;
     try {
       if (comDestaques) {
-        const parte = validarParteCronica(bruto, nCronica, minIa, maxIa);
+        const parte = validarParteCronica(repartirSlidesLongos(bruto), nCronica, minIa, LIMITES.slidesMaxNewsletter - fixos.length);
         carrossel = validarCarrossel({ slides: [...parte.slides, ...fixos], legenda: parte.legenda }, fonte);
         verificarLeiturasLiterais(carrossel, fonte);
       } else {

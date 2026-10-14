@@ -84,3 +84,17 @@ describe("carrossel da newsletter com leituras longas", () => {
     expect(d.chamar).not.toHaveBeenCalled();
   });
 });
+
+describe("slide da crónica demasiado longo vindo da IA", () => {
+  it("é repartido em slides seguidos, com o texto completo, sem nova chamada", async () => {
+    const longo = "Primeira frase do argumento da crónica, com algum detalhe. ".repeat(10).trim();
+    const resp = JSON.stringify({ slides: [{ titulo: "Capa", texto: "Edição 319", fontes: [] }, { titulo: "Argumento", texto: longo, fontes: [1] }, { titulo: "Implicação", texto: "Curto.", fontes: [2] }], legenda: "L" });
+    const d = deps([resp]);
+    const c = await gerarComReparacao(fonte, d);
+    expect(d.chamar).toHaveBeenCalledTimes(1);
+    const arg = c.slides.filter((s) => s.titulo.startsWith("Argumento"));
+    expect(arg.length).toBeGreaterThan(1);
+    expect(arg.map((s) => s.texto).join(" ")).toBe(longo);
+    expect(c.slides.every((s) => s.texto.length <= LIMITES.texto)).toBe(true);
+  });
+});
