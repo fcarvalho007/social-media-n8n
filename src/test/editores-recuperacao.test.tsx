@@ -18,6 +18,7 @@ const estudio = vi.hoisted(() => ({ listarArtigos: vi.fn(), guardarArtigo: vi.fn
 vi.mock("@/services/estudio", () => estudio);
 
 const conteudos = vi.hoisted(() => ({
+  prepararDivulgacao: vi.fn(), guardarStory: vi.fn(),
   obterConteudo: vi.fn(), guardarCarrossel: vi.fn(), aceitarFonte: vi.fn(), enviarParaEstudioSocial: vi.fn(),
   gerarNovaProposta: vi.fn(), retomarJob: vi.fn(), validarCarrossel: vi.fn(), legendaComLink: vi.fn(),
   ESTADOS_JOB: {}, LIMITES: { titulo: 80, texto: 400, legenda: 2200 },

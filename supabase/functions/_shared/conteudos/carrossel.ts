@@ -100,15 +100,27 @@ export function validarCarrossel(valor: unknown, fonte: Pick<FonteCronica, "para
   return { slides, legenda };
 }
 
+export function linkDivulgacao(url: string, numero: number, peca: "story_d0" | "carrossel_d1"): string {
+  const u = new URL(url);
+  if (u.protocol !== "https:" || u.username || u.password) throw new Error("Usa um endereço HTTPS público para a leitura.");
+  u.searchParams.set("utm_source", "instagram");
+  u.searchParams.set("utm_medium", "organic_social");
+  u.searchParams.set("utm_campaign", `digitalsprint_${numero}`);
+  u.searchParams.set("utm_content", peca);
+  return u.toString();
+}
+
+
 export function legendaComLink(
   carrossel: Carrossel,
-  fonte: Pick<FonteCronica, "url" | "destaques" | "edicaoUrl" | "cursoUrl">,
+  fonte: Pick<FonteCronica, "url" | "destaques" | "edicaoUrl" | "cursoUrl"> & { numero?: number },
 ): string {
-  const linhas = [`Ler a crónica: ${fonte.url}`];
-  if (fonte.edicaoUrl) linhas.push(`Edição completa: ${fonte.edicaoUrl}`);
+  const link = (url: string) => fonte.numero ? linkDivulgacao(url, fonte.numero, "carrossel_d1") : url;
+  const linhas = [`Ler a crónica: ${link(fonte.url)}`];
+  if (fonte.edicaoUrl) linhas.push(`Edição completa: ${link(fonte.edicaoUrl)}`);
   const fontes = [...new Set((fonte.destaques ?? []).map((d) => d.publisher).filter(Boolean))];
   if (fontes.length) linhas.push(`Fontes dos destaques: ${fontes.join(", ")}`);
-  if (fonte.cursoUrl) linhas.push(`Curso de inteligência artificial: ${fonte.cursoUrl}`);
+  if (fonte.cursoUrl) linhas.push(`Curso de inteligência artificial: ${link(fonte.cursoUrl)}`);
   const legenda = `${carrossel.legenda}\n\n${linhas.join("\n")}`;
   if (legenda.length > LIMITES.legenda) {
     throw new Error("A legenda com o endereço ultrapassa 2200 caracteres. Encurta a legenda antes de exportar.");

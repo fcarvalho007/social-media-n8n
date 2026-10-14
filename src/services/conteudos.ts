@@ -28,7 +28,7 @@ export interface ConteudoResumo {
 }
 export interface EdicaoEnviada { id: string; numero: number; assunto: string | null; enviada_em: string | null }
 export interface ConteudoCompleto {
-  conteudo: { id: string; edicao_id: string; fonte: FonteCronica; fonte_aceite_em: string | null; carrossel: Carrossel | null; versao: number; social_draft_id: string | null; actualizado_em: string };
+  conteudo: { id: string; edicao_id: string; fonte: FonteCronica; fonte_aceite_em: string | null; carrossel: Carrossel | null; divulgacao?: DivulgacaoEdicao | null; divulgacao_versao?: number; versao: number; social_draft_id: string | null; actualizado_em: string };
   versoes: { versao: number; origem: string; criado_em: string }[];
   job: Pick<JobResumo, "id" | "estado" | "erro" | "tentativas" | "max_tentativas" | "proxima_tentativa_em"> | null;
 }
@@ -80,7 +80,7 @@ export const ESTADOS_JOB: Record<string, string> = {
   aguarda_credencial: "A aguardar chave DeepSeek",
   aguarda_criacao: "Envio confirmado · à espera de «Criar carrossel»",
   a_processar: "A preparar proposta",
-  concluido: "Proposta pronta",
+  concluido: "Divulgação preparada · por rever",
   erro: "Erro",
   cancelado: "Cancelado",
 };
@@ -101,3 +101,9 @@ export const estadoPropostaEdicao = (edicao_id: string) => chamar<PropostaEdicao
 export const criarCarrosselEdicao = (edicao_id: string) => chamar<PropostaEdicao>({ acao: "criar", edicao_id });
 export const adiarCarrosselEdicao = (edicao_id: string) => chamar<PropostaEdicao>({ acao: "adiar", edicao_id });
 export const prepararRascunhoTeste = (edicao_id: string) => chamar<{ conteudo_id: string }>({ acao: "preparar_teste", edicao_id });
+
+export type { DivulgacaoEdicao, StoryEdicao } from "../../supabase/functions/_shared/conteudos/divulgacao";
+import type { DivulgacaoEdicao, StoryEdicao } from "../../supabase/functions/_shared/conteudos/divulgacao";
+export const prepararDivulgacao = (conteudo_id: string) => chamar<{ ok: true }>({ acao: "preparar_divulgacao", conteudo_id });
+export const guardarStory = (conteudo_id: string, versao: number, story: StoryEdicao, estado: "rascunho" | "revisto") =>
+  chamar<{ divulgacao: DivulgacaoEdicao; divulgacao_versao: number }>({ acao: "guardar_divulgacao", conteudo_id, versao, story, estado });

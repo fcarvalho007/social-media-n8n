@@ -1,7 +1,7 @@
 // Canvas rendering of the chronicle carousel (1080×1350). Preview and export share this drawing.
 import JSZip from "jszip";
 import { R } from "@/newsletter/lib/newsletter-engine/revista/tokens";
-import { DIMENSOES, legendaComLink, type Carrossel, type FonteCronica } from "@/services/conteudos";
+import { DIMENSOES, legendaComLink, type Carrossel, type FonteCronica, type StoryEdicao } from "@/services/conteudos";
 
 const TITULO = '"Space Grotesk", "Arial Black", Arial, sans-serif';
 const CORPO = '"Inter", Arial, sans-serif';
@@ -104,10 +104,35 @@ export async function gerarFicheiros(carrossel: Carrossel, fonte: FonteCronica):
 export async function exportarCarrossel(tipo: "pdf" | "zip", carrossel: Carrossel, fonte: FonteCronica) {
   const legenda = legendaComLink(carrossel, fonte);
   const { pngs, pdf } = await gerarFicheiros(carrossel, fonte);
-  const nome = `digitalsprint-${fonte.numero}-cronica`;
+  const nome = `digitalsprint-${fonte.numero}-${fonte.destaques?.length ? "newsletter" : "cronica"}`;
   if (tipo === "pdf") return descarregar(pdf, `${nome}.pdf`);
   const zip = new JSZip();
   pngs.forEach((b, i) => zip.file(`slide-${String(i + 1).padStart(2, "0")}.png`, b));
   zip.file("legenda.txt", legenda);
   descarregar(await zip.generateAsync({ type: "blob", compression: "STORE" }), `${nome}.zip`);
+}
+
+/** Same typography and palette as the carousel, with a 9:16 composition and room for a native link sticker. */
+export async function desenharStory(canvas: HTMLCanvasElement, story: StoryEdicao, numero: number) {
+  await Promise.all([document.fonts.load(`700 80px ${TITULO}`), document.fonts.load(`400 44px ${CORPO}`)]).catch(() => undefined);
+  canvas.width = 1080; canvas.height = 1920;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Este navegador não permite desenhar o Story.");
+  ctx.fillStyle = R.fundoCartao; ctx.fillRect(0, 0, 1080, 1920);
+  ctx.textBaseline = "top";
+  ctx.fillStyle = R.navy; ctx.fillRect(0, 0, 1080, 370);
+  ctx.fillStyle = R.lima; ctx.font = `700 42px ${TITULO}`; ctx.fillText("DIGITALSPRINT", 80, 270);
+  ctx.textAlign = "right"; ctx.fillStyle = R.escuroTexto; ctx.font = `400 30px ${CORPO}`; ctx.fillText(`#${numero}`, 1000, 278); ctx.textAlign = "left";
+  ctx.fillStyle = R.navy; bloco(ctx, story.titulo, 450, 520, 96, 52, true);
+  ctx.fillStyle = R.azul; ctx.fillRect(80, 1020, 920, 3);
+  ctx.fillStyle = R.texto; bloco(ctx, story.texto, 1080, 270, 44, 32, false);
+  // Native Instagram link sticker goes in the intentionally empty area below this invitation.
+  ctx.fillStyle = R.azul; bloco(ctx, story.cta, 1390, 120, 40, 28, true);
+  ctx.fillStyle = R.textoSec; ctx.font = `400 28px ${CORPO}`; ctx.fillText("Frederico Carvalho", 80, 1630);
+}
+
+export async function exportarStory(story: StoryEdicao, numero: number) {
+  const canvas = document.createElement("canvas");
+  await desenharStory(canvas, story, numero);
+  descarregar(await paraPng(canvas), `digitalsprint-${numero}-story-dia-envio.png`);
 }

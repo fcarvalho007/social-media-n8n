@@ -1,3 +1,4 @@
+import { DivulgacaoEditor } from "@/features/conteudos/DivulgacaoEditor";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +29,7 @@ export default function CarrosselCronica() {
   const [origemProposta, setOrigemProposta] = useState<"edicao" | "ia_manual">("edicao");
   const [indice, setIndice] = useState(0);
   const [alterado, setAlterado] = useState(false);
+  const [storyAlterado, setStoryAlterado] = useState(false);
   const [acao, setAcao] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [erroPreview, setErroPreview] = useState<string | null>(null);
@@ -162,29 +164,11 @@ export default function CarrosselCronica() {
     nav(`/manual-create?draft=${c.social_draft_id}`);
   };
 
-  return (
-    <div className="mx-auto max-w-6xl space-y-4 p-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link to="/estudio/redes-sociais" className="text-xs text-muted-foreground hover:underline"
-            onClick={(e) => { if (alterado) { e.preventDefault(); setSairPendente("/estudio/redes-sociais"); } }}>← Carrosséis</Link>
-          <h1 className="flex flex-wrap items-center gap-2 text-2xl font-semibold">
-            {newsletter ? "Carrossel da newsletter" : "Carrossel da crónica"}
-            {fonte.teste && <Badge variant="outline" className="border-warning text-warning">Teste · pré-envio</Badge>}
-          </h1>
-          {fonte.teste && (
-            <p className="text-xs text-muted-foreground">Rascunho de verificação feito a partir da composição atual. Não é a versão enviada nem bloqueia o carrossel real desta edição.</p>
-          )}
-          <p className="text-sm text-muted-foreground">Edição #{fonte.numero} · {fonte.titulo}</p>
-          <p className="text-xs text-muted-foreground">
-            <span className={alterado ? "font-medium text-destructive" : ""}>{alterado ? "Alterações por guardar" : c.versao ? "Guardado" : "Sem versão guardada"}</span> · Versão {c.versao}{dados.job ? ` · ${ESTADOS_JOB[dados.job.estado] ?? dados.job.estado}` : ""} ·{" "}
-            <a href={fonte.url} target="_blank" rel="noreferrer" className="underline">abrir crónica</a>
-          </p>
-        </div>
+  const conteudoEditor = <>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" disabled={!!acao || fontePorRever} onClick={() => setConfirmar("gerar")}>
             {acao === "gerar" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1 h-4 w-4" />}
-            {carrossel ? "Gerar nova proposta" : "Gerar proposta"}
+            {carrossel ? "Gerar alternativa com IA" : "Gerar com IA"}
           </Button>
           {carrossel && <Button variant="outline" disabled={!!acao || !alterado} onClick={guardar}><Save className="mr-1 h-4 w-4" />{acao === "guardar" ? "A guardar…" : "Guardar"}</Button>}
           {carrossel && (
@@ -193,8 +177,6 @@ export default function CarrosselCronica() {
             </Button>
           )}
         </div>
-      </header>
-
       {dados.job?.erro && (
         <Alert>
           <AlertTitle>Estado da preparação automática</AlertTitle>
@@ -300,11 +282,38 @@ export default function CarrosselCronica() {
         </div>
       )}
 
+  </>;
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-4 p-4">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link to="/estudio/redes-sociais" className="text-xs text-muted-foreground hover:underline"
+            onClick={(e) => { if (alterado || storyAlterado) { e.preventDefault(); setSairPendente("/estudio/redes-sociais"); } }}>← Carrosséis</Link>
+          <h1 className="flex flex-wrap items-center gap-2 text-2xl font-semibold">
+            {newsletter ? "Divulgação da newsletter" : "Carrossel da crónica"}
+            {fonte.teste && <Badge variant="outline" className="border-warning text-warning">Teste · pré-envio</Badge>}
+          </h1>
+          {fonte.teste && (
+            <p className="text-xs text-muted-foreground">Rascunho de verificação feito a partir da composição atual. Não é a versão enviada nem bloqueia o carrossel real desta edição.</p>
+          )}
+          <p className="text-sm text-muted-foreground">Edição #{fonte.numero} · {fonte.titulo}</p>
+          <p className="text-xs text-muted-foreground">
+            <span className={alterado ? "font-medium text-destructive" : ""}>{alterado ? "Alterações por guardar" : c.versao ? "Guardado" : "Sem versão guardada"}</span> · Versão {c.versao}{dados.job ? ` · ${ESTADOS_JOB[dados.job.estado] ?? dados.job.estado}` : ""} ·{" "}
+            <a href={fonte.url} target="_blank" rel="noreferrer" className="underline">abrir crónica</a>
+          </p>
+        </div>
+
+      </header>
+
+      {newsletter ? <DivulgacaoEditor id={c.id} fonte={fonte} inicial={c.divulgacao} versaoInicial={c.divulgacao_versao}
+        onActualizar={() => carregar(() => !alteradoRef.current)} onAlterado={setStoryAlterado}>{conteudoEditor}</DivulgacaoEditor> : conteudoEditor}
+
       <AlertDialog open={!!sairPendente} onOpenChange={(o) => !o && setSairPendente(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Sair sem guardar?</AlertDialogTitle>
-            <AlertDialogDescription>As alterações ao carrossel perdem-se.</AlertDialogDescription>
+            <AlertDialogDescription>Há alterações por guardar. A cópia de recuperação local permite retomá-las ao regressar.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Ficar</AlertDialogCancel>

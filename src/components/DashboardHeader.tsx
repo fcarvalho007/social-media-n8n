@@ -34,8 +34,8 @@ export function DashboardHeader() {
     const C = { label: 'Criar SM', path: '/pending?tab=create' };
     if (p === '/') return [{ label: 'Painel', path: null }];
     if (p === '/redes-sociais') return [E, { label: 'Atividade social', path: null }];
-    if (p === '/estudio/redes-sociais') return [C, { label: 'Carrosséis da crónica', path: null }];
-    if (p.startsWith('/estudio/redes-sociais/')) return [C, { label: 'Carrosséis da crónica', path: '/estudio/redes-sociais' }, { label: 'Editor', path: null }];
+    if (p === '/estudio/redes-sociais') return [C, { label: 'Divulgação da newsletter', path: null }];
+    if (p.startsWith('/estudio/redes-sociais/')) return [C, { label: 'Divulgação da newsletter', path: '/estudio/redes-sociais' }, { label: 'Editor', path: null }];
     if (p.startsWith('/estudio/roteiros')) return [C, { label: 'Roteiros de Reels', path: p === '/estudio/roteiros' ? null : '/estudio/roteiros' }];
     if (p === '/estudio/carrosseis') return [C, { label: 'Meus carrosséis', path: null }];
     if (p === '/estudio/carrosseis/novo') return [C, { label: 'Criar conteúdo visual', path: null }];

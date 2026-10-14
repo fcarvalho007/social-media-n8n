@@ -49,7 +49,7 @@ export default function ConteudosSociais() {
     <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 sm:py-10">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold">Carrosséis da crónica</h1>
+          <h1 className="text-2xl font-semibold">Divulgação da newsletter</h1>
           <p className="text-sm text-muted-foreground">
             1080 × 1350 · Instagram e LinkedIn · nada é publicado sem revisão
             {ctx.projeto ? ` · projeto ${ctx.projeto.name}` : " · todos os projetos"}
