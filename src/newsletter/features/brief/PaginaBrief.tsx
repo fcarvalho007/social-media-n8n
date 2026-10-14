@@ -59,8 +59,8 @@ export interface BriefConteudo {
   contar?: boolean;
 }
 
-const URL_CONSULTORIA = "https://fredericocarvalho.pt/consultoria-digital/";
-const URL_FORMACAO_IA = "https://fredericocarvalho.pt/curso-de-inteligencia-artificial/";
+const URL_CURSO_IA = "https://fredericocarvalho.pt/curso-de-inteligencia-artificial/";
+const URL_CURSOS = "https://aulas.fredericocarvalho.pt/";
 
 function VoltarAEdicao({ conteudo, className = "" }: { conteudo: BriefConteudo; className?: string }) {
   if (!conteudo.edicaoNumero) return null;
@@ -166,14 +166,6 @@ function Rail({ conteudo }: { conteudo: BriefConteudo }) {
               </Link>
             </dd>
           </div>
-        <div>
-          <dt className="text-[10px] font-semibold uppercase tracking-[0.18em] text-rw-chalk-2">Formação</dt>
-          <dd className="mt-1">
-            <a className="rw-link inline-flex items-center gap-1 text-[14px] text-rw-ciano" href={conteudo.categoria.toLowerCase().includes("ia") || conteudo.categoria.toLowerCase().includes("inteligência") ? URL_FORMACAO_IA : "https://fredericocarvalho.pt/formacao-para-empresas/"} target="_blank" rel="noreferrer noopener">
-              Cursos e Workshops <ArrowUpRight size={13} aria-hidden />
-            </a>
-          </dd>
-        </div>
         ) : null}
       </dl>
     </aside>
@@ -276,17 +268,22 @@ function CtaComercial({ conteudo }: { conteudo: BriefConteudo }) {
     <aside className="border-y border-rw-rule py-8 sm:grid sm:grid-cols-[1fr_auto] sm:items-end sm:gap-10 sm:py-10">
       <div>
         <p className="font-display text-[12px] font-semibold uppercase tracking-[0.16em] text-rw-blue">Da tendência à aplicação.</p>
-        <p className="mt-3 max-w-[38rem] font-serif text-[20px] leading-8 text-rw-ink">Formação executiva e consultoria para equipas que querem transformar IA em processos reais.</p>
+        <p className="mt-3 max-w-[38rem] font-serif text-[20px] leading-8 text-rw-ink">Curso de inteligência artificial com Frederico Carvalho.</p>
       </div>
+      <div className="flex flex-col items-start gap-3">
       <a
-        href={URL_CONSULTORIA}
+        href={URL_CURSO_IA}
         target="_blank"
         rel="noreferrer noopener"
         className="rw-link mt-6 inline-flex min-h-11 items-center font-semibold text-rw-ink sm:mt-0"
         onClick={() => registarEventoBrief("brief_commercial_cta", conteudo.slug, conteudo.edicaoNumero, conteudo.contar)}
       >
-        Ver como posso ajudar →
+        Conhecer o curso de IA <ArrowUpRight size={16} className="ml-2 shrink-0" aria-hidden />
       </a>
+      <a href={URL_CURSOS} target="_blank" rel="noreferrer noopener" className="rw-link inline-flex min-h-11 items-center gap-2 text-[13px] text-rw-ink-2">
+        Outros cursos online <ArrowUpRight size={13} aria-hidden />
+      </a>
+      </div>
     </aside>
   );
 }

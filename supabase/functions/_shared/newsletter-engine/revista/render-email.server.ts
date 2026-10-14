@@ -201,7 +201,7 @@ export function montarHtmlRevista(e: EdicaoRevista): string {
           <td valign="top" style="${CELULA}">
         <p class="label text-link" style="${ETIQUETA}color:${R.azul};margin:1px 0 7px;">${esc(meta)}</p>
         <h3 class="story" style="font-family:${SERIF};font-size:26px;line-height:33px;letter-spacing:-0.3px;margin:0;">
-          <a class="text-main" href="${href(d.url)}" style="font-family:${SERIF};font-size:26px;line-height:33px;color:${R.navy};text-decoration:none;">${esc(d.titulo)}</a>
+          <a class="text-main" href="${href(d.brief ? urlBriefEmail(d.brief.url) : d.url)}" style="font-family:${SERIF};font-size:26px;line-height:33px;color:${R.navy};text-decoration:none;">${esc(d.titulo)}</a>
         </h3>
         ${d.resumoFactual ? `<div style="padding-top:11px;${FF}"><p class="text-body" style="font-size:16px;line-height:26px;color:${R.texto};margin:0;${FF}">${esc(d.resumoFactual)}</p></div>` : ""}
         ${d.minhaLeitura ? `<table role="presentation" width="100%" bgcolor="${R.ferramentaFundo}" class="panel-blue" style="margin-top:13px;background:${R.ferramentaFundo};border-left:3px solid ${R.azul};${FF}border-collapse:collapse;"><tr><td style="padding:14px 17px;${CELULA}">

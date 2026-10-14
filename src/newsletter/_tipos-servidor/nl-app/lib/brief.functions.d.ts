@@ -155,3 +155,8 @@ export declare const guardarIdentidadeBriefFn: import("../_shim/start.ts").NlSer
 }, {
     ok: true;
 }>;
+/** Publish only an explicit selection, without email or edition side effects. */
+export declare const publicarBriefsSelecionadosFn: import("../_shim/start.ts").NlServerFn<{
+    edicaoId: string;
+    ids: string[];
+}, import("../../newsletter-engine/revista/brief/publicacao.server.ts").ResultadoPublicacaoBriefs>;

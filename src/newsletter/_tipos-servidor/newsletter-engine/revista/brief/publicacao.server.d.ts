@@ -55,7 +55,7 @@ export interface ResultadoPublicacaoBriefs {
  * Publica os Briefs prontos desta edição e devolve as ligações por notícia.
  * Idempotente: um Brief já publicado e sem alterações não é tocado.
  */
-export declare function publicarBriefsDaEdicao(edicaoId: string, sb?: SupabaseClient): Promise<ResultadoPublicacaoBriefs>;
+export declare function publicarBriefsDaEdicao(edicaoId: string, sb?: SupabaseClient, ids?: string[]): Promise<ResultadoPublicacaoBriefs>;
 /**
  * Ligações já publicadas desta edição, sem publicar nada.
  * Usada na composição e na pré-visualização.

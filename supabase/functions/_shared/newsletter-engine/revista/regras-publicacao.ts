@@ -44,6 +44,19 @@ export function briefIndexavel(args: {
   return args.tipo === "destaque" && args.indexavel && args.enviada;
 }
 
+/** Public reading requires explicit publication; approval alone remains private. */
+export function briefPublicavel(args: {
+  estado: string;
+  tipo: string;
+  resumo: number;
+  implicacoes: number;
+  leitura: string;
+  fonte: string;
+}): boolean {
+  return args.estado === "publicado" && args.resumo > 0 && args.implicacoes > 0 &&
+    Boolean(args.fonte.trim()) && (args.tipo !== "destaque" || Boolean(args.leitura.trim()));
+}
+
 /** Envio de teste registado em `egoi_campanhas` (lista do tipo «teste»). */
 export interface EnvioTeste {
   /** «aceite» = E-goi recebeu o disparo; «enviada» = E-goi confirmou a entrega. */

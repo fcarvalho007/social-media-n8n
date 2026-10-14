@@ -21,6 +21,15 @@ export declare function briefIndexavel(args: {
     enviada: boolean;
     preview?: boolean;
 }): boolean;
+/** Public reading requires explicit publication; approval alone remains private. */
+export declare function briefPublicavel(args: {
+    estado: string;
+    tipo: string;
+    resumo: number;
+    implicacoes: number;
+    leitura: string;
+    fonte: string;
+}): boolean;
 /** Envio de teste registado em `egoi_campanhas` (lista do tipo «teste»). */
 export interface EnvioTeste {
     /** «aceite» = E-goi recebeu o disparo; «enviada» = E-goi confirmou a entrega. */

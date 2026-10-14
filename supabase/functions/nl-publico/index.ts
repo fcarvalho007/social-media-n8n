@@ -2,7 +2,7 @@
 // subscription actions; nothing else from the private newsletter is reachable here.
 //   GET  /edicoes                 sent editions (archive)
 //   GET  /edicoes/:numero         sent edition page (unsent -> 404)
-//   GET  /brief/:slug             brief of a sent edition (unpublished -> 404)
+//   GET  /brief/:slug             published brief of a public web edition (unsent -> noindex)
 //   GET  /sitemap.xml
 //   POST /subscricao/estado       { t }                   signed token required
 //   POST /subscricao/accao        { t, accao, motivo? }   signed token required
@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
       if (!(await briefsActivos())) return json({ error: "Não encontrado" }, 404);
       const { obterBriefPublico } = await import("../_shared/newsletter-engine/revista/brief/publico.server.ts");
       const brief = await obterBriefPublico(slug);
-      if (!brief || brief.enviada !== true) return json({ error: "Não encontrado" }, 404);
-      return json(brief, 200, "public, max-age=300");
+      if (!brief) return json({ error: "Não encontrado" }, 404);
+      return json(brief, 200, brief.enviada ? "public, max-age=300" : "public, max-age=60");
     }
 
     if (req.method === "GET" && a === "sitemap.xml") {
