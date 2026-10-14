@@ -160,3 +160,11 @@ export declare const publicarBriefsSelecionadosFn: import("../_shim/start.ts").N
     edicaoId: string;
     ids: string[];
 }, import("../../newsletter-engine/revista/brief/publicacao.server.ts").ResultadoPublicacaoBriefs>;
+/** Explicit review approval of one of the edition's three highlights. */
+export declare const aprovarDestaqueComporFn: import("../_shim/start.ts").NlServerFn<{
+    edicaoId: string;
+    id: string;
+    texto: string;
+}, {
+    ok: boolean;
+}>;

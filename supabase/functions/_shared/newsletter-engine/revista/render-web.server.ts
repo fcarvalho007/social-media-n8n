@@ -125,10 +125,11 @@ export function montarHtmlRevistaWeb(e: EdicaoRevista): HtmlRevistaWeb {
   <div style="flex:0 0 62px;width:62px;font-family:${SERIF};font-size:88px;line-height:76px;color:${R.azul};">${i + 1}</div>
   <div style="flex:1 1 auto;min-width:0;">
   <div style="margin:1px 0 7px;font-family:${SANS};font-size:12px;line-height:18px;letter-spacing:0.14em;text-transform:uppercase;color:${R.azul};font-weight:700;">${esc(d.categoriaRotulo)}</div>
-  <h3 style="margin:0;font-family:${SERIF};font-size:23px;line-height:31px;letter-spacing:-0.01em;"><a href="${href(d.url)}" style="color:${R.navy};text-decoration:none;">${esc(d.titulo)}</a></h3>
+  <h3 style="margin:0;font-family:${SERIF};font-size:23px;line-height:31px;letter-spacing:-0.01em;"><a href="${href(d.brief?.url || d.url)}" style="color:${R.navy};text-decoration:none;">${esc(d.titulo)}</a></h3>
   ${d.resumoFactual ? `<p style="margin:9px 0 0 0;font-family:${SANS};font-size:16px;line-height:27px;color:${R.textoSec};">${esc(d.resumoFactual)}</p>` : ""}
   ${d.minhaLeitura ? painelLeitura(d.minhaLeitura) : ""}
-  ${d.url ? `<p style="margin:14px 0 0 0;"><a href="${href(d.url)}" style="font-family:${SANS};font-size:15px;color:${R.azul};text-decoration:none;font-weight:700;">${esc(d.ctaRotulo || CTA_NOTICIA_PADRAO)} &rarr;</a></p>` : ""}
+  ${d.brief || d.url ? `<p style="margin:14px 0 0 0;"><a href="${href(d.brief?.url || d.url)}" style="font-family:${SANS};font-size:15px;color:${R.azul};text-decoration:none;font-weight:700;">${esc(d.brief ? "Ler o Brief" : d.ctaRotulo || CTA_NOTICIA_PADRAO)} &rarr;</a></p>` : ""}
+  ${d.brief && d.url ? `<p><a href="${href(d.url)}">Fonte original ↗</a></p>` : ""}
   </div>
   </div>
 </article>`);

@@ -16,4 +16,5 @@ export const actualizarArtigoCronicaFn = nlServerFn<typeof import("@/newsletter/
 export const reconciliarHashCronicaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").reconciliarHashCronicaFn>("destinos:reconciliarHashCronicaFn");
 export const contarArtigosPorSlugFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").contarArtigosPorSlugFn>("destinos:contarArtigosPorSlugFn");
 export const prontidaoRevistaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").prontidaoRevistaFn>("destinos:prontidaoRevistaFn");
+export const actualizarPublicacaoWebFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").actualizarPublicacaoWebFn>("destinos:actualizarPublicacaoWebFn");
 

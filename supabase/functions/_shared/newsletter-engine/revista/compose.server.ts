@@ -628,7 +628,7 @@ export async function composeRevistaEdition(
         itemId: it.id, noticiaId: n.id, titulo, url,
         categoria: n.categoria, categoriaRotulo: rotuloCategoria(n.categoria),
         nota: (it.radar_nota || "").trim(),
-        ...(brief && brief.tipo === "radar" ? { brief } : {}),
+
       });
     }
   }

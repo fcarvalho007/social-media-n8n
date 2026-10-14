@@ -45,3 +45,15 @@ export declare function envioTesteMaisRecente(camps: Array<{
     tipo: string | null;
     lista: string | null;
 }>): EnvioTeste | null;
+/** Test-public editions expose only Brief links explicitly frozen in their web publication. */
+export declare function briefAutorizadoNaWeb(args: {
+    enviada: boolean;
+    noticiaId: string | null;
+    slug: string;
+    destaques: Array<{
+        noticiaId: string;
+        brief?: {
+            slug: string;
+        };
+    }>;
+}): boolean;

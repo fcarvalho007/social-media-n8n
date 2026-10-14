@@ -92,3 +92,10 @@ export declare const prontidaoRevistaFn: import("../_shim/start.ts").NlServerFn<
     edicao_id: string;
     lista_ids?: string[];
 }, import("../../newsletter-engine/revista/prontidao.server.ts").Prontidao>;
+/** Refresh only the explicitly published web snapshot; never send or update a campaign. */
+export declare const actualizarPublicacaoWebFn: import("../_shim/start.ts").NlServerFn<{
+    edicao_id: string;
+}, {
+    ok: true;
+    numero: number;
+}>;

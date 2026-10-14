@@ -17,7 +17,10 @@ async function versaoTemplate(edicaoId: string): Promise<string> {
 
 export async function gerarHtmlEdicaoWeb(edicaoId: string): Promise<HtmlWordpress> {
   if ((await versaoTemplate(edicaoId)) === "revista") {
-    const estrutura = await composeRevistaEdition(edicaoId);
+    const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+    const { data } = await sb.from("edicoes").select("destinos").eq("id", edicaoId).single();
+    const destinos = data?.destinos as { web?: { estado?: string; snapshot?: import("./revista/compose.server").EdicaoRevista } } | undefined;
+    const estrutura = destinos?.web?.estado === "publica" && destinos.web.snapshot ? destinos.web.snapshot : await composeRevistaEdition(edicaoId);
     return montarHtmlRevistaWeb(estrutura);
   }
   return gerarHtmlWordpress(edicaoId);

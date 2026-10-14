@@ -232,10 +232,9 @@ export function montarHtmlRevista(e: EdicaoRevista): string {
           </td>
           <td class="radar-body" style="padding-top:17px;${CELULA}">
             <h3 style="font-size:17px;line-height:24px;color:${R.branco};margin:0;${FF}">
-              <a href="${href(r.brief ? urlBriefEmail(r.brief.url) : r.url)}" style="color:${R.branco};text-decoration:underline;${FF}">${esc(r.titulo)}${r.brief ? "" : " &#8599;"}</a>
+              <a href="${href(r.url)}" style="color:${R.branco};text-decoration:underline;${FF}">${esc(r.titulo)} &#8599;</a>
             </h3>
             ${r.nota ? `<p style="font-size:14px;line-height:23px;color:${R.escuroTexto};padding-top:6px;margin:0;${FF}">${esc(r.nota)}</p>` : ""}
-            ${r.brief && r.url ? `<p style="padding-top:6px;margin:0;${FF}"><a href="${href(r.url)}" style="font-size:13px;line-height:20px;color:${R.amarelo};text-decoration:underline;${FF}">Fonte &#8599;</a></p>` : ""}
           </td>
         </tr></table>
       </td></tr>`);

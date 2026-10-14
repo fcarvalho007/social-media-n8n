@@ -26,3 +26,5 @@
 - Visual system keeps direction, typography (sistema.tipografia) and palette as independent choices; absent tipografia falls back to the style's legacy pair so old documents render unchanged.
 - Newsletter candidate exclusions are edition-scoped; hiding never changes the shared editorial decision or an included item.
 - Subdirectories (e.g. supabase/functions/) have their own AGENTS.md; read it before changing files there.
+
+- Current public web compositions are stored in destinos.web.snapshot and refreshed only through the publication action; email/campaign snapshots remain untouched, and unsent Brief access is restricted to the first three frozen highlight links.

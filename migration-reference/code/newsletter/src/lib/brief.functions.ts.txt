@@ -297,7 +297,7 @@ export const estadoBriefsDaEdicaoFn = createServerFn({ method: "GET" })
         fontePublisher: b.fonte_publisher,
         em30: b.em_30_segundos.map((p) => p.texto),
         porqueInteressa: b.porque_interessa.map((i) => ({ rotulo: i.rotulo, texto: i.texto })),
-        leitura: b.leitura_aprovada.trim() || b.leitura_sugerida,
+        leitura: b.aprovada_em ? b.leitura_aprovada : b.leitura_sugerida || b.leitura_aprovada,
         pullQuote: b.pull_quote_sugerida,
         motivos: atencao.motivos.map(rotuloMotivoAtencao),
         precisaAtencao: atencao.precisa,
@@ -410,3 +410,33 @@ export const publicarBriefsSelecionadosFn = createServerFn({ method: "POST" })
     }
     return publicarBriefsDaEdicao(data.edicaoId, undefined, data.ids);
   });
+
+/** Explicit review approval of one of the edition's three highlights. */
+export const aprovarDestaqueComporFn = createServerFn({ method: "POST" })
+ .middleware([requireSupabaseAuth])
+ .inputValidator((d: { edicaoId: string; id: string; texto: string }) => d)
+ .handler(async ({ data, context }) => {
+  const { listarBriefsDaEdicao, aprovarLeitura, registarVersao, clienteBrief } = await import("./newsletter-engine/revista/brief/modelo.server");
+  const { prontoParaPublicar } = await import("./newsletter-engine/revista/brief/estados");
+  const db = clienteBrief();
+  const { data: itens, error } = await db.from("revista_itens").select("noticia_id").eq("edicao_id", data.edicaoId).eq("papel", "destaque").order("ordem").limit(3);
+  if (error) throw error;
+  const lista = await listarBriefsDaEdicao(data.edicaoId);
+  const b = lista.find(b => b.id === data.id && b.papel === "destaque" && (itens ?? []).some(i => i.noticia_id === b.noticia_id));
+  if (!b) throw new Error("Este Brief não pertence aos três Destaques.");
+  if (!prontoParaPublicar({ ...b, leitura_aprovada: data.texto }).ok) throw new Error("Complete a síntese, as implicações e a leitura antes de aprovar.");
+  if (b.estado === "publicado" && b.aprovada_em && b.leitura_aprovada === data.texto) return { ok: true };
+  const quem = context.userId;
+  await aprovarLeitura({ id: b.id, texto: data.texto, quem });
+  await registarVersao({ id: b.id, motivo: "Aprovação em Compor", quem });
+  const { data: ed } = await db.from("edicoes").select("destinos").eq("id", data.edicaoId).single();
+  const destinos = ed?.destinos as { web?: { estado?: string } } | undefined;
+  if (destinos?.web?.estado === "publica") {
+   const { publicarBriefsDaEdicao } = await import("./newsletter-engine/revista/brief/publicacao.server");
+   const r = await publicarBriefsDaEdicao(data.edicaoId, db, [b.id]);
+   if (r.naoCongelaveis.length) throw new Error(r.naoCongelaveis[0].motivo);
+   const { actualizarPublicacaoWeb } = await import("./newsletter-engine/revista/publicacao.server");
+   await actualizarPublicacaoWeb(data.edicaoId);
+  }
+  return { ok: true };
+ });

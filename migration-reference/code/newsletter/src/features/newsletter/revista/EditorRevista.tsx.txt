@@ -58,8 +58,7 @@ import { textoDeHtmlEditorial } from "@/lib/newsletter-engine/revista/html-restr
 import { useSessao } from "../useSessao";
 import { Atualidade, ResumoOrdem, type PapelDerivado, type SeloBrief } from "./Atualidade";
 import { BriefsDaEdicao } from "./BriefsDaEdicao";
-import { ReverLeituras } from "./ReverLeituras";
-import { estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn, sincronizarBriefsDaEdicaoFn } from "@/lib/brief.functions";
+import { estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn } from "@/lib/brief.functions";
 import {
   retirarNoticiaDaEdicao, atualizarAssunto, atualizarCronica, atualizarNoticia, escolherEpisodio, getConfig, getEdicaoPorId,
   listarAuditRecente, listarEpisodios, listarFerramentas, registarAudit, reordenarNoticias,
@@ -645,18 +644,6 @@ export default function EditorRevista({
       .catch(() => { /* o Brief não pode travar a escolha editorial */ });
   };
   const accoesBriefs = { recarregar: recarregarBriefs, registar };
-  // Edições escolhidas antes desta fase ainda não têm Brief: reconcilia uma vez.
-  const reconciliarBriefs = useServerFn(sincronizarBriefsDaEdicaoFn);
-  const reconciliado = useRef<string | null>(null);
-  useEffect(() => {
-    if (!edicaoId || briefsQ.isPending || reconciliado.current === edicaoId) return;
-    reconciliado.current = edicaoId;
-    void reconciliarBriefs({ data: { edicaoId } })
-      .then((r) => { if (r.sincronizados > 0) recarregarBriefs(); })
-      .catch(() => { /* reconciliação é oportunista */ });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edicaoId, briefsQ.isPending]);
-
   /* ─── Verificação de links (partilhada com o Clássico) ─── */
   const [modalLinks, setModalLinks] = useState(false);
   const [linksItems, setLinksItems] = useState<ItemLink[] | null>(null);
@@ -1502,16 +1489,9 @@ export default function EditorRevista({
                 Briefs desta edição
               </p>
               <BriefsDaEdicao
-                briefs={briefs} bloqueado={!!bloqueado}
+                edicaoId={edicaoId} briefs={briefs.filter(b => b.papel === "destaque" && destaques.some(d => d.noticia_id === b.noticiaId)).slice(0, 3)} bloqueado={!!bloqueado}
                 carregando={briefsQ.isFetching} accoes={accoesBriefs}
               />
-            </div>
-
-            <div className="space-y-2 border-t border-border pt-4">
-              <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Rever leituras
-              </p>
-              <ReverLeituras briefs={briefs} bloqueado={!!bloqueado} accoes={accoesBriefs} />
             </div>
 
             <div className="space-y-2 border-t border-border pt-4">

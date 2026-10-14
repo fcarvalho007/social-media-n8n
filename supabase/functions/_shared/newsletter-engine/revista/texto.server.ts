@@ -55,9 +55,7 @@ export function montarTextoRevista(e: EdicaoRevista): string {
   if (e.radar.length) {
     L.push("──────────"); L.push("RADAR"); L.push("Cinco leituras rápidas, sem comentário."); L.push("");
     for (const r of e.radar) {
-      const ligacao = r.brief
-        ? `${urlBriefEmail(r.brief.url)}${r.url ? `\nFonte: ${r.url}` : ""}`
-        : r.url;
+      const ligacao = r.url;
       L.push(`${r.categoriaRotulo.toUpperCase()} — ${r.titulo}${r.nota ? `\n${r.nota}` : ""}\n${ligacao}`);
     }
     L.push("");

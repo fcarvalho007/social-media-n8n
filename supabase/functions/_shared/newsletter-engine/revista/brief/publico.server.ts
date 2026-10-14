@@ -18,7 +18,7 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.5
 
 import { CATEGORIAS } from "../../design-tokens.server.ts";
 import type { ImplicacaoBrief, ParagrafoBrief, TipoBrief } from "./tipos.ts";
-import { avaliarPublicacao, briefIndexavel, briefPublicavel } from "../regras-publicacao.ts";
+import { avaliarPublicacao, briefIndexavel, briefPublicavel, briefAutorizadoNaWeb } from "../regras-publicacao.ts";
 
 function admin(): SupabaseClient {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -222,6 +222,8 @@ async function indicePublico(sb: SupabaseClient, preview = false): Promise<Candi
     const brief = porId.get(l.brief_id);
     const edicao = publicas.get(l.edicao_id);
     if (!brief || !edicao) continue;
+    const destinos = edicao.destinos as { web?: { snapshot?: { destaques?: Array<{ noticiaId: string; brief?: { slug: string } }> } } } | null;
+    if (!preview && !briefAutorizadoNaWeb({ enviada: edicao.enviada, noticiaId: brief.noticia_id, slug: brief.slug, destaques: destinos?.web?.snapshot?.destaques ?? [] })) continue;
     const n = brief.noticia_id ? noticias.get(brief.noticia_id) : undefined;
     out.push({
       brief,

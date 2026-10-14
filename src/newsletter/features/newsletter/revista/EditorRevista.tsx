@@ -59,7 +59,6 @@ import { textoDeHtmlEditorial } from "@/newsletter/lib/newsletter-engine/revista
 import { useSessao } from "../useSessao";
 import { Atualidade, ResumoOrdem, type PapelDerivado, type SeloBrief } from "./Atualidade";
 import { BriefsDaEdicao } from "./BriefsDaEdicao";
-import { ReverLeituras } from "./ReverLeituras";
 import { estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn } from "@/newsletter/lib/brief.functions";
 import {
   retirarNoticiaDaEdicao, atualizarAssunto, atualizarCronica, atualizarNoticia, escolherEpisodio, getConfig, getEdicaoPorId,
@@ -646,8 +645,6 @@ export default function EditorRevista({
       .catch(() => { /* o Brief não pode travar a escolha editorial */ });
   };
   const accoesBriefs = { recarregar: recarregarBriefs, registar };
-  // Opening an edition is read-only; never synchronize Briefs on mount.
-
   /* ─── Verificação de links (partilhada com o Clássico) ─── */
   const [modalLinks, setModalLinks] = useState(false);
   const [linksItems, setLinksItems] = useState<ItemLink[] | null>(null);
@@ -1497,16 +1494,9 @@ export default function EditorRevista({
                 Briefs desta edição
               </p>
               <BriefsDaEdicao
-                briefs={briefs} bloqueado={!!bloqueado}
+                edicaoId={edicaoId} briefs={briefs.filter(b => b.papel === "destaque" && destaques.some(d => d.noticia_id === b.noticiaId)).slice(0, 3)} bloqueado={!!bloqueado}
                 carregando={briefsQ.isFetching} accoes={accoesBriefs}
               />
-            </div>
-
-            <div className="space-y-2 border-t border-border pt-4">
-              <p className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Rever leituras
-              </p>
-              <ReverLeituras briefs={briefs} bloqueado={!!bloqueado} accoes={accoesBriefs} />
             </div>
 
             <div className="space-y-2 border-t border-border pt-4">

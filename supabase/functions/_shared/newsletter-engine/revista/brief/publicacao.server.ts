@@ -179,6 +179,7 @@ export async function publicarBriefsDaEdicao(
   let reutilizados = 0;
 
   for (const b of validacao.prontos) {
+    if (b.papel !== "destaque" || !b.aprovada_em) continue;
     if (ids && !ids.includes(b.id)) continue;
     if (!b.noticia_id) continue;
 
@@ -252,6 +253,7 @@ export async function ligacoesBriefsDaEdicao(
   const out: Record<string, LigacaoBrief> = {};
 
   for (const b of lista) {
+    if (b.papel !== "destaque" || !b.aprovada_em || !prontoParaPublicar(b).ok) continue;
     if (!b.noticia_id) continue;
     if (b.estado !== "publicado") continue;
     if (b.tipo === "destaque" && !b.leitura_aprovada.trim()) continue;

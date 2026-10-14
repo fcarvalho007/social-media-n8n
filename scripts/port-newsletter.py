@@ -94,18 +94,6 @@ CLIENT_FIXES = {
         ('flex items-center justify-between gap-4 flex-wrap', 'flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center sm:flex-wrap'),
     ],
     "features/newsletter/revista/EditorRevista.tsx": [
-        ('estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn, sincronizarBriefsDaEdicaoFn', 'estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn'),
-        ('''  // Edições escolhidas antes desta fase ainda não têm Brief: reconcilia uma vez.
-  const reconciliarBriefs = useServerFn(sincronizarBriefsDaEdicaoFn);
-  const reconciliado = useRef<string | null>(null);
-  useEffect(() => {
-    if (!edicaoId || briefsQ.isPending || reconciliado.current === edicaoId) return;
-    reconciliado.current = edicaoId;
-    void reconciliarBriefs({ data: { edicaoId } })
-      .then((r) => { if (r.sincronizados > 0) recarregarBriefs(); })
-      .catch(() => { /* reconciliação é oportunista */ });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edicaoId, briefsQ.isPending]);''', '  // Opening an edition is read-only; never synchronize Briefs on mount.'),
         ('import { FitaFases,', 'import { CuradoriaNoticias } from "@/features/curadoria/CuradoriaNoticias";\nimport { FitaFases,'),
         ('{fase === "curar" && (\n        <>', '{fase === "curar" && (\n        <>\n          <details className="rounded-2xl border border-border bg-card p-4" open>\n            <summary className="min-h-11 cursor-pointer font-semibold">Notícias aprovadas na curadoria comum</summary>\n            <CuradoriaNoticias paraEdicao={{ id: edicaoId, onSelecionada: () => { void qc.invalidateQueries({ queryKey: ["revista-aprovadas", edicaoId] }); void qc.invalidateQueries({ queryKey: ["aprovadas", edicaoId] }); void qc.invalidateQueries({ queryKey: ["pendentes"] }); } }} />\n          </details>'),
     ],

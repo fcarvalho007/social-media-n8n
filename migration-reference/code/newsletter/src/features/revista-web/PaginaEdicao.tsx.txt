@@ -35,7 +35,7 @@ export function PaginaEdicao({
   const mapaBriefs = briefs ?? pagina.briefs;
   const briefDe = (noticiaId: string): LigacaoBrief | undefined => mapaBriefs?.[noticiaId];
   const briefUtilizavel = (brief: LigacaoBrief | undefined) =>
-    !!brief && !["por_gerar", "a_gerar", "erro"].includes(brief.estado ?? "publicado");
+    !!brief && brief.tipo === "destaque" && (brief.estado === undefined || brief.estado === "publicado");
   const data = fmtDataPublica(e.edicao.data_envio_prevista);
   const temAtualidades = pagina.grupos.some((g) => g.itens.length > 0);
 
@@ -224,12 +224,10 @@ export function PaginaEdicao({
                         >
                           {d.titulo}
                         </Link>
-                      ) : !brief ? (
+                      ) : (
                         <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-rw-ink rw-link">
                           {d.titulo}
                         </a>
-                      ) : (
-                        <span className="text-rw-ink">{d.titulo}</span>
                       )}
                     </h3>
                     {d.resumoFactual ? (
@@ -255,20 +253,18 @@ export function PaginaEdicao({
                         >
                           Ler o Brief <span aria-hidden>→</span>
                         </Link>
-                      ) : brief ? (
-                        <span className="font-semibold text-rw-ink-2">Brief por gerar</span>
                       ) : null}
                       <a
                         href={d.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={
-                          brief
+                          podeAbrirBrief
                             ? "text-rw-ink-2 underline-offset-4 hover:underline"
                             : "font-semibold text-rw-blue underline-offset-4 hover:underline"
                         }
                       >
-                        {brief ? "Fonte original" : d.ctaRotulo || "Ler notícia"} <span aria-hidden>↗</span>
+                        {podeAbrirBrief ? "Fonte original" : d.ctaRotulo || "Ler notícia"} <span aria-hidden>↗</span>
                       </a>
                     </p>
                     </div>
@@ -291,8 +287,6 @@ export function PaginaEdicao({
               />
               <ol className="border-t border-rw-ink">
                 {e.radar.map((r, i) => {
-                  const brief = briefDe(r.noticiaId);
-                  const podeAbrirBrief = briefUtilizavel(brief);
                   return (
                   <li key={r.itemId} className="border-b border-rw-rule py-3.5 sm:flex sm:items-baseline sm:gap-6">
                     <span className="flex shrink-0 items-baseline gap-3 sm:w-52">
@@ -304,43 +298,8 @@ export function PaginaEdicao({
                       </span>
                     </span>
                     <span className="mt-1 block min-w-0 sm:mt-0">
-                      {podeAbrirBrief && brief ? (
-                        <Link
-                          to={previaInterna ? "/pre-visualizar/brief/$slug" : "/brief/$slug"}
-                          params={{ slug: brief.slug }}
-                         
-                          className="text-[16.5px] font-semibold leading-7 text-rw-ink rw-link"
-                        >
-                          {r.titulo}
-                        </Link>
-                      ) : !brief ? (
-                        <a
-                          href={r.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[16.5px] font-semibold leading-7 text-rw-ink rw-link"
-                        >
-                          {r.titulo}
-                        </a>
-                      ) : (
-                        <span className="text-[16.5px] font-semibold leading-7 text-rw-ink">{r.titulo}</span>
-                      )}
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-[16.5px] font-semibold leading-7 text-rw-ink rw-link">{r.titulo}</a>
                       {r.nota ? <span className="mt-0.5 block text-[14px] leading-6 text-rw-ink-2">{r.nota}</span> : null}
-                      {brief ? (
-                        <>
-                          {!podeAbrirBrief ? (
-                            <span className="mt-0.5 block text-[12.5px] font-semibold text-rw-ink-2">Quick Brief por gerar</span>
-                          ) : null}
-                          <a
-                            href={r.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-0.5 block text-[12.5px] text-rw-ink-2 underline-offset-4 hover:underline"
-                          >
-                            Fonte <span aria-hidden>↗</span>
-                          </a>
-                        </>
-                      ) : null}
                     </span>
                   </li>
                   );

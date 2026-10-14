@@ -79,3 +79,8 @@ export function envioTesteMaisRecente(
     .sort((a, b) => (b.em ?? "").localeCompare(a.em ?? ""));
   return validas[0] ?? null;
 }
+
+/** Test-public editions expose only Brief links explicitly frozen in their web publication. */
+export function briefAutorizadoNaWeb(args: { enviada: boolean; noticiaId: string | null; slug: string; destaques: Array<{ noticiaId: string; brief?: { slug: string } }> }): boolean {
+ return args.enviada || args.destaques.slice(0, 3).some(d => d.noticiaId === args.noticiaId && d.brief?.slug === args.slug);
+}

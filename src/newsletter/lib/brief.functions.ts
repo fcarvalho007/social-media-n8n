@@ -80,4 +80,5 @@ export const guardarLeituraBriefFn = nlServerFn<typeof import("@/newsletter/_tip
 export const sincronizarBriefsDaEdicaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").sincronizarBriefsDaEdicaoFn>("brief:sincronizarBriefsDaEdicaoFn");
 export const guardarIdentidadeBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").guardarIdentidadeBriefFn>("brief:guardarIdentidadeBriefFn");
 export const publicarBriefsSelecionadosFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").publicarBriefsSelecionadosFn>("brief:publicarBriefsSelecionadosFn");
+export const aprovarDestaqueComporFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").aprovarDestaqueComporFn>("brief:aprovarDestaqueComporFn");
 
