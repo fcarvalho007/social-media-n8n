@@ -1,5 +1,11 @@
 # Roadmap
 
+## Complemento obrigatório 319 — verificação final
+- [x] Confirmar três Briefs anónimos com noindex/nofollow e proteção dos restantes
+- [x] Verificar HTML/texto/site/preview backup, fontes, formação e leituras literais; leitura direta LearnDash devolve 403, sem nova escrita
+- [x] Verificar desktop/375px, navegação por teclado, Security e testes; 41 testes e grafo de 243 ficheiros aprovados
+- [x] Confirmar ausência de envios e preservação de campanha970, crónica99178 e backup5264; reportar URLs e limitações
+
 ## Briefs em Compor e publicação de teste 319
 - [x] Integrar gerar/rever/aprovar/abrir apenas os três destaques; preservar leituras prontas sem custos
 - [x] Garantir destaques aprovados → Brief e restantes notícias → fonte em HTML/texto/web/backup
