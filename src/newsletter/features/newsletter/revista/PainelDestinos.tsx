@@ -57,7 +57,7 @@ const ROTULO_EMAIL: Record<string, [string, Tom]> = {
   enviado: ["Enviado", "ok"],
   agendado: ["Agendado", "espera"],
   parcial: ["Envio parcial", "espera"],
-  nao_enviado: ["Ainda não enviado", "neutro"],
+  nao_enviado: ["Envio real por fazer", "neutro"],
   erro: ["Erro", "erro"],
 };
 
@@ -486,6 +486,14 @@ export default function PainelDestinos({
             />
             {d.email.erro && (
               <span className="w-full pl-7 text-[13px] text-destructive">{d.email.erro}</span>
+            )}
+            {d.email.teste && (
+              <span className="w-full pl-7 text-[13px] text-muted-foreground">
+                {d.email.teste.estado === "enviada" ? "Teste enviado" : "Teste aceite pelo E-goi"}
+                {" · "}{d.email.teste.lista}
+                {d.email.teste.em ? ` · ${new Date(d.email.teste.em).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}
+                {d.email.estado === "nao_enviado" ? " — envio real ainda por fazer" : ""}
+              </span>
             )}
           </div>
 

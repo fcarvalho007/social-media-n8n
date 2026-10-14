@@ -43,3 +43,26 @@ export function briefIndexavel(args: {
   if (args.preview) return false;
   return args.tipo === "destaque" && args.indexavel && args.enviada;
 }
+
+/** Envio de teste registado em `egoi_campanhas` (lista do tipo «teste»). */
+export interface EnvioTeste {
+  /** «aceite» = E-goi recebeu o disparo; «enviada» = E-goi confirmou a entrega. */
+  estado: "aceite" | "enviada";
+  lista: string;
+  em: string | null;
+}
+
+/** Escolhe o envio de teste mais recente, aceite ou confirmado. Pura, sem rede. */
+export function envioTesteMaisRecente(
+  camps: Array<{ estado: string; aceite_em: string | null; confirmado_em: string | null; tipo: string | null; lista: string | null }>,
+): EnvioTeste | null {
+  const validas = camps
+    .filter((c) => c.tipo === "teste" && (c.estado === "aceite" || c.estado === "enviada"))
+    .map((c) => ({
+      estado: c.estado as "aceite" | "enviada",
+      lista: c.lista ?? "lista de teste",
+      em: (c.estado === "enviada" ? c.confirmado_em : null) ?? c.aceite_em,
+    }))
+    .sort((a, b) => (b.em ?? "").localeCompare(a.em ?? ""));
+  return validas[0] ?? null;
+}

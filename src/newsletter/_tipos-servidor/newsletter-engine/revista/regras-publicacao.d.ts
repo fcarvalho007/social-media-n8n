@@ -21,3 +21,18 @@ export declare function briefIndexavel(args: {
     enviada: boolean;
     preview?: boolean;
 }): boolean;
+/** Envio de teste registado em `egoi_campanhas` (lista do tipo «teste»). */
+export interface EnvioTeste {
+    /** «aceite» = E-goi recebeu o disparo; «enviada» = E-goi confirmou a entrega. */
+    estado: "aceite" | "enviada";
+    lista: string;
+    em: string | null;
+}
+/** Escolhe o envio de teste mais recente, aceite ou confirmado. Pura, sem rede. */
+export declare function envioTesteMaisRecente(camps: Array<{
+    estado: string;
+    aceite_em: string | null;
+    confirmado_em: string | null;
+    tipo: string | null;
+    lista: string | null;
+}>): EnvioTeste | null;

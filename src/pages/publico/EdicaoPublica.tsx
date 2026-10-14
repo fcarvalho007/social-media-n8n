@@ -6,7 +6,7 @@ import type { PaginaEdicaoPublica } from "@/newsletter/_tipos-servidor/newslette
 import { EstadoPublico } from "./EdicoesArquivo";
 import "@/newsletter/newsletter.css";
 
-/** Public page of a SENT edition; anything not sent answers "não disponível". */
+/** Public page of an edition with a published web page; not-yet-sent pages are noindex and stay out of the archive. */
 export default function EdicaoPublica() {
   const { numero } = useParams();
   const [pagina, setPagina] = useState<PaginaEdicaoPublica | null | undefined>(undefined);
@@ -18,6 +18,14 @@ export default function EdicaoPublica() {
       if (p) document.title = `${p.estrutura.cronica.titulo || `Edição ${n}`} · Digital Sprint`;
     }).catch(() => setPagina(null));
   }, [numero]);
+  useEffect(() => {
+    // Published but not yet sent: reachable by direct link only, kept out of search engines.
+    if (!pagina || pagina.enviada) return;
+    const m = document.createElement("meta");
+    m.name = "robots"; m.content = "noindex, nofollow";
+    document.head.appendChild(m);
+    return () => { m.remove(); };
+  }, [pagina]);
   if (pagina === undefined) return <EstadoPublico texto="A carregar a edição…" />;
   if (!pagina) return <EstadoPublico titulo="Esta edição não está disponível." texto="Pode ainda não ter sido publicada ou o endereço estar incorreto." />;
   return <PaginaEdicao pagina={pagina} briefs={pagina.briefs} />;

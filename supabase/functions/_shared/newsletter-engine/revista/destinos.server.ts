@@ -36,6 +36,9 @@ export type EstadoBackup =
   | "erro";
 export type EstadoEmail = "nao_enviado" | "agendado" | "parcial" | "enviado" | "erro";
 
+import { envioTesteMaisRecente, type EnvioTeste } from "./regras-publicacao.ts";
+export type { EnvioTeste };
+
 export interface DestinoEstado {
   estado: string;
   url: string | null;
@@ -58,7 +61,11 @@ export interface DestinoEstado {
 
 
 export interface DestinosEdicao {
-  email: { estado: EstadoEmail; url: null; external_id: null; erro: string | null; tentado_em: string | null };
+  email: {
+    estado: EstadoEmail; url: null; external_id: null; erro: string | null; tentado_em: string | null;
+    /** Último envio para uma lista de teste — nunca conta como envio real nem fecha a edição. */
+    teste: EnvioTeste | null;
+  };
   web: DestinoEstado & { estado: EstadoWeb };
   cronica: DestinoEstado & { estado: EstadoCronica };
   backup: DestinoEstado & { estado: EstadoBackup };
@@ -73,9 +80,9 @@ export const BASE_URL_PADRAO = "https://edicoes.digitalsprint.pt";
 function wordpressConfigurado(): boolean {
   const has = (v: string | undefined) => !!(v && v.trim().length > 0);
   return (
-    has(process.env.WORDPRESS_SITE_URL) &&
-    has((process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username)) &&
-    has((process.env.WORDPRESS_APP_PASSWORD || process.env.wordpress_site_key))
+    has(process.env.DIGITALSPRINT_WP_URL) &&
+    has(process.env.DIGITALSPRINT_WP_USER) &&
+    has(process.env.DIGITALSPRINT_WP_APP_PASSWORD)
   );
 }
 
@@ -188,9 +195,10 @@ export async function impressaoCronicaActual(
 /** Estado consolidado dos quatro destinos de uma edição Revista. */
 export async function estadoDestinos(edicaoId: string): Promise<DestinosEdicao> {
   const sb = admin();
-  const [{ data: edRaw }, { data: cfgRaw }] = await Promise.all([
+  const [{ data: edRaw }, { data: cfgRaw }, { data: campsRaw }] = await Promise.all([
     sb.from("nl_edicoes").select(SELECT_EDICAO).eq("id", edicaoId).maybeSingle(),
     sb.from("nl_revista_edicao").select("cronica_url").eq("edicao_id", edicaoId).maybeSingle(),
+    sb.from("nl_egoi_campanhas").select("estado, aceite_em, confirmado_em, egoi_listas:nl_egoi_listas(nome, tipo)").eq("edicao_id", edicaoId),
   ]);
   const l = (edRaw ?? {}) as LinhaEdicao;
   const guardado = (l.destinos && typeof l.destinos === "object" ? l.destinos : {}) as Record<string, unknown>;
@@ -241,9 +249,18 @@ export async function estadoDestinos(edicaoId: string): Promise<DestinosEdicao> 
   }
 
   const email = estadoEmail(l);
+  const teste = envioTesteMaisRecente(
+    ((campsRaw ?? []) as unknown as Array<{
+      estado: string; aceite_em: string | null; confirmado_em: string | null;
+      egoi_listas: { nome: string; tipo: string } | { nome: string; tipo: string }[] | null;
+    }>).map((c) => {
+      const rel = Array.isArray(c.egoi_listas) ? c.egoi_listas[0] : c.egoi_listas;
+      return { estado: c.estado, aceite_em: c.aceite_em, confirmado_em: c.confirmado_em, tipo: rel?.tipo ?? null, lista: rel?.nome ?? null };
+    }),
+  );
 
   return {
-    email: { ...email, url: null, external_id: null },
+    email: { ...email, url: null, external_id: null, teste },
     web: web as DestinosEdicao["web"],
     cronica: cronica as DestinosEdicao["cronica"],
     backup: backup as DestinosEdicao["backup"],

@@ -8,8 +8,10 @@ describe("ligação ao fredericocarvalho.pt", () => {
   it("a crónica aceita WORDPRESS_SITE_URL, wordpress_site_username e wordpress_site_key", () => {
     for (const n of ["WORDPRESS_SITE_URL", "wordpress_site_username", "wordpress_site_key"]) expect(cronica).toContain(`process.env["${n}"]`);
   });
-  it("o envio aceita os mesmos nomes", () => {
-    expect(envio).toContain("process.env.wordpress_site_username");
-    expect(envio).toContain("process.env.wordpress_site_key");
+  it("o backup DigitalSprint.pt usa dados próprios e nunca os da crónica", () => {
+    const corpo = envio.slice(envio.indexOf("export async function publicarWordpress"));
+    const fn = corpo.slice(0, corpo.indexOf("\n}\n"));
+    for (const n of ["DIGITALSPRINT_WP_URL", "DIGITALSPRINT_WP_USER", "DIGITALSPRINT_WP_APP_PASSWORD"]) expect(fn).toContain(`process.env.${n}`);
+    for (const n of ["WORDPRESS_SITE_URL", "wordpress_site_username", "wordpress_site_key"]) expect(fn).not.toContain(n);
   });
 });
