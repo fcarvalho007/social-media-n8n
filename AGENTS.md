@@ -28,3 +28,4 @@
 - Subdirectories (e.g. supabase/functions/) have their own AGENTS.md; read it before changing files there.
 
 - Current public web compositions are stored in destinos.web.snapshot and refreshed only through the publication action; email/campaign snapshots remain untouched, and unsent Brief access is restricted to the first three frozen highlight links.
+- A revista_snapshot written by test-list sends only is history: preview, readiness and the next real send ignore it, and a real send nests it verbatim in historico_testes; keeps test HTML faithful without freezing later edits.
