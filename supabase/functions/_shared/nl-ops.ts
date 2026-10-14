@@ -37,6 +37,7 @@ export const NL_OPS: Record<string, NlOp> = {
   "brief:reformularBriefFn": E,
   "brief:reverificarBriefFn": E,
   "brief:aprovarLeituraBriefFn": X("Aprovar esta leitura torna o Destaque visível ao público. Continuar?"),
+  "brief:publicarBriefsSelecionadosFn": X("Publicar somente os três Briefs selecionados, sem enviar emails. Continuar?"),
   "brief:revogarLeituraBriefFn": X("Revogar a aprovação retira este Destaque da leitura pública. Continuar?"),
   "brief:sincronizarBriefPapelFn": X("Sincronizar este Destaque altera o conteúdo publicado. Continuar?"),
   "brief:sincronizarBriefsDaEdicaoFn": X("Sincronizar os Destaques da edição altera o conteúdo publicado. Continuar?"),

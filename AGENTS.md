@@ -8,6 +8,7 @@
 - E-goi campaign state is rascunho -> aceite -> enviada; only "sent" reported by E-goi counts as delivered, and editions close/carousel jobs start only after reconciliation.
 - "/" is the Estudio; the social dashboard lives at /redes-sociais.
 - Public newsletter reads go only through the nl-publico edge function (archive lists sent editions only; an edition whose web destination is published also opens by direct link, marked noindex; token-signed subscription actions); webhooks/cron go through nl-hooks with their own auth; keeps nl-api staff-only.
+- Public Brief reads require explicit published state, complete editorial content and a public web edition; email delivery controls indexing, not direct-link access. Selective Brief publication uses the existing engine with explicit IDs, preserving historical snapshots and avoiding send side effects.
 - scripts/verificar-grafo-edge.py (run by the generator) walks every edge entrypoint including literal dynamic imports and runs deno check on nl-* functions; tsc/Vite alone miss Deno-only and lazily-loaded failures.
 - Send evidence on nl_edicoes (estado enviada, enviada_em, snapshot_envio, fecho_pendente_em) and nl_egoi_campanhas rows are writable only by the service role (trigger + RLS); client sessions can edit content only.
 - Social/analytics tables are readable by the owner or team members (social_membro(): any user_roles row); writes need admin/editor via social_pode_escrever() or ownership; no USING(true); server jobs use the service role.
