@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { EdicaoRevista } from "../../supabase/functions/_shared/newsletter-engine/revista/compose.server";
-import { montarHtmlRevista } from "../../supabase/functions/_shared/newsletter-engine/revista/render-email.server";
-import { montarHtmlRevistaWeb } from "../../supabase/functions/_shared/newsletter-engine/revista/render-web.server";
-import { montarTextoRevista } from "../../supabase/functions/_shared/newsletter-engine/revista/texto.server";
+import type { EdicaoRevista } from "./compose.server";
+import { montarHtmlRevista } from "./render-email.server";
+import { montarHtmlRevistaWeb } from "./render-web.server";
+import { montarTextoRevista } from "./texto.server";
 
 const fonte = "https://example.org/fonte-destaque";
 const radar = "https://example.org/fonte-radar";
@@ -20,13 +20,13 @@ describe("destinos editoriais em todos os renderizadores", () => {
  for (const [nome, render] of [["email", montarHtmlRevista], ["web/backup", (e: EdicaoRevista) => montarHtmlRevistaWeb(e).html]] as const) {
   it(`${nome}: título e botão do Destaque abrem o Brief`, () => {
    const doc = new DOMParser().parseFromString(render(edicao), "text/html");
-   const links = [...doc.querySelectorAll("a")].filter(a => a.getAttribute("href") === url);
+   const links = [...doc.querySelectorAll("a")].filter(a => a.getAttribute("href") === (nome === "email" ? `${url}?o=email` : url));
    expect(links).toHaveLength(2);
    expect([...doc.querySelectorAll("a")].some(a => a.getAttribute("href") === fonte)).toBe(true);
   });
   it(`${nome}: Radar liga diretamente à fonte mesmo com associação antiga`, () => {
    const doc = new DOMParser().parseFromString(render(edicao), "text/html");
-   expect([...doc.querySelectorAll("a")].find(a => a.textContent === "Radar")?.getAttribute("href")).toBe(radar);
+   expect([...doc.querySelectorAll("a")].find(a => a.textContent?.trim().startsWith("Radar"))?.getAttribute("href")).toBe(radar);
    expect(render(edicao)).not.toContain("/brief/radar-interno");
   });
   it(`${nome}: sem Brief publicado o Destaque usa a fonte`, () => {
