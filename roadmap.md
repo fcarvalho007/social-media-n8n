@@ -1,5 +1,13 @@
 # Roadmap
 
+## Briefs em Compor e publicação de teste 319
+- [ ] Integrar gerar/rever/aprovar/abrir apenas os três destaques; preservar leituras prontas sem custos
+- [ ] Garantir destaques aprovados → Brief e restantes notícias → fonte em HTML/texto/web/backup
+- [ ] Propagar noindex/nofollow da edição pública de teste e proteger todos os rascunhos
+- [ ] Atualizar publicação web/snapshot público 319 pelo motor sem alterar campanha histórica/E-goi
+- [ ] Atualizar somente backup existente 5264 com os links; preservar crónica 99178
+- [ ] Testar acesso anónimo, Compor e renderizadores; nenhum email/campanha nova
+
 ## Briefs dos três destaques da edição 319
 - [x] Confirmar conteúdos aprovados, fontes e destinos de formação
 - [x] Apresentar plano para ativação e publicação limitada aos três Briefs existentes
