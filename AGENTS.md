@@ -8,7 +8,7 @@
 - nl-api authorises every operation through the explicit map in supabase/functions/_shared/nl-ops.ts (fail-closed); external-effect operations need admin plus a confirmation flag, which prevents accidents but is not a substitute for the admin check.
 - E-goi campaign state is rascunho -> aceite -> enviada; only "sent" reported by E-goi counts as delivered, and editions close/carousel jobs start only after reconciliation.
 - "/" is the Estudio; the social dashboard lives at /redes-sociais.
-- Public newsletter reads go only through the nl-publico edge function (sent editions only, token-signed subscription actions); webhooks/cron go through nl-hooks with their own auth; keeps nl-api staff-only.
+- Public newsletter reads go only through the nl-publico edge function (archive lists sent editions only; an edition whose web destination is published also opens by direct link, marked noindex; token-signed subscription actions); webhooks/cron go through nl-hooks with their own auth; keeps nl-api staff-only.
 - scripts/verificar-grafo-edge.py (run by the generator) walks every edge entrypoint including literal dynamic imports and runs deno check on nl-* functions; tsc/Vite alone miss Deno-only and lazily-loaded failures.
 - nl-worker-conteudos (hourly pg_cron, key read from nl_worker_estado at call time) only reconciles E-goi delivery and processes carousel jobs; automatic jobs only for campaigns accepted after AUTO_DESDE, history only via explicit "preparar"; send/publish crons stay off.
 - Send evidence on nl_edicoes (estado enviada, enviada_em, snapshot_envio, fecho_pendente_em) and nl_egoi_campanhas rows are writable only by the service role (trigger + RLS); client sessions can edit content only.
@@ -26,3 +26,4 @@
 - Animated media uses a still+MP4 pair; GIPHY shares it. Paid/redesign AI images are tracked, never auto-applied; redesign returns two text-free images under editable copy.
 - Visual system keeps direction, typography (sistema.tipografia) and palette as independent choices; absent tipografia falls back to the style's legacy pair so old documents render unchanged.
 - Newsletter candidate exclusions are edition-scoped; hiding never changes the shared editorial decision or an included item.
+- The DigitalSprint.pt LearnDash backup uses its own DIGITALSPRINT_WP_* credentials, never the FredericoCarvalho.pt chronicle ones; the two sites differ and only DigitalSprint.pt has LearnDash.
