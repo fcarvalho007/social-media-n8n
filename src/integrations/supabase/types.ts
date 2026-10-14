@@ -2319,6 +2319,8 @@ export type Database = {
           adiado_por: string | null
           carrossel: Json | null
           created_at: string
+          divulgacao: Json | null
+          divulgacao_versao: number
           edicao_id: string
           fonte: Json
           fonte_aceite_em: string | null
@@ -2342,6 +2344,8 @@ export type Database = {
           adiado_por?: string | null
           carrossel?: Json | null
           created_at?: string
+          divulgacao?: Json | null
+          divulgacao_versao?: number
           edicao_id: string
           fonte: Json
           fonte_aceite_em?: string | null
@@ -2365,6 +2369,8 @@ export type Database = {
           adiado_por?: string | null
           carrossel?: Json | null
           created_at?: string
+          divulgacao?: Json | null
+          divulgacao_versao?: number
           edicao_id?: string
           fonte?: Json
           fonte_aceite_em?: string | null
