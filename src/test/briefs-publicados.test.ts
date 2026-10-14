@@ -24,3 +24,11 @@ describe("Briefs autorizados na publicação web de teste", () => {
  it("um quarto destaque não ganha acesso público de teste",()=>expect(briefAutorizadoNaWeb({enviada:false,noticiaId:"3",slug:"quarto",destaques:[...destaques,{noticiaId:"3",brief:{slug:"quarto"}}]})).toBe(false));
  it("outro rascunho não fica público",()=>expect(avaliarPublicacao({estado:"rascunho",snapshotEstado:"bloqueado",temSnapshot:true,destinoWeb:"rascunho"})).toEqual({publica:false,enviada:false}));
 });
+
+import { conteudoRevistoAlterado } from "@/newsletter/lib/newsletter-engine/revista/brief/estados";
+describe("aprovação do conteúdo revisto",()=>{
+ const actual={leitura_aprovada:"Leitura literal.",em_30_segundos:[{texto:"Síntese factual."}],porque_interessa:[{rotulo:"Impacto",texto:"Consequência."}],fonte_url:"https://example.org/fonte"};
+ it("não revoga uma leitura guardada sem alterações",()=>expect(conteudoRevistoAlterado(actual,{...actual})).toBe(false));
+ it.each(["leitura_aprovada","em_30_segundos","porque_interessa","fonte_url"])("exige nova aprovação quando %s muda",k=>expect(conteudoRevistoAlterado(actual,{[k]:"alterado"})).toBe(true));
+ it("uma alteração literal não é ocultada por trim",()=>expect(conteudoRevistoAlterado(actual,{leitura_aprovada:"Leitura literal. "})).toBe(true));
+});

@@ -12,3 +12,5 @@ export declare function prontoParaPublicar(b: Pick<Brief, "tipo" | "estado" | "e
     ok: boolean;
     motivos: string[];
 };
+/** Any reviewed editorial change requires a fresh explicit approval. */
+export declare function conteudoRevistoAlterado(actual: Record<string, unknown>, alteracao: Record<string, unknown>): boolean;
