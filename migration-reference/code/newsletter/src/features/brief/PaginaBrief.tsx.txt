@@ -242,7 +242,7 @@ function Relacionados({ itens, contar }: { itens: RelacionadoBriefUI[]; contar?:
       <ul className="mt-5 border-b border-rw-rule">
         {itens.map((item) => (
           <li key={item.slug ?? item.titulo} className="group border-t border-rw-rule py-5 sm:grid sm:grid-cols-[9rem_minmax(0,1fr)_4rem] sm:items-baseline sm:gap-5">
-            <Etiqueta>{item.categoria}</Etiqueta>
+            <Etiqueta className="mb-1.5 block sm:mb-0">{item.categoria}</Etiqueta>
             {item.slug ? (
               <Link
                 to="/brief/$slug"
