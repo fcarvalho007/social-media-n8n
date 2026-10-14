@@ -3,7 +3,9 @@
 // of the SAME edition and require explicit human source review (origem = historico_actual).
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { paragrafosDoHtml } from "../newsletter-engine/revista/apresentacao-heuristica.ts";
-import { CURSO_IA_URL, paragrafoDestaque, publisherDe, type DestaqueFonte, type FonteCronica } from "./carrossel.ts";
+import { CURSO_IA_URL, paragrafoDestaque, type DestaqueFonte, type FonteCronica } from "./carrossel.ts";
+import { destaquesDaEdicao, type EdicaoLida } from "./destaques.ts";
+export { destaquesDaEdicao } from "./destaques.ts";
 import { paraBaseDestino } from "../nl-destino-urls.ts";
 import { basePublica } from "../nl-publico-config.ts";
 
@@ -13,32 +15,11 @@ export class ErroFonte extends Error {
   }
 }
 
-interface DestaqueLido { titulo?: string; url?: string; resumoFactual?: string; minhaLeitura?: string; brief?: { url?: string } }
-interface EdicaoLida {
-  cronica?: { titulo?: string; url?: string; urlProvisoria?: boolean };
-  destaques?: DestaqueLido[];
-  urlPagina?: string;
-}
 interface SnapshotLido {
   estado?: string;
   url_web?: string;
   cronica_integral?: { titulo?: string; corpoHtml?: string; url?: string };
   edicao?: EdicaoLida;
-}
-
-/** The first three highlights exactly as composed (approved reading verbatim, sources and Brief links kept). */
-export function destaquesDaEdicao(ed: EdicaoLida | null | undefined, destino = ""): DestaqueFonte[] {
-  const ajustar = (u: string) => (u && destino ? paraBaseDestino(u, destino) : u);
-  return (ed?.destaques ?? []).slice(0, 3)
-    .filter((d) => d.titulo?.trim() && d.url)
-    .map((d) => ({
-      titulo: d.titulo!.trim(),
-      sintese: (d.resumoFactual ?? "").trim(),
-      leitura: d.minhaLeitura ?? "",
-      fonteUrl: d.url!,
-      publisher: publisherDe(d.url!),
-      ...(d.brief?.url ? { briefUrl: ajustar(d.brief.url) } : {}),
-    }));
 }
 
 /** Appends highlights as citable paragraphs and the edition/course links. */
