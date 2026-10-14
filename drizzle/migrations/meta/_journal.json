@@ -414,6 +414,13 @@
       "when": 1792000554563,
       "tag": "0058_social_rls_acesso_minimo",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1792001278310,
+      "tag": "0059_storage_buckets_publicos_acesso_minimo",
+      "breakpoints": true
     }
   ]
 }
