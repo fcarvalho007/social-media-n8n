@@ -15,6 +15,7 @@ import { caminhoCanonicoEdicao, urlCanonicaEdicao } from "./destinos.server.ts";
 import { POSICAO_FIM } from "./sequencia-cronica.ts";
 import { LIMITES_REVISTA, ROTULOS_REVISTA } from "./rotulos.ts";
 import { ligacoesBriefsDaEdicao, type LigacaoBrief } from "./brief/publicacao.server.ts";
+import { fotografiaSoDeTeste, type CampanhaDaEdicao } from "./fotografia-teste.ts";
 import { htmlEditorialInline, htmlEditorialSeguro, textoDeHtmlEditorial } from "./html-restrito.ts";
 
 export type { LigacaoBrief };
@@ -481,6 +482,11 @@ export interface SnapshotRevista {
   url_web_path: string;
   preparado_em: string;
   bloqueado_em: string | null;
+  /**
+   * Fotografias anteriores de envios só de teste, guardadas literalmente
+   * (HTML histórico intacto) quando um envio real prepara uma nova.
+   */
+  historico_testes?: unknown[];
 }
 
 function normalizarEstrutura(e: EdicaoRevista): EdicaoRevista {
@@ -527,6 +533,7 @@ export function lerEnvelope(v: unknown): SnapshotRevista | null {
         : caminhoCanonicoEdicao(env.edicao?.edicao?.numero ?? 0),
       preparado_em: env.preparado_em ?? "",
       bloqueado_em: env.bloqueado_em ?? null,
+      ...(Array.isArray(env.historico_testes) ? { historico_testes: env.historico_testes } : {}),
     };
   }
   // Formato legado: era o próprio `EdicaoRevista`.
@@ -586,7 +593,8 @@ export async function composeRevistaEdition(
 
   if (!opcoes?.ignorarSnapshot) {
     const congelada = lerSnapshot((edRes.data as { revista_snapshot?: unknown }).revista_snapshot);
-    if (congelada) return congelada;
+    // Fotografia só de teste é histórico: não fixa a composição actual.
+    if (congelada && !(await snapshotSoDeTeste(sb, edicaoId))) return congelada;
   }
 
   const cfg = normalizarConfigRevista(cfgRes.data);
@@ -846,7 +854,15 @@ export async function prepararSnapshotRevista(
   edicaoId: string,
   estrutura: EdicaoRevista,
   artefacto: { emailHtml: string; emailText: string; urlWeb: string },
+  /** Fotografia anterior só de teste (gravada tal como está, sem reescrita). */
+  anteriorDeTeste?: unknown,
 ): Promise<SnapshotRevista> {
+  const anteriores = anteriorDeTeste && typeof anteriorDeTeste === "object"
+    ? [
+        ...(((anteriorDeTeste as { historico_testes?: unknown[] }).historico_testes) ?? []),
+        { ...(anteriorDeTeste as Record<string, unknown>), historico_testes: undefined },
+      ]
+    : undefined;
   const envelope: SnapshotRevista = {
     schema_version: SNAPSHOT_SCHEMA_VERSION,
     renderer_version: RENDERER_VERSION,
@@ -858,6 +874,7 @@ export async function prepararSnapshotRevista(
     url_web_path: caminhoCanonicoEdicao(estrutura.edicao.numero),
     preparado_em: new Date().toISOString(),
     bloqueado_em: null,
+    ...(anteriores ? { historico_testes: anteriores } : {}),
   };
   const sb = admin();
   const { error } = await sb
@@ -891,7 +908,9 @@ export async function descartarSnapshotPreparado(edicaoId: string): Promise<bool
   const actual = await lerSnapshotRevista(edicaoId);
   if (!actual || actual.estado === "bloqueado") return false;
   const sb = admin();
-  await sb.from("nl_edicoes").update({ revista_snapshot: null }).eq("id", edicaoId);
+  // Se substituía uma fotografia de teste, essa volta ao lugar (histórico fiel).
+  const anterior = actual.historico_testes?.length ? actual.historico_testes[actual.historico_testes.length - 1] : null;
+  await sb.from("nl_edicoes").update({ revista_snapshot: (anterior ?? null) as Record<string, unknown> | null }).eq("id", edicaoId);
   return true;
 }
 
@@ -904,9 +923,34 @@ export async function lerSnapshotRevista(edicaoId: string): Promise<SnapshotRevi
   return lerEnvelope(linha.revista_snapshot);
 }
 
+/** Verdadeiro quando a fotografia existente veio apenas de envios de teste. */
+export async function snapshotSoDeTeste(sb: SupabaseClient, edicaoId: string): Promise<boolean> {
+  const [ed, camps] = await Promise.all([
+    sb.from("nl_edicoes").select("estado").eq("id", edicaoId).maybeSingle(),
+    sb.from("nl_egoi_campanhas").select("estado, egoi_listas:nl_egoi_listas(tipo)").eq("edicao_id", edicaoId),
+  ]);
+  if (ed.error || camps.error) return false; // na dúvida, a fotografia manda
+  const linhas = (camps.data ?? []) as unknown as Array<{ estado: string; egoi_listas: { tipo: string } | { tipo: string }[] | null }>;
+  const campanhas: CampanhaDaEdicao[] = linhas.map((c) => {
+    const l = Array.isArray(c.egoi_listas) ? c.egoi_listas[0] : c.egoi_listas;
+    return { estado: c.estado, tipo: l?.tipo };
+  });
+  return fotografiaSoDeTeste((ed.data as { estado?: string } | null)?.estado, campanhas);
+}
+
+/**
+ * Fotografia que manda no envio e na pré-visualização: a gravada, excepto
+ * quando só veio de envios de teste (aí é histórico, não vigente).
+ */
+export async function lerSnapshotVigente(edicaoId: string): Promise<SnapshotRevista | null> {
+  const env = await lerSnapshotRevista(edicaoId);
+  if (!env) return null;
+  return (await snapshotSoDeTeste(admin(), edicaoId)) ? null : env;
+}
+
 /** Verdadeiro quando a edição já está historicamente bloqueada. */
 export async function edicaoRevistaBloqueada(edicaoId: string): Promise<boolean> {
-  const env = await lerSnapshotRevista(edicaoId);
+  const env = await lerSnapshotVigente(edicaoId);
   return env?.estado === "bloqueado";
 }
 

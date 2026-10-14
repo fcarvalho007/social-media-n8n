@@ -9,7 +9,7 @@ import { normalizarCredenciaisWp } from "./credenciais-wp";
 import { gerarHtmlEdicaoWeb } from "./gerar-html-web.server";
 import {
   bloquearSnapshotRevista, composeRevistaEdition, descartarSnapshotPreparado,
-  lerSnapshotRevista, prepararSnapshotRevista,
+  lerSnapshotRevista, prepararSnapshotRevista, snapshotSoDeTeste,
 } from "./revista/compose.server";
 import { montarHtmlRevista } from "./revista/render-email.server";
 import { montarTextoRevista } from "./revista/texto.server";
@@ -264,6 +264,11 @@ const LOCK_MS = 10 * 60_000;
  * a primeira lista for aceite pela E-goi.
  * Não faz nada em edições Clássicas nem em edições já bloqueadas ou preparadas.
  */
+async function envioReal(sb: SupabaseClient, listaIds: string[]): Promise<boolean> {
+  const r = await resolverListas(sb, listaIds);
+  return r.ok && r.modo === "real";
+}
+
 async function prepararEdicaoRevista(
   sb: SupabaseClient,
   edicaoId: string,
@@ -278,7 +283,7 @@ async function prepararEdicaoRevista(
   const existente = await lerSnapshotRevista(edicaoId);
   // Fotografia só de teste: histórico. Um envio real prepara uma nova,
   // guardando a de teste literalmente dentro do envelope.
-  const anteriorDeTeste = existente && listaIds.length && await snapshotSoDeTeste(sb, edicaoId) && !(await soListasTeste(sb, listaIds))
+  const anteriorDeTeste = existente && listaIds.length && await snapshotSoDeTeste(sb, edicaoId) && await envioReal(sb, listaIds)
     ? (await sb.from("edicoes").select("revista_snapshot").eq("id", edicaoId).maybeSingle()).data?.revista_snapshot
     : undefined;
   if (existente && !anteriorDeTeste) return; // bloqueada (histórico) ou já preparada nesta tentativa
