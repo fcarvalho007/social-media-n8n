@@ -44,3 +44,18 @@ describe("estado da campanha E-goi", () => {
     expect(corpo).not.toContain("/campaigns/email/${hash}`, { method: \"GET\"");
   });
 });
+
+describe("pastas de ficheiros públicas", () => {
+  const f = readdirSync(dir).find((x) => x.includes("storage_buckets_publicos_acesso_minimo"));
+  const s = f ? readFileSync(join(dir, f), "utf8") : "";
+  it("pdfs: alterar e apagar só na própria pasta ou pela equipa editora", () => {
+    expect(s).toMatch(/"pdfs_actualizar_proprio_ou_equipa"[^;]*\(storage\.foldername\(name\)\)\[1\] = auth\.uid\(\)::text OR public\.social_pode_escrever\(\)/);
+    expect(s).toMatch(/"pdfs_apagar_proprio_ou_equipa"[^;]*\(storage\.foldername\(name\)\)\[1\] = auth\.uid\(\)::text OR public\.social_pode_escrever\(\)/);
+    expect(s).toContain('DROP POLICY IF EXISTS "Users can upload files to pdfs"');
+  });
+  it("sem listagem anónima nem USING (true)", () => {
+    expect(s).toContain('DROP POLICY IF EXISTS "Public can read individual files in public buckets"');
+    expect(s).not.toMatch(/TO (anon|public)\b/i);
+    expect(s).not.toMatch(/USING\s*\(\s*true\s*\)/i);
+  });
+});
