@@ -2315,6 +2315,8 @@ export type Database = {
         Row: {
           actualizado_em: string
           actualizado_por: string | null
+          adiado_em: string | null
+          adiado_por: string | null
           carrossel: Json | null
           created_at: string
           edicao_id: string
@@ -2336,6 +2338,8 @@ export type Database = {
         Insert: {
           actualizado_em?: string
           actualizado_por?: string | null
+          adiado_em?: string | null
+          adiado_por?: string | null
           carrossel?: Json | null
           created_at?: string
           edicao_id: string
@@ -2357,6 +2361,8 @@ export type Database = {
         Update: {
           actualizado_em?: string
           actualizado_por?: string | null
+          adiado_em?: string | null
+          adiado_por?: string | null
           carrossel?: Json | null
           created_at?: string
           edicao_id?: string

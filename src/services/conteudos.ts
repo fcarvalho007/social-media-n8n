@@ -78,6 +78,7 @@ export const ESTADOS_JOB: Record<string, string> = {
   aguarda_revisao_fonte: "A aguardar revisão da fonte",
   pendente: "Na fila",
   aguarda_credencial: "A aguardar chave DeepSeek",
+  aguarda_criacao: "Envio confirmado · à espera de «Criar carrossel»",
   a_processar: "A preparar proposta",
   concluido: "Proposta pronta",
   erro: "Erro",
@@ -88,3 +89,15 @@ export const ESTADOS_JOB: Record<string, string> = {
 export interface RenderProva { png: string; bytes: number; ms_preparacao: number; ms_render: number }
 export const renderProvaServidor = (pacote: unknown, variante: "A" | "B", pagina: number) =>
   chamar<RenderProva>({ acao: "render_prova", pacote, variante, pagina });
+
+/** Post-send proposal for one edition (real carousel) plus the explicit pre-send test draft, if any. */
+export type { EstadoProposta } from "../../supabase/functions/_shared/conteudos/proposta";
+import type { EstadoProposta } from "../../supabase/functions/_shared/conteudos/proposta";
+export interface PropostaEdicao {
+  estado: EstadoProposta; conteudo_id: string | null; job_id: string | null; erro: string | null;
+  teste: { conteudo_id: string; tem_carrossel: boolean } | null;
+}
+export const estadoPropostaEdicao = (edicao_id: string) => chamar<PropostaEdicao>({ acao: "estado_edicao", edicao_id });
+export const criarCarrosselEdicao = (edicao_id: string) => chamar<PropostaEdicao>({ acao: "criar", edicao_id });
+export const adiarCarrosselEdicao = (edicao_id: string) => chamar<PropostaEdicao>({ acao: "adiar", edicao_id });
+export const prepararRascunhoTeste = (edicao_id: string) => chamar<{ conteudo_id: string }>({ acao: "preparar_teste", edicao_id });

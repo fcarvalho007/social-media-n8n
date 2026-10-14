@@ -3,7 +3,7 @@
 // of the SAME edition and require explicit human source review (origem = historico_actual).
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { paragrafosDoHtml } from "../newsletter-engine/revista/apresentacao-heuristica.ts";
-import type { FonteCronica } from "./carrossel.ts";
+import { CURSO_IA_URL, paragrafoDestaque, publisherDe, type DestaqueFonte, type FonteCronica } from "./carrossel.ts";
 import { paraBaseDestino } from "../nl-destino-urls.ts";
 import { basePublica } from "../nl-publico-config.ts";
 
@@ -13,10 +13,52 @@ export class ErroFonte extends Error {
   }
 }
 
+interface DestaqueLido { titulo?: string; url?: string; resumoFactual?: string; minhaLeitura?: string; brief?: { url?: string } }
+interface EdicaoLida {
+  cronica?: { titulo?: string; url?: string; urlProvisoria?: boolean };
+  destaques?: DestaqueLido[];
+  urlPagina?: string;
+}
 interface SnapshotLido {
   estado?: string;
+  url_web?: string;
   cronica_integral?: { titulo?: string; corpoHtml?: string; url?: string };
-  edicao?: { cronica?: { titulo?: string; url?: string; urlProvisoria?: boolean } };
+  edicao?: EdicaoLida;
+}
+
+/** The first three highlights exactly as composed (approved reading verbatim, sources and Brief links kept). */
+export function destaquesDaEdicao(ed: EdicaoLida | null | undefined, destino = ""): DestaqueFonte[] {
+  const ajustar = (u: string) => (u && destino ? paraBaseDestino(u, destino) : u);
+  return (ed?.destaques ?? []).slice(0, 3)
+    .filter((d) => d.titulo?.trim() && d.url)
+    .map((d) => ({
+      titulo: d.titulo!.trim(),
+      sintese: (d.resumoFactual ?? "").trim(),
+      leitura: d.minhaLeitura ?? "",
+      fonteUrl: d.url!,
+      publisher: publisherDe(d.url!),
+      ...(d.brief?.url ? { briefUrl: ajustar(d.brief.url) } : {}),
+    }));
+}
+
+/** Appends highlights as citable paragraphs and the edition/course links. */
+function comDestaques<T extends { paragrafos: string[] }>(base: T, destaques: DestaqueFonte[], edicaoUrl: string) {
+  return {
+    ...base,
+    paragrafos: [...base.paragrafos, ...destaques.map(paragrafoDestaque)],
+    destaques,
+    ...(edicaoUrl ? { edicaoUrl } : {}),
+    cursoUrl: CURSO_IA_URL,
+  };
+}
+
+export async function hashFonteCompleta(f: Omit<FonteCronica, "hash" | "numero">): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify({
+    edicaoId: f.edicaoId, titulo: f.titulo, paragrafos: f.paragrafos, url: f.url, origem: f.origem,
+    destaques: f.destaques ?? null, edicaoUrl: f.edicaoUrl ?? null, teste: f.teste ?? false,
+  }));
+  const d = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(d)).map((n) => n.toString(16).padStart(2, "0")).join("");
 }
 
 export async function hashFonte(f: Omit<FonteCronica, "hash" | "numero">): Promise<string> {
@@ -72,6 +114,37 @@ export async function carregarFonteCronica(sb: SupabaseClient, edicaoId: string)
   if (!/^https:\/\//i.test(url) || snap?.edicao?.cronica?.urlProvisoria) {
     throw new ErroFonte("A edição não tem um endereço publicado para a crónica.", "sem_url");
   }
-  const base = { edicaoId, titulo, paragrafos, url, origem };
-  return { ...base, numero: ed.numero, hash: await hashFonte(base) };
+  const destaques = destaquesDaEdicao(snap?.edicao, destino);
+  const urlEd = snap?.url_web || snap?.edicao?.urlPagina || "";
+  const edicaoUrl = destino && urlEd ? paraBaseDestino(urlEd, destino) : urlEd;
+  const base = comDestaques({ edicaoId, titulo, paragrafos, url, origem }, destaques, edicaoUrl);
+  return { ...base, numero: ed.numero, hash: await hashFonteCompleta(base) };
+}
+
+/**
+ * Explicit pre-send TEST source: current composition (not a send snapshot). Stored under its own
+ * type, so it never collides with — nor blocks — the carousel of the version actually sent.
+ */
+export async function carregarFonteTeste(sb: SupabaseClient, edicaoId: string): Promise<FonteCronica> {
+  const { data, error } = await sb.from("nl_edicoes").select("id, numero, estado, template_version").eq("id", edicaoId).maybeSingle();
+  if (error || !data) throw new ErroFonte("Não foi possível ler esta edição.");
+  const ed = data as { numero: number; estado: string; template_version: string | null };
+  if ((ed.template_version ?? "revista") !== "revista") throw new ErroFonte("O rascunho de teste só existe para edições Revista.");
+  if (ed.estado === "enviada") throw new ErroFonte("Esta edição já foi enviada: usa o carrossel da versão enviada.");
+  const { composeRevistaEdition } = await import("../newsletter-engine/revista/compose.server.ts");
+  const comp = await composeRevistaEdition(edicaoId, { ignorarSnapshot: true }) as unknown as EdicaoLida & { cronica?: { titulo?: string; url?: string; urlProvisoria?: boolean } };
+  const { data: cro } = await sb.from("nl_cronicas").select("titulo, conteudo_html, conteudo").eq("edicao_id", edicaoId).maybeSingle();
+  const c = cro as { titulo: string | null; conteudo_html: string | null; conteudo: string | null } | null;
+  const corpo = c?.conteudo_html?.trim() || c?.conteudo?.trim() || "";
+  const titulo = comp?.cronica?.titulo || c?.titulo || "";
+  const paragrafos = paragrafosDoHtml(corpo);
+  if (!titulo || paragrafos.join(" ").length < 200) throw new ErroFonte("A crónica desta edição não tem texto suficiente para um carrossel.", "sem_texto");
+  const destino = basePublica();
+  const urlCro = comp?.cronica?.url || "";
+  const url = destino && urlCro ? paraBaseDestino(urlCro, destino) : urlCro;
+  if (!/^https:\/\//i.test(url)) throw new ErroFonte("A edição não tem um endereço publicado para a crónica.", "sem_url");
+  const urlEd = comp?.urlPagina || "";
+  const edicaoUrl = destino && urlEd ? paraBaseDestino(urlEd, destino) : urlEd;
+  const base = { ...comDestaques({ edicaoId, titulo, paragrafos, url, origem: "snapshot" as const }, destaquesDaEdicao(comp, destino), edicaoUrl), teste: true };
+  return { ...base, numero: ed.numero, hash: await hashFonteCompleta(base) };
 }

@@ -3,7 +3,7 @@
 // "enviar_social" only creates a native draft in the existing social flow.
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { z } from "npm:zod@3.25.76";
-import { admin, enfileirarCarrossel, gerarProposta, processarJobs, reconciliarEdicoesSemJob, TIPO } from "../_shared/conteudos/jobs.server.ts";
+import { adiarProposta, admin, enfileirarCarrossel, gerarProposta, pedirCriacao, prepararTeste, processarJobs, propostaDaEdicao, reconciliarEdicoesSemJob, TIPO } from "../_shared/conteudos/jobs.server.ts";
 import { legendaComLink, validarCarrossel, type FonteCronica } from "../_shared/conteudos/carrossel.ts";
 
 const cors = {
@@ -49,6 +49,10 @@ const Body = z.discriminatedUnion("acao", [
   z.object({ acao: z.literal("obter"), conteudo_id: uuid }),
   z.object({ acao: z.literal("preparar"), edicao_id: uuid }),
   z.object({ acao: z.literal("aceitar_fonte"), conteudo_id: uuid }),
+  z.object({ acao: z.literal("estado_edicao"), edicao_id: uuid }),
+  z.object({ acao: z.literal("criar"), edicao_id: uuid }),
+  z.object({ acao: z.literal("adiar"), edicao_id: uuid }),
+  z.object({ acao: z.literal("preparar_teste"), edicao_id: uuid }),
   z.object({ acao: z.literal("processar") }),
   z.object({ acao: z.literal("retomar"), job_id: uuid }),
   z.object({ acao: z.literal("gerar"), conteudo_id: uuid }),
@@ -80,7 +84,7 @@ Deno.serve(async (req) => {
   const lerConteudo = async (id: string) => {
     const { data, error } = await sb.from("nl_conteudos_derivados").select("*").eq("id", id).maybeSingle();
     if (error || !data) throw Object.assign(new Error("Conteúdo não encontrado"), { status: 404 });
-    return data as { id: string; edicao_id: string; fonte: FonteCronica; fonte_aceite_em: string | null; carrossel: unknown; versao: number; social_draft_id: string | null; project_id: string | null };
+    return data as { id: string; edicao_id: string; tipo: string; fonte: FonteCronica; fonte_aceite_em: string | null; carrossel: unknown; versao: number; social_draft_id: string | null; project_id: string | null };
   };
   const exigirFonte = (c: { fonte: FonteCronica; fonte_aceite_em: string | null }) => {
     if (c.fonte.origem === "historico_actual" && !c.fonte_aceite_em) {
@@ -141,6 +145,24 @@ Deno.serve(async (req) => {
         const { data: job } = await sb.from("nl_conteudos_jobs").select("conteudo_id").eq("id", r.jobId!).single();
         return json({ conteudo_id: (job as { conteudo_id: string }).conteudo_id, job_id: r.jobId });
       }
+      case "estado_edicao":
+        return json(await propostaDaEdicao(b.edicao_id));
+      case "criar": {
+        if (!Deno.env.get("DEEPSEEK_API_KEY")) return json({ error: "A chave DeepSeek ainda não está configurada no servidor." }, 503);
+        const r = await pedirCriacao(b.edicao_id, userId);
+        if (!r.ok) return json({ error: r.motivo }, 409);
+        return json({ ...(await propostaDaEdicao(b.edicao_id)) });
+      }
+      case "adiar":
+        await adiarProposta(b.edicao_id, userId);
+        return json(await propostaDaEdicao(b.edicao_id));
+      case "preparar_teste": {
+        try {
+          return json(await prepararTeste(b.edicao_id, userId));
+        } catch (e) {
+          return json({ error: (e as Error).message }, 422);
+        }
+      }
       case "aceitar_fonte": {
         const c = await lerConteudo(b.conteudo_id);
         if (c.fonte.origem !== "historico_actual") return json({ ok: true });
@@ -194,7 +216,7 @@ Deno.serve(async (req) => {
         await validarFicheiros(sb, userId, b.imagens, b.pdf_url);
         const existente = async () => {
           const { data } = await sb.from("posts_drafts").select("id")
-            .eq("origem->>tipo", TIPO).eq("origem->>conteudo_id", c.id).eq("origem->>versao", String(c.versao)).maybeSingle();
+            .eq("origem->>tipo", c.tipo).eq("origem->>conteudo_id", c.id).eq("origem->>versao", String(c.versao)).maybeSingle();
           return (data as { id: string } | null)?.id ?? null;
         };
         if (!b.substituir) {
@@ -221,8 +243,8 @@ Deno.serve(async (req) => {
           publish_immediately: false,
           status: "draft",
           project_id: c.project_id,
-          origem: { tipo: TIPO, conteudo_id: c.id, edicao_id: c.edicao_id, numero: c.fonte.numero, versao: c.versao, fonte_hash: c.fonte.hash, url_cronica: c.fonte.url, pdf_url: b.pdf_url },
-          ai_metadata: { origem_estudio: TIPO, pdf_linkedin_url: b.pdf_url },
+          origem: { tipo: c.tipo, teste: c.tipo !== TIPO, conteudo_id: c.id, edicao_id: c.edicao_id, numero: c.fonte.numero, versao: c.versao, fonte_hash: c.fonte.hash, url_cronica: c.fonte.url, pdf_url: b.pdf_url },
+          ai_metadata: { origem_estudio: c.tipo, pdf_linkedin_url: b.pdf_url },
         };
         const q = c.social_draft_id && b.substituir
           ? sb.from("posts_drafts").update(linha).eq("id", c.social_draft_id).select("id")

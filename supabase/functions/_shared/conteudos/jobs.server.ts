@@ -5,10 +5,13 @@
 // human edits. Publishing to social networks is always a separate human action.
 import process from "node:process";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
-import { carregarFonteCronica, ErroFonte } from "./fonte.server.ts";
+import { carregarFonteCronica, carregarFonteTeste, ErroFonte } from "./fonte.server.ts";
+import { ESTADO_APOS_CONFIRMACAO, estadoProposta, type EstadoProposta } from "./proposta.ts";
 import { gerarComReparacao, type Carrossel, type FonteCronica } from "./carrossel.ts";
 
 export const TIPO = "carrossel_cronica";
+/** Explicit pre-send test draft: separate type, no job, never in the real send path. */
+export const TIPO_TESTE = "carrossel_edicao_teste";
 
 /**
  * Automatic preparation only covers campaigns accepted by E-goi from this instant on
@@ -29,12 +32,12 @@ async function identidadeDigitalsprint(sb: SupabaseClient) {
 }
 
 /** Ensures one content row for the given source. Never touches an existing row. */
-export async function garantirConteudo(sb: SupabaseClient, fonte: FonteCronica) {
+export async function garantirConteudo(sb: SupabaseClient, fonte: FonteCronica, tipo: string = TIPO) {
   const ident = await identidadeDigitalsprint(sb);
   await sb.from("nl_conteudos_derivados").upsert(
     {
       edicao_id: fonte.edicaoId,
-      tipo: TIPO,
+      tipo,
       fonte,
       fonte_hash: fonte.hash,
       identidade_id: ident?.id ?? null,
@@ -43,7 +46,7 @@ export async function garantirConteudo(sb: SupabaseClient, fonte: FonteCronica) 
     { onConflict: "edicao_id,tipo,fonte_hash", ignoreDuplicates: true },
   );
   const { data, error } = await sb.from("nl_conteudos_derivados").select("id, fonte_aceite_em")
-    .eq("edicao_id", fonte.edicaoId).eq("tipo", TIPO).eq("fonte_hash", fonte.hash).single();
+    .eq("edicao_id", fonte.edicaoId).eq("tipo", tipo).eq("fonte_hash", fonte.hash).single();
   if (error) throw new Error(`Não foi possível registar o conteúdo: ${error.message}`);
   return data as { id: string; fonte_aceite_em: string | null };
 }
@@ -189,7 +192,8 @@ export async function processarJobs(limite = 2): Promise<{ processados: number }
           else c.confirmada = r.bruto === "sent";
         }
         if (campanhas.length && campanhas.some((c) => c.confirmada)) {
-          await gravarJob(sb, job, { campanhas, estado: "pendente", confirmado_em: new Date().toISOString(), erro: null, proxima_tentativa_em: new Date().toISOString() });
+          // Delivery confirmed: the proposal waits for an explicit "Criar carrossel" (no automatic AI cost).
+          await gravarJob(sb, job, { campanhas, estado: ESTADO_APOS_CONFIRMACAO, confirmado_em: new Date().toISOString(), erro: null, proxima_tentativa_em: new Date().toISOString() });
         } else if (errosApi.length) {
           await gravarJob(sb, job, { campanhas, erro: `Não foi possível confirmar a entrega na E-goi: ${errosApi.join(" | ").slice(0, 400)}`, proxima_tentativa_em: backoff(3) });
         } else {
@@ -260,4 +264,70 @@ export async function edicoesPorConfirmar(limite = 5): Promise<string[]> {
   const { data } = await sb.from("nl_egoi_campanhas").select("edicao_id")
     .eq("estado", "aceite").not("campaign_hash", "is", null).gte("aceite_em", AUTO_DESDE).limit(100);
   return [...new Set(((data ?? []) as { edicao_id: string }[]).map((r) => r.edicao_id))].slice(0, limite);
+}
+
+/** Proposal state for one edition (real carousel only; the test draft is reported separately). */
+export async function propostaDaEdicao(edicaoId: string): Promise<{
+  estado: EstadoProposta; conteudo_id: string | null; job_id: string | null; erro: string | null;
+  teste: { conteudo_id: string; tem_carrossel: boolean } | null;
+}> {
+  const sb = admin();
+  const [camps, jobs, conts, testes] = await Promise.all([
+    sb.from("nl_egoi_campanhas").select("estado, nl_egoi_listas(tipo)").eq("edicao_id", edicaoId),
+    sb.from("nl_conteudos_jobs").select("id, conteudo_id, estado, confirmado_em, erro").eq("edicao_id", edicaoId).eq("tipo", TIPO).order("created_at", { ascending: false }).limit(1),
+    sb.from("nl_conteudos_derivados").select("id, carrossel, adiado_em").eq("edicao_id", edicaoId).eq("tipo", TIPO).order("created_at", { ascending: false }).limit(1),
+    sb.from("nl_conteudos_derivados").select("id, carrossel").eq("edicao_id", edicaoId).eq("tipo", TIPO_TESTE).order("created_at", { ascending: false }).limit(1),
+  ]);
+  for (const r of [camps, jobs, conts, testes]) if (r.error) throw new Error(r.error.message);
+  const campanhas = ((camps.data ?? []) as unknown as Array<{ estado: string; nl_egoi_listas: { tipo: string } | { tipo: string }[] | null }>)
+    .map((c) => ({ estado: c.estado, tipo: (Array.isArray(c.nl_egoi_listas) ? c.nl_egoi_listas[0] : c.nl_egoi_listas)?.tipo }));
+  const job = (jobs.data?.[0] ?? null) as { id: string; conteudo_id: string; estado: string; confirmado_em: string | null; erro: string | null } | null;
+  const cont = (conts.data?.[0] ?? null) as { id: string; carrossel: unknown; adiado_em: string | null } | null;
+  const t = (testes.data?.[0] ?? null) as { id: string; carrossel: unknown } | null;
+  return {
+    estado: estadoProposta({ campanhas, job, conteudo: cont ? { tem_carrossel: !!cont.carrossel, adiado_em: cont.adiado_em } : null }),
+    conteudo_id: cont?.id ?? job?.conteudo_id ?? null,
+    job_id: job?.id ?? null,
+    erro: job?.estado === "erro" ? job.erro : null,
+    teste: t ? { conteudo_id: t.id, tem_carrossel: !!t.carrossel } : null,
+  };
+}
+
+/**
+ * Explicit "Criar carrossel" after a confirmed real send. Idempotent: only a job waiting for
+ * creation (or a postponed one) moves to "pendente"; repeated clicks find it already moving.
+ */
+export async function pedirCriacao(edicaoId: string, userId: string): Promise<{ ok: boolean; motivo?: string; conteudo_id?: string }> {
+  const sb = admin();
+  const p = await propostaDaEdicao(edicaoId);
+  if (p.estado === "rascunho" || p.estado === "a_criar") return { ok: true, conteudo_id: p.conteudo_id ?? undefined };
+  if (p.estado !== "pronta_criar" && p.estado !== "adiada") return { ok: false, motivo: "O envio real desta edição ainda não foi confirmado pela E-goi." };
+  await sb.from("nl_conteudos_jobs").update({ estado: "pendente", erro: null, proxima_tentativa_em: new Date().toISOString() })
+    .eq("id", p.job_id!).eq("estado", ESTADO_APOS_CONFIRMACAO);
+  await sb.from("nl_conteudos_derivados").update({ adiado_em: null, adiado_por: null }).eq("id", p.conteudo_id!);
+  await sb.from("nl_audit_log").insert({ quem: userId, accao: "Carrossel da edição pedido", detalhe: `edição ${edicaoId}` }).then(() => {}, () => {});
+  await processarJobs(1);
+  return { ok: true, conteudo_id: p.conteudo_id ?? undefined };
+}
+
+/** "Mais tarde": persisted per edition; never deletes or regenerates anything. */
+export async function adiarProposta(edicaoId: string, userId: string): Promise<{ ok: boolean }> {
+  const sb = admin();
+  const p = await propostaDaEdicao(edicaoId);
+  if (p.estado !== "pronta_criar" || !p.conteudo_id) return { ok: p.estado === "adiada" };
+  await sb.from("nl_conteudos_derivados").update({ adiado_em: new Date().toISOString(), adiado_por: userId })
+    .eq("id", p.conteudo_id).is("adiado_em", null);
+  return { ok: true };
+}
+
+/**
+ * Explicit pre-send TEST draft (e.g. edition 319): content row under TIPO_TESTE, no job, no
+ * E-goi calls, no send state touched. Idempotent per current composition (unique hash).
+ */
+export async function prepararTeste(edicaoId: string, userId: string): Promise<{ conteudo_id: string }> {
+  const sb = admin();
+  const fonte = await carregarFonteTeste(sb, edicaoId);
+  const c = await garantirConteudo(sb, fonte, TIPO_TESTE);
+  await sb.from("nl_audit_log").insert({ quem: userId, accao: "Rascunho de teste do carrossel (pré-envio) preparado", detalhe: `edição ${fonte.numero}` }).then(() => {}, () => {});
+  return { conteudo_id: c.id };
 }

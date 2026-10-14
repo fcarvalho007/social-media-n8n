@@ -8,6 +8,7 @@ import { zodValidator, fallback } from "@/newsletter/shim/zod-adapter";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { previewEdicaoFn } from "@/newsletter/lib/envio.functions";
+import { PropostaCarrossel } from "@/components/newsletter/PropostaCarrossel";
 
 import {
   listarEnviadas,
@@ -741,6 +742,7 @@ function ModalPreviewEdicao({ edicaoId, numero, onClose }: { edicaoId: string; n
 
   return (
     <ModalBase titulo={`Pré-visualização · Edição #${numero}`} onClose={onClose}>
+      <div className="p-3"><PropostaCarrossel edicaoId={edicaoId} numero={numero} enviada /></div>
       <div style={{ background: "#EEF1F5", minHeight: 300 }}>
         {q.isLoading && (
           <div className="flex items-center justify-center py-16" style={{ color: "#94A3B8" }}>
