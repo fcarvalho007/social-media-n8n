@@ -6263,6 +6263,7 @@ export type Database = {
         Args: { _documento: Json; _project_id: string }
         Returns: undefined
       }
+      social_membro: { Args: never; Returns: boolean }
       social_pode_escrever: { Args: never; Returns: boolean }
       social_tem_papel: { Args: never; Returns: boolean }
       update_account_insight_visibility: {
