@@ -10,7 +10,7 @@
 - Public newsletter reads go only through the nl-publico edge function (archive lists sent editions only; an edition whose web destination is published also opens by direct link, marked noindex; token-signed subscription actions); webhooks/cron go through nl-hooks with their own auth; keeps nl-api staff-only.
 - scripts/verificar-grafo-edge.py (run by the generator) walks every edge entrypoint including literal dynamic imports and runs deno check on nl-* functions; tsc/Vite alone miss Deno-only and lazily-loaded failures.
 - Send evidence on nl_edicoes (estado enviada, enviada_em, snapshot_envio, fecho_pendente_em) and nl_egoi_campanhas rows are writable only by the service role (trigger + RLS); client sessions can edit content only.
-- Social tables (posts_drafts, stories, scheduled_jobs) are team-shared for reading, but writes require admin/editor via social_pode_escrever(); profiles are editable only by their owner or an admin; server jobs use the service role and bypass RLS.
+- Social/analytics tables are readable by the owner or team members (social_membro(): any user_roles row); writes need admin/editor via social_pode_escrever() or ownership; no USING(true); server jobs use the service role.
 - Updating an existing social draft never rewrites user_id or project_id; project_id is set only on insert from the persisted Studio choice, preserving authorship.
 - Social draft lists and Studio counts read team drafts filtered server-side by project only (cache keyed by user + project; old drafts without project only under "todos", never auto-assigned); keeps counts and lists consistent without narrowing team visibility.
 - DocumentoGrafico v1 stays separate from legacy flows; slide order follows logical ids across narrative and both variants.
