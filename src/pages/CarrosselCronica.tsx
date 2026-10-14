@@ -106,6 +106,7 @@ export default function CarrosselCronica() {
   const c = dados.conteudo;
   const fontePorRever = fonte.origem === "historico_actual" && !c.fonte_aceite_em;
   const slide = carrossel?.slides[indice];
+  const newsletter = !!fonte.destaques?.length;
 
   const executar = async (nome: string, f: () => Promise<void>) => {
     setAcao(nome); setErro(null);
@@ -168,7 +169,7 @@ export default function CarrosselCronica() {
           <Link to="/estudio/redes-sociais" className="text-xs text-muted-foreground hover:underline"
             onClick={(e) => { if (alterado) { e.preventDefault(); setSairPendente("/estudio/redes-sociais"); } }}>← Carrosséis</Link>
           <h1 className="flex flex-wrap items-center gap-2 text-2xl font-semibold">
-            Carrossel da crónica
+            {newsletter ? "Carrossel da newsletter" : "Carrossel da crónica"}
             {fonte.teste && <Badge variant="outline" className="border-warning text-warning">Teste · pré-envio</Badge>}
           </h1>
           {fonte.teste && (
@@ -238,7 +239,9 @@ export default function CarrosselCronica() {
 
       {!carrossel && (
         <p className="rounded-md border p-4 text-sm text-muted-foreground">
-          Ainda não há proposta. {dados.job ? "A preparação automática continua na fila." : ""} A proposta terá 6 a 8 slides: capa, argumento da crónica e convite à leitura.
+          Ainda não há proposta. {dados.job ? "A preparação automática continua na fila." : ""} {newsletter
+            ? `A proposta terá capa, 2 a 3 slides da crónica, os ${fonte.destaques!.length} destaques (síntese, fonte original e leitura aprovada completa, repartida por vários slides quando é longa) e um convite à edição completa.`
+            : "A proposta terá 6 a 8 slides: capa, argumento da crónica e convite à leitura."}
         </p>
       )}
 
@@ -280,7 +283,7 @@ export default function CarrosselCronica() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="legenda">Legenda ({carrossel.legenda.length}/{LIMITES.legenda}) · o endereço da crónica é acrescentado no fim</Label>
+              <Label htmlFor="legenda">Legenda ({carrossel.legenda.length}/{LIMITES.legenda}) · {newsletter ? "as ligações da crónica, da edição, das fontes e do curso são acrescentadas no fim" : "o endereço da crónica é acrescentado no fim"}</Label>
               <Textarea id="legenda" rows={6} value={carrossel.legenda} onChange={(e) => { setCarrossel({ ...carrossel, legenda: e.target.value }); setAlterado(true); }} />
             </div>
             {dados.versoes.length > 0 && (

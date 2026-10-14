@@ -15,7 +15,7 @@ const json = (b: unknown, s = 200) =>
 
 const uuid = z.string().uuid();
 const carrosselZ = z.object({
-  slides: z.array(z.object({ titulo: z.string(), texto: z.string(), fontes: z.array(z.number().int()) }).strict()).min(1).max(12),
+  slides: z.array(z.object({ titulo: z.string(), texto: z.string(), fontes: z.array(z.number().int()) }).strict()).min(1).max(20),
   legenda: z.string(),
 }).strict();
 const urlPdfs = z.string().url().max(1000);
@@ -59,7 +59,7 @@ const Body = z.discriminatedUnion("acao", [
   z.object({ acao: z.literal("guardar"), conteudo_id: uuid, versao: z.number().int().nonnegative(), carrossel: carrosselZ, origem: z.enum(["edicao", "ia_manual"]) }),
   z.object({
     acao: z.literal("enviar_social"), conteudo_id: uuid, versao: z.number().int().positive(),
-    imagens: z.array(urlPdfs).min(6).max(8), pdf_url: urlPdfs, substituir: z.boolean().default(false),
+    imagens: z.array(urlPdfs).min(6).max(20), pdf_url: urlPdfs, substituir: z.boolean().default(false),
   }),
 ]);
 

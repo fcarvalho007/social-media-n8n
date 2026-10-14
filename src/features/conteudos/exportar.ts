@@ -49,7 +49,7 @@ export async function desenharSlide(canvas: HTMLCanvasElement, carrossel: Carros
   ctx.textAlign = "right";
   ctx.fillStyle = escuro ? R.escuroTexto : R.textoSec;
   ctx.font = `400 26px ${CORPO}`;
-  ctx.fillText(`Crónica · #${fonte.numero}`, 1000, 84);
+  ctx.fillText(`${fonte.destaques?.length ? "Newsletter" : "Crónica"} · #${fonte.numero}`, 1000, 84);
   ctx.textAlign = "left";
   ctx.fillStyle = escuro ? R.branco : R.navy;
   bloco(ctx, slide.titulo, 240, 360, indice === 0 ? 96 : 78, 42, true);
@@ -92,11 +92,11 @@ export async function gerarFicheiros(carrossel: Carrossel, fonte: FonteCronica):
   const pngs = await Promise.all(telas.map(paraPng));
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: [540, 675], orientation: "portrait", compress: true });
-  doc.setProperties({ title: fonte.titulo, author: "Frederico Carvalho", subject: "DIGITALSPRINT · Carrossel da crónica" });
+  doc.setProperties({ title: fonte.titulo, author: "Frederico Carvalho", subject: fonte.destaques?.length ? "DIGITALSPRINT · Carrossel da newsletter" : "DIGITALSPRINT · Carrossel da crónica" });
   telas.forEach((c, i) => {
     if (i) doc.addPage([540, 675], "portrait");
     doc.addImage(c.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 540, 675);
-    if (i === telas.length - 1) doc.link(0, 0, 540, 675, { url: fonte.url });
+    if (i === telas.length - 1) doc.link(0, 0, 540, 675, { url: fonte.edicaoUrl || fonte.url });
   });
   return { pngs, pdf: doc.output("blob") };
 }
