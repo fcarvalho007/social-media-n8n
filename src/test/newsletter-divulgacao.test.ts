@@ -22,6 +22,12 @@ describe("divulgação editorial sem IA", () => {
     expect(d.story.titulo).toBe(fonte.titulo); expect(d.story.texto).toBe(fonte.paragrafos[0]);
     expect(d.fonte_hash).toBe(fonte.hash); expect(d.story.url).toContain("utm_content=story_d0");
   });
+  it("não repete o título importado como primeiro parágrafo, mesmo com pontuação", () => {
+    const d = prepararDivulgacaoBase({ ...fonte, paragrafos: [fonte.titulo + ".", "A crónica", fonte.paragrafos[0]] }, null);
+    expect(d.story.texto).toBe(fonte.paragrafos[0]);
+    const semCorpo = prepararDivulgacaoBase({ ...fonte, paragrafos: [fonte.titulo + "."] }, null);
+    expect(semCorpo.story.texto).toBe("Já podes ler a crónica da edição #319.");
+  });
   it("um excerto longo é identificado por reticências, sem inventar texto", () => {
     const d = prepararDivulgacaoBase({ ...fonte, paragrafos: ["Uma frase verdadeira. ".repeat(40)] }, null);
     expect(d.story.texto.length).toBeLessThanOrEqual(260); expect(d.story.texto.endsWith("…")).toBe(true);

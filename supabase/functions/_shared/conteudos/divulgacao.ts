@@ -22,7 +22,10 @@ export function validarStory(s: StoryEdicao): StoryEdicao {
 export function prepararDivulgacaoBase(fonte: FonteCronica, confirmadoEm: string | null): DivulgacaoEdicao {
   if (!fonte.teste && (!confirmadoEm || !Number.isFinite(Date.parse(confirmadoEm)))) throw new Error("A divulgação automática precisa de um envio real confirmado.");
   const titulo = fonte.titulo.length <= LIMITES_STORY.titulo ? fonte.titulo : `A crónica da edição #${fonte.numero}`;
-  const primeiro = fonte.paragrafos.find((p) => p.trim() && !p.startsWith("[Destaque")) ?? "";
+  const normalizarTitulo = (t: string) => t.replace(/\s+/g, " ").trim().toLocaleLowerCase("pt-PT").replace(/[.!?:;…]+$/, "");
+  const candidatos = fonte.paragrafos.filter((p) => p.trim() && !p.startsWith("[Destaque") && normalizarTitulo(p) !== normalizarTitulo(fonte.titulo));
+  // Imported HTML may repeat the heading as paragraph 1. Prefer prose to a short section label.
+  const primeiro = candidatos.find((p) => p.trim().length >= 80) ?? candidatos[0] ?? "";
   // A literal excerpt with an explicit ellipsis, never presented as a full quotation.
   const partes = dividirTexto(primeiro, LIMITES_STORY.texto - 2);
   const texto = partes.length ? `${partes[0]}${partes.length > 1 ? "…" : ""}` : `Já podes ler a crónica da edição #${fonte.numero}.`;
