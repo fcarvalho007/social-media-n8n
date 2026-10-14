@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { estadoProposta, ESTADO_APOS_CONFIRMACAO } from "../../supabase/functions/_shared/conteudos/proposta";
 import { legendaComLink, paragrafoDestaque, validarCarrossel, CURSO_IA_URL, type DestaqueFonte } from "../../supabase/functions/_shared/conteudos/carrossel";
-import { destaquesDaEdicao } from "../../supabase/functions/_shared/conteudos/fonte.server";
+import { destaquesDaEdicao } from "../../supabase/functions/_shared/conteudos/destaques";
 
 const real = (estado: string) => ({ estado, tipo: "real" });
 const teste = (estado: string) => ({ estado, tipo: "teste" });
