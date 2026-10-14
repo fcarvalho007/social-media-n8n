@@ -94,14 +94,9 @@ export function caminhoCanonicoEdicao(numero: number): string {
 
 /** Base configurável das edições públicas (`configuracoes.edicoes_base_url`). */
 export async function baseUrlEdicoes(sb?: SupabaseClient): Promise<string> {
-  const db = sb ?? admin();
-  const { data } = await db
-    .from("nl_configuracoes")
-    .select("valor")
-    .eq("chave", "edicoes_base_url")
-    .maybeSingle();
-  const v = ((data as { valor: string | null } | null)?.valor ?? "").trim();
-  return (v || BASE_URL_PADRAO).replace(/\/+$/, "");
+  void sb;
+  const { baseParaLinks } = await import("../../nl-publico-config.ts");
+  return baseParaLinks();
 }
 
 /** URL absoluta canónica — só resolvida onde é mesmo precisa (email, OG). */
