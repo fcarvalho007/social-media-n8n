@@ -49,7 +49,7 @@ export async function desenharSlide(canvas: HTMLCanvasElement, carrossel: Carros
   ctx.textAlign = "right";
   ctx.fillStyle = escuro ? R.escuroTexto : R.textoSec;
   ctx.font = `400 26px ${CORPO}`;
-  ctx.fillText(`Crónica · #${fonte.numero}`, 1000, 84);
+  ctx.fillText(`${fonte.destaques?.length ? "Newsletter" : "Crónica"} · #${fonte.numero}`, 1000, 84);
   ctx.textAlign = "left";
   ctx.fillStyle = escuro ? R.branco : R.navy;
   bloco(ctx, slide.titulo, 240, 360, indice === 0 ? 96 : 78, 42, true);
