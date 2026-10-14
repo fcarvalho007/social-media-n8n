@@ -1,11 +1,11 @@
 # Roadmap
 
 ## Briefs dos três destaques da edição 319
-- [ ] Confirmar conteúdos aprovados, fontes e destinos de formação
-- [ ] Apresentar plano para ativação e publicação limitada aos três Briefs existentes
-- [ ] Implementar ligações, acesso público seguro e formação após análise
-- [ ] Preencher e publicar somente os três Briefs, preservando leituras literalmente
-- [ ] Testar percurso público, renderizadores e ausência de exposição de rascunhos
+- [x] Confirmar conteúdos aprovados, fontes e destinos de formação
+- [x] Apresentar plano para ativação e publicação limitada aos três Briefs existentes
+- [x] Implementar ligações, acesso público seguro e formação após análise
+- [x] Preencher e publicar somente os três Briefs, preservando leituras literalmente
+- [x] Testar percurso público e ausência de exposição de rascunhos; verificar condições dos renderizadores sem enviar emails
 
 - [x] Instalar PR #2 (commit a5a5f214): migração 0040, funções Edge e validações sem efeitos externos
 - [x] Refinar o ecrã «Criar» com percursos Manual/IA, formatos reais e n8n discreto
