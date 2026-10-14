@@ -322,6 +322,20 @@ HOOKS_INTERNOS = ("curadoria-ferramentas", "curadoria-rss", "email-newsletter", 
 
 # Targeted server fixes so the strict type-check (and declaration emit) passes. Patterns must exist.
 SERVER_FIXES = {
+    # Public edition links (newsletter, chronicle footer, archive) follow NL_PUBLIC_BASE_URL;
+    # the imported edicoes_base_url still points at the origin app, which no longer serves /edicoes.
+    "engine/revista/destinos.server.ts": [
+        ('  const db = sb ?? admin();\n  const { data } = await db\n    .from("nl_configuracoes")\n    .select("valor")\n    .eq("chave", "edicoes_base_url")\n    .maybeSingle();\n  const v = ((data as { valor: string | null } | null)?.valor ?? "").trim();\n  return (v || BASE_URL_PADRAO).replace(/\\/+$/, "");',
+         '  void sb;\n  const { baseParaLinks } = await import("../../nl-publico-config.ts");\n  return baseParaLinks();'),
+    ],
+    "engine/revista/texto.server.ts": [
+        ('import { sequenciaCronica } from "./sequencia-cronica.ts";',
+         'import { sequenciaCronica } from "./sequencia-cronica.ts";\nimport { linkSubscricao } from "../../nl-publico-config.ts";'),
+        ('L.push("Gerir a subscrição: https://edicoes.digitalsprint.pt/subscricao?e={!email:URLENCODE}");',
+         'L.push(`Gerir a subscrição: ${linkSubscricao()}`);'),
+        ('L.push("Cancelar a subscrição: https://edicoes.digitalsprint.pt/subscricao?a=cancelar&e={!email:URLENCODE}");',
+         'L.push(`Cancelar a subscrição: ${linkSubscricao("cancelar")}`);'),
+    ],
     "engine/revista/render-email.server.ts": [
         ('const URL_CANCELAR = "https://edicoes.digitalsprint.pt/subscricao?a=cancelar&e={!email:URLENCODE}";',
          'const URL_CANCELAR = linkSubscricao("cancelar");\nimport { linkSubscricao } from "../../nl-publico-config.ts";'),
