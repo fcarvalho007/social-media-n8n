@@ -33,8 +33,8 @@ describe("divulgação editorial sem IA", () => {
     expect(d.story.texto.length).toBeLessThanOrEqual(260); expect(d.story.texto.endsWith("…")).toBe(true);
     expect("Uma frase verdadeira. ".repeat(40).startsWith(d.story.texto.slice(0, -1))).toBe(true);
   });
-  it("o carrossel do dia seguinte tem 8 slides e as três leituras literais", () => {
-    const c = carrosselDivulgacao(fonte)!; expect(c.slides).toHaveLength(8);
+  it("o carrossel reparte as leituras longas e conserva as três leituras literais", () => {
+    const c = carrosselDivulgacao(fonte)!; expect(c.slides).toHaveLength(10);
     expect(() => verificarLeiturasLiterais(c, fonte)).not.toThrow();
     const l = legendaComLink(c, fonte); expect(l).toContain("utm_content=carrossel_d1");
     expect(l).toContain("tek.sapo.pt"); expect(l).toContain("curso-de-inteligencia-artificial");
@@ -76,6 +76,13 @@ function banco(carrossel: unknown = null) {
   return { sb, row, rpcCount: () => rpcCount };
 }
 describe("persistência e idempotência", () => {
+  it("uma mudança concorrente à origem do carrossel impede guardar uma composição desatualizada", async () => {
+    const b = banco({ slides: [] }); await garantirDivulgacao(b.sb, "id", null);
+    const d = b.row.divulgacao as ReturnType<typeof prepararDivulgacaoBase>;
+    b.row.versao = 2;
+    await expect(guardarDivulgacao(b.sb, "id", 1, { ...d, estado: "revisto" }, 1)).rejects.toThrow("Outro editor");
+    expect(b.row.divulgacao_versao).toBe(1); expect((b.row.divulgacao as typeof d).estado).toBe("rascunho");
+  });
   it("refresh/reconciliação nunca duplicam nem substituem edições humanas", async () => {
     const b = banco(); await garantirDivulgacao(b.sb, "id", null);
     const c = b.row.carrossel; const editado = { ...b.row.divulgacao as object, estado: "revisto" };

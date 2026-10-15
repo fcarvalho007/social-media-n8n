@@ -22,9 +22,11 @@ export async function garantirDivulgacao(sb: SupabaseClient, id: string, confirm
   }
 }
 
-export async function guardarDivulgacao(sb: SupabaseClient, id: string, versao: number, divulgacao: DivulgacaoEdicao) {
-  const { data, error } = await sb.from("nl_conteudos_derivados").update({ divulgacao, divulgacao_versao: versao + 1 })
-    .eq("id", id).eq("divulgacao_versao", versao).select("divulgacao, divulgacao_versao");
+export async function guardarDivulgacao(sb: SupabaseClient, id: string, versao: number, divulgacao: DivulgacaoEdicao, versaoCarrossel?: number) {
+  let q = sb.from("nl_conteudos_derivados").update({ divulgacao, divulgacao_versao: versao + 1 })
+    .eq("id", id).eq("divulgacao_versao", versao);
+  if (versaoCarrossel !== undefined) q = q.eq("versao", versaoCarrossel);
+  const { data, error } = await q.select("divulgacao, divulgacao_versao");
   if (error) throw new Error(error.message);
   if (!data?.length) throw Object.assign(new Error("Outro editor guardou uma versão mais recente. O teu texto continua aqui; copia-o antes de reabrir o rascunho."), { status: 409 });
   return data[0];
