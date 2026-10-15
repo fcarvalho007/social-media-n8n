@@ -51,6 +51,8 @@ A opinião conserva o fundo navy, o título «A minha leitura» e a assinatura d
 
 ## Rascunhos automáticos no compositor
 
+Reforço instalado em 15 de outubro de 2026, a partir do commit `adf1051b44fa4505001b21be7c74e9ce05daee1f`: `nl-conteudos`, `nl-worker-conteudos`, `nl-api`, `nl-newsletter` e `nl-hooks` republicadas com os módulos partilhados. A interface publicada mantém o mesmo design; não houve nova migração, alteração de dados ou permissões, nem envio real para validar.
+
 O padrão para novas newsletters é o design DIGITALSPRINT instalado: Story da crónica, carrossel dos três destaques, opinião «A minha leitura», sem retrato, e fecho orientado à subscrição. O processo só avança quando a E-goi confirma `sent` numa lista real; aceitar um envio, enviar para «interno» ou preparar um teste não satisfaz essa condição. A confirmação depende da reconciliação do worker; não se promete preparação instantânea no clique de envio.
 
 Depois da confirmação, a preparação gratuita grava também os dois documentos gráficos em `divulgacao.composicoes`, com estado de rascunho, para edição direta no compositor existente. Não é necessário abrir o compositor nem clicar Guardar para criar a primeira cópia visual. Só os documentos em falta são preenchidos: rascunhos e composições manuais existentes mantêm-se, incluindo quando há nova reconciliação ou repetição do pedido.
