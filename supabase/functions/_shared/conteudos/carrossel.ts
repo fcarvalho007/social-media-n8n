@@ -110,13 +110,17 @@ export function linkDivulgacao(url: string, numero: number, peca: "story_d0" | "
   return u.toString();
 }
 
+export const URL_SUBSCRICAO = "https://fredericocarvalho.pt/newsletter-marketing-economia-digital/";
+export const ENDERECO_SUBSCRICAO = "podes.entrar.pt/news";
+export const TITULO_SUBSCRICAO = "Recebe a próxima edição";
+
 
 export function legendaComLink(
   carrossel: Carrossel,
   fonte: Pick<FonteCronica, "url" | "destaques" | "edicaoUrl" | "cursoUrl"> & { numero?: number },
 ): string {
   const link = (url: string) => fonte.numero ? linkDivulgacao(url, fonte.numero, "carrossel_d1") : url;
-  const linhas = [`Ler a crónica: ${link(fonte.url)}`];
+  const linhas = [...(fonte.destaques?.length ? [`Subscreve gratuitamente: ${link(URL_SUBSCRICAO)}`] : []), `Ler a crónica: ${link(fonte.url)}`];
   if (fonte.edicaoUrl) linhas.push(`Edição completa: ${link(fonte.edicaoUrl)}`);
   const fontes = [...new Set((fonte.destaques ?? []).map((d) => d.publisher).filter(Boolean))];
   if (fontes.length) linhas.push(`Fontes dos destaques: ${fontes.join(", ")}`);
@@ -262,12 +266,10 @@ export function verificarLeiturasLiterais(carrossel: Carrossel, fonte: Pick<Font
   });
 }
 
-export function slideFinalNewsletter(fonte: Pick<FonteCronica, "numero" | "destaques" | "cursoUrl">): Slide {
-  const n = fonte.destaques?.length ?? 0;
-  const curso = fonte.cursoUrl ? " e o Curso de inteligência artificial" : "";
+export function slideFinalNewsletter(_fonte: Pick<FonteCronica, "numero" | "destaques" | "cursoUrl">): Slide {
   return {
-    titulo: "Lê a edição completa",
-    texto: `A crónica, ${n === 1 ? "o destaque" : `os ${n} destaques`} com as fontes originais e as restantes novidades estão na edição #${fonte.numero} da newsletter DIGITALSPRINT. As ligações para a edição${curso} estão na legenda.`,
+    titulo: TITULO_SUBSCRICAO,
+    texto: "Marketing, IA e negócios, com a minha leitura. Gratuita. Uma vez por semana.",
     fontes: [],
   };
 }

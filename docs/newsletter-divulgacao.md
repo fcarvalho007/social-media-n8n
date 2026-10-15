@@ -41,9 +41,17 @@ A preparação e a repartição do texto continuam sem IA paga. As alternativas 
 
 As práticas de carrossel aplicadas são hierarquia legível, contraste, uma ideia por slide, fonte e autoria visíveis, um convite principal, margens e exportações consistentes. O número de slides resulta do conteúdo e do encaixe. Não se assume um número ótimo rígido, uma grelha quadrada obrigatória ou uma promessa de desempenho algorítmico.
 
+## Refinamento de subscrição — 15 de outubro
+
+O último slide das novas propostas promove a subscrição: «Recebe a próxima edição», um benefício curto e `podes.entrar.pt/news`. A ligação curta foi aberta no navegador e encaminhou para a página de inscrição, com o formulário E-goi disponível. A legenda e a ligação do PDF usam o destino canónico `https://fredericocarvalho.pt/newsletter-marketing-economia-digital/`, com UTM. A edição completa, a crónica, as fontes e o curso continuam nas referências da legenda; deixam de disputar o convite principal no último slide. Partilhar é um convite secundário na legenda. Não se reproduzem números de leitores ou superlativos do exemplo fornecido sem confirmação.
+
+As composições já guardadas são preservadas. Para adotar o fecho novo num rascunho existente, edita o último slide de origem, guarda e usa «Recriar a partir do texto» no compositor. Só «Guardar composição» substitui a cópia visual guardada.
+
+A opinião conserva o fundo navy, o título «A minha leitura» e a assinatura discreta `@fredericocarvalho`, sem fotografia automática.
+
 ## Medição
 
-As ligações preparadas usam `utm_source=instagram`, `utm_medium=organic_social`, `utm_campaign=digitalsprint_<numero>` e `utm_content=story_d0` ou `carrossel_d1`. O Story aponta para a crónica; as ligações acrescentadas à legenda do carrossel permitem distinguir a segunda peça. Se editares a ligação do Story, confirma que os UTM pretendidos continuam presentes.
+As ligações preparadas usam `utm_source=instagram`, `utm_medium=organic_social`, `utm_campaign=digitalsprint_<numero>` e `utm_content=story_d0` ou `carrossel_d1`. O Story aponta para a crónica; a subscrição e as ligações acrescentadas à legenda do carrossel permitem distinguir a segunda peça. Se editares a ligação do Story, confirma que os UTM pretendidos continuam presentes.
 
 Compara visitas à crónica/edição e cliques no autocolante; para o carrossel, acompanha também guardados e partilhas. A avaliação cruza os dados do site com os dados da conta Instagram. «Dia do envio» e «Dia seguinte» são sugestões editoriais; o Hub não define uma hora nem garante resultados.
 

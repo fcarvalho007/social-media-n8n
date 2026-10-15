@@ -131,7 +131,7 @@ export function DivulgacaoEditor({ id, fonte, inicial, versaoInicial = 0, onActu
         </div>}
       </TabsContent>
       <TabsContent value="carrossel" forceMount className="mt-0 flex flex-col gap-4 data-[state=inactive]:hidden">
-        <div className="flex flex-col gap-1"><h3 className="text-lg font-semibold">Dar uma segunda razão para ler</h3><p className="max-w-prose text-sm text-muted-foreground">No dia seguinte, explora os destaques e a tua leitura. Revê a capa, confirma as fontes e usa a ligação à edição no perfil. Mede visitas, guardados e partilhas. O intervalo é uma sugestão, não um agendamento.</p></div>
+        <div className="flex flex-col gap-1"><h3 className="text-lg font-semibold">Dar uma segunda razão para ler</h3><p className="max-w-prose text-sm text-muted-foreground">No dia seguinte, explora os destaques e a tua leitura. Revê a capa, confirma as fontes e usa a ligação de subscrição no perfil. Mede visitas, guardados e partilhas. O intervalo é uma sugestão, não um agendamento.</p></div>
         {children}
       </TabsContent>
     </Tabs>

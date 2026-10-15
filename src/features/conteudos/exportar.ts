@@ -5,6 +5,7 @@ import { comporCarrossel, comporStory } from "../../../supabase/functions/_share
 import { layoutTexto, resolverTexto, type PacoteProva } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
 import { renderizarPaginaPng } from "@/features/editor-grafico/desenho";
+import { TITULO_SUBSCRICAO, URL_SUBSCRICAO, linkDivulgacao } from "../../../supabase/functions/_shared/conteudos/carrossel";
 
 export async function desenharPacote(canvas: HTMLCanvasElement, pacote: PacoteProva, indice: number) {
   const m = await carregarMedidor();
@@ -56,7 +57,7 @@ export async function gerarFicheiros(carrossel: Carrossel, fonte: FonteCronica, 
   telas.forEach((c, i) => {
     if (i) doc.addPage([540, 675], "portrait");
     doc.addImage(c.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 540, 675);
-    if (i === telas.length - 1) doc.link(0, 0, 540, 675, { url: fonte.edicaoUrl || fonte.url });
+    if (i === telas.length - 1) doc.link(0, 0, 540, 675, { url: carrossel.slides.at(-1)?.titulo === TITULO_SUBSCRICAO ? linkDivulgacao(URL_SUBSCRICAO, fonte.numero, "carrossel_d1") : fonte.edicaoUrl || fonte.url });
   });
   return { pngs, pdf: doc.output("blob") };
 }

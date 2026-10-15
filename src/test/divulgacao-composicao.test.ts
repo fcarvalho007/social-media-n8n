@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { parse } from "opentype.js";
 import { comporCarrossel, comporStory, repartirParaLeitura, assinaturaComposicao, validarComposicao } from "../../supabase/functions/_shared/conteudos/apresentacao";
 import { carrosselDivulgacao, prepararDivulgacaoBase } from "../../supabase/functions/_shared/conteudos/divulgacao";
-import { verificarLeiturasLiterais } from "../../supabase/functions/_shared/conteudos/carrossel";
+import { verificarLeiturasLiterais, TITULO_SUBSCRICAO, legendaComLink, URL_SUBSCRICAO } from "../../supabase/functions/_shared/conteudos/carrossel";
 import { criarMedidor, layoutTexto, resolverTexto, type FonteOT, type PacoteProva } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { fonteDivulgacao as fonte } from "../dev/divulgacaoFixture";
 
@@ -76,5 +76,19 @@ describe("composição editorial da divulgação", () => {
   it("recusa mais de 20 slides em vez de apagar conteúdo", () => {
     const grande = { ...c, slides: Array.from({ length: 20 }, () => ({ titulo: "Argumento", texto: "Uma frase. ".repeat(30), fontes: [1] })) };
     expect(() => repartirParaLeitura(grande)).toThrow("Nada foi cortado");
+  });
+  it("o fecho promove a subscrição sem acumular fontes e mantém a leitura na legenda", () => {
+    expect(c.slides.at(-1)?.titulo).toBe(TITULO_SUBSCRICAO);
+    expect(c.slides.at(-1)?.texto).not.toMatch(/fontes|curso|legenda/i);
+    const legenda = legendaComLink(c, fonte);
+    expect(legenda).toContain(`${URL_SUBSCRICAO}?utm_source=instagram`);
+    expect(legenda).toContain("Edição completa:");
+    expect(c.legenda).toContain("Partilha");
+  });
+  it("realça números completos sem destacar o algarismo dentro de B2B", () => {
+    const p = comporCarrossel("id", c, fonte);
+    const s = p.conteudo.slides.find(s => s.texto.includes("B2B"))!;
+    const corpo = p.variantes.A.paginas.flatMap(p => p.camadas).find(c => c.tipo === "texto" && c.ref === `${s.id}.texto`)!;
+    expect(corpo.tipo === "texto" && corpo.marcas?.map(m => s.texto.slice(m.inicio, m.fim))).not.toContain("2");
   });
 });

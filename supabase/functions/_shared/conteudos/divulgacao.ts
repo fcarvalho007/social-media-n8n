@@ -44,7 +44,7 @@ export function carrosselDivulgacao(fonte: FonteCronica): Carrossel | null {
   const c = validarCarrossel({
     slides: [{ titulo: `${fonte.destaques.length} notícias para ler com outra perspetiva`, texto: `Os factos, as fontes e a minha leitura. DIGITALSPRINT #${fonte.numero}.`, fontes: [] },
       ...slidesDosDestaques(fonte), slideFinalNewsletter(fonte)],
-    legenda: `Os destaques da DIGITALSPRINT #${fonte.numero}, com as fontes originais e a minha leitura.\n\nGuarda para ler com tempo. A edição completa reúne a crónica e as restantes novidades.`,
+    legenda: `Os destaques da DIGITALSPRINT #${fonte.numero}, com a minha leitura.\n\nRecebe a próxima edição: subscreve gratuitamente a DIGITALSPRINT.\n\nConheces alguém a quem esta leitura seria útil? Partilha o carrossel.`,
   }, fonte);
   verificarLeiturasLiterais(c, fonte);
   return c;

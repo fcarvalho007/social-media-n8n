@@ -1,6 +1,6 @@
 // DIGITALSPRINT launch artwork, expressed in the existing editable DocumentoGrafico.
 // No second renderer, paid generation, source rewriting or publication.
-import { dividirTexto, eSlideLeitura, TITULO_LEITURA, type Carrossel, type FonteCronica, type Slide } from "./carrossel.ts";
+import { dividirTexto, eSlideLeitura, TITULO_LEITURA, TITULO_SUBSCRICAO, ENDERECO_SUBSCRICAO, type Carrossel, type FonteCronica, type Slide } from "./carrossel.ts";
 import type { StoryEdicao, PecaDivulgacao } from "./divulgacao.ts";
 import { FONTE_DOC, validarPacote, type Camada, type CamadaTexto, type PacoteProva, type Pagina } from "../documento-grafico/nucleo.ts";
 
@@ -48,9 +48,10 @@ function identidade(escuro: boolean, numero: number, papel: string, i: number, t
 
 function paginaSlide(s: Slide, fonte: FonteCronica, i: number, total: number): Pagina {
   const papel = papelSlide(s, fonte, i, total), sid = `s${i + 1}`;
-  const escuro = papel === "capa" || papel === "leitura";
-  const fundo = papel === "fecho" ? TINTAS.lima : escuro ? TINTAS.tinta : TINTAS.papel;
-  const camadas = identidade(escuro, fonte.numero, { capa: "Newsletter", cronica: "Crónica", noticia: "Notícia", leitura: "Opinião", fecho: "Continua a leitura" }[papel], i, total);
+  const subscricao = papel === "fecho" && s.titulo === TITULO_SUBSCRICAO;
+  const escuro = papel === "capa" || papel === "leitura" || subscricao;
+  const fundo = escuro ? TINTAS.tinta : papel === "fecho" ? TINTAS.lima : TINTAS.papel;
+  const camadas = identidade(escuro, fonte.numero, subscricao ? "Newsletter semanal" : { capa: "Newsletter", cronica: "Crónica", noticia: "Notícia", leitura: "Opinião", fecho: "Continua a leitura" }[papel], i, total);
   if (papel === "leitura") {
     camadas.push(texto("A minha leitura", TITULO_LEITURA, 80, 225, 920, 100, 76, TINTAS.lima, 700),
       texto("Leitura aprovada", "", 80, 400, 920, 660, s.texto.length > 220 ? 56 : 66, TINTAS.branco, 400, `${sid}.texto`));
@@ -67,6 +68,13 @@ function paginaSlide(s: Slide, fonte: FonteCronica, i: number, total: number): P
     camadas.push(texto("Título", "", 80, 260, 920, 540, s.titulo.length > 75 ? 82 : s.titulo.length > 55 ? 94 : 106, TINTAS.branco, 700, `${sid}.titulo`),
       texto("Convite", "", 80, 810, 840, 300, 48, TINTAS.suave, 400, `${sid}.texto`),
       seta("Seta", 925, 1040, TINTAS.lima));
+  } else if (subscricao) {
+    camadas.push(ret("Linha azul", 0, 180, 1080, 8, TINTAS.azul),
+      texto("Título", "", 80, 255, 920, 360, 106, TINTAS.branco, 700, `${sid}.titulo`),
+      texto("Benefício", "", 80, 660, 920, 230, 54, TINTAS.suave, 400, `${sid}.texto`),
+      ret("Convite de subscrição", 64, 930, 952, 170, TINTAS.lima),
+      texto("Subscrever", "Subscreve a DIGITALSPRINT", 92, 950, 896, 55, 36, TINTAS.tinta, 700),
+      texto("Endereço de subscrição", ENDERECO_SUBSCRICAO, 92, 1018, 896, 70, 62, TINTAS.tinta, 700));
   } else if (papel === "fecho") {
     camadas.push(texto("Título", "", 80, 260, 920, 360, 100, TINTAS.tinta, 700, `${sid}.titulo`),
       texto("Convite", "", 80, 740, 920, 320, s.texto.length > 200 ? 44 : 52, TINTAS.tinta, 400, `${sid}.texto`),
@@ -80,7 +88,7 @@ function paginaSlide(s: Slide, fonte: FonteCronica, i: number, total: number): P
   if (papel === "noticia" || papel === "leitura") {
     const corpo = s.texto.replace(/\n\nFonte original: [^\n]+$/, "");
     const camada = camadas.find(c => c.tipo === "texto" && c.ref === `${sid}.texto`) as CamadaTexto | undefined;
-    if (camada) camada.marcas = [...corpo.matchAll(/\d[\d.,]*(?:\s?(?:milhões|mil|%))?/gu)].slice(0, 3).map(m => ({ inicio: m.index!, fim: m.index! + m[0].length, peso: 700, ...(papel === "noticia" ? { realce: TINTAS.lima } : { sublinhado: TINTAS.lima }) }));
+    if (camada) camada.marcas = [...corpo.matchAll(/(?<![\p{L}\p{N}])\d[\d.,]*(?:\s?(?:milhões|mil|%))?/gu)].slice(0, 3).map(m => ({ inicio: m.index!, fim: m.index! + m[0].length, peso: 700, ...(papel === "noticia" ? { realce: TINTAS.lima } : { sublinhado: TINTAS.lima }) }));
   }
   return { id: `p${i + 1}`, slide: sid, fundo, papel: { capa: "cover", cronica: "visual_story", noticia: "data", leitura: "concept", fecho: "conclusion" }[papel], camadas };
 }

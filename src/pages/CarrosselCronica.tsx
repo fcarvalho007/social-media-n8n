@@ -280,7 +280,7 @@ export default function CarrosselCronica() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="legenda">Legenda ({carrossel.legenda.length}/{LIMITES.legenda}) · {newsletter ? "as ligações da crónica, da edição, das fontes e do curso são acrescentadas no fim" : "o endereço da crónica é acrescentado no fim"}</Label>
+              <Label htmlFor="legenda">Legenda ({carrossel.legenda.length}/{LIMITES.legenda}) · {newsletter ? "as ligações de subscrição, da crónica, da edição, das fontes e do curso são acrescentadas no fim" : "o endereço da crónica é acrescentado no fim"}</Label>
               <Textarea id="legenda" rows={6} value={carrossel.legenda} onChange={(e) => { setCarrossel({ ...carrossel, legenda: e.target.value }); setAlterado(true); }} />
             </div>
             {dados.versoes.length > 0 && (
