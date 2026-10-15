@@ -8,6 +8,7 @@ import { legendaComLink, validarCarrossel, type FonteCronica } from "../_shared/
 
 import { garantirDivulgacao, guardarDivulgacao } from "../_shared/conteudos/divulgacao.server.ts";
 import { validarStory, type DivulgacaoEdicao } from "../_shared/conteudos/divulgacao.ts";
+import { assinaturaComposicao, validarComposicao } from "../_shared/conteudos/apresentacao.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -51,6 +52,8 @@ const Body = z.discriminatedUnion("acao", [
   z.object({ acao: z.literal("render_prova"), pacote: z.unknown(), variante: z.enum(["A", "B"]), pagina: z.number().int().min(0).max(19) }),
   z.object({ acao: z.literal("obter"), conteudo_id: uuid }),
   z.object({ acao: z.literal("preparar_divulgacao"), conteudo_id: uuid }),
+  z.object({ acao: z.literal("guardar_composicao"), conteudo_id: uuid, versao: z.number().int().positive(),
+    peca: z.enum(["story", "carrossel"]), base_assinatura: z.string().max(50000), pacote: z.unknown() }),
   z.object({ acao: z.literal("guardar_divulgacao"), conteudo_id: uuid, versao: z.number().int().positive(),
     story: z.object({ titulo: z.string().max(140), texto: z.string().max(260), cta: z.string().max(40), url: z.string().max(1500) }).strict(),
     estado: z.enum(["rascunho", "revisto"]),
@@ -159,6 +162,17 @@ Deno.serve(async (req) => {
         if (!c.divulgacao) return json({ error: "Prepara primeiro o conjunto de divulgação." }, 409);
         const story = validarStory(b.story);
         return json(await guardarDivulgacao(sb, c.id, b.versao, { ...c.divulgacao, story, estado: b.estado }));
+      }
+      case "guardar_composicao": {
+        const c = await lerConteudo(b.conteudo_id);
+        exigirFonte(c);
+        if (!c.divulgacao) return json({ error: "Prepara primeiro a divulgação." }, 409);
+        const atual = assinaturaComposicao(b.peca, c.fonte, c.carrossel as import("../_shared/conteudos/carrossel.ts").Carrossel | null, c.divulgacao.story);
+        if (atual !== b.base_assinatura) return json({ error: "O texto de origem mudou. A tua composição continua no editor; copia o JSON e reabre antes de guardar." }, 409);
+        const pacote = validarComposicao(b.pacote, b.peca, c.id);
+        return json(await guardarDivulgacao(sb, c.id, b.versao, { ...c.divulgacao, estado: "rascunho", composicoes: {
+          ...c.divulgacao.composicoes, [b.peca]: { pacote, base_assinatura: atual, guardado_em: new Date().toISOString() },
+        } }, b.peca === "carrossel" ? c.versao : undefined));
       }
       case "preparar": {
         const r = await enfileirarCarrossel(b.edicao_id, "manual");

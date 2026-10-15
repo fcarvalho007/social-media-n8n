@@ -1,68 +1,29 @@
 // Canvas rendering of the chronicle carousel (1080×1350). Preview and export share this drawing.
 import JSZip from "jszip";
-import { R } from "@/newsletter/lib/newsletter-engine/revista/tokens";
-import { DIMENSOES, legendaComLink, type Carrossel, type FonteCronica, type StoryEdicao } from "@/services/conteudos";
+import { legendaComLink, type Carrossel, type FonteCronica, type StoryEdicao } from "@/services/conteudos";
+import { comporCarrossel, comporStory } from "../../../supabase/functions/_shared/conteudos/apresentacao";
+import { layoutTexto, resolverTexto, type PacoteProva } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import { carregarMedidor } from "@/features/editor-grafico/fontes";
+import { renderizarPaginaPng } from "@/features/editor-grafico/desenho";
+import { TITULO_SUBSCRICAO, URL_SUBSCRICAO, linkDivulgacao } from "../../../supabase/functions/_shared/conteudos/carrossel";
 
-const TITULO = '"Space Grotesk", "Arial Black", Arial, sans-serif';
-const CORPO = '"Inter", Arial, sans-serif';
-
-function linhas(ctx: CanvasRenderingContext2D, texto: string, largura: number): string[] {
-  const out: string[] = [];
-  for (const par of texto.split(/\n/)) {
-    let linha = "";
-    for (const palavra of par.split(/\s+/).filter(Boolean)) {
-      if (ctx.measureText(palavra).width > largura) throw new Error("Uma palavra é demasiado longa para o slide. Divide-a antes de exportar.");
-      const cand = linha ? `${linha} ${palavra}` : palavra;
-      if (linha && ctx.measureText(cand).width > largura) { out.push(linha); linha = palavra; } else linha = cand;
-    }
-    if (linha) out.push(linha);
+export async function desenharPacote(canvas: HTMLCanvasElement, pacote: PacoteProva, indice: number) {
+  const m = await carregarMedidor();
+  const doc = pacote.variantes.A, pagina = doc.paginas[indice];
+  if (!pagina) throw new Error("Esta página já não existe na composição.");
+  for (const c of pagina.camadas) if (c.tipo === "texto" && layoutTexto(resolverTexto(c, pacote.conteudo), c.estilo, c.w, c.h, m, c.marcas).cortado) {
+    throw new Error(`O texto «${c.nome ?? c.id}» não cabe no slide ${indice + 1}. Reparte o texto ou ajusta a caixa no compositor.`);
   }
-  return out;
-}
-
-function bloco(ctx: CanvasRenderingContext2D, texto: string, y: number, altura: number, tamanho: number, minimo: number, negrito: boolean) {
-  let frases: string[] = [];
-  let corpo = tamanho;
-  for (; corpo >= minimo; corpo -= 2) {
-    ctx.font = `${negrito ? 700 : 400} ${corpo}px ${negrito ? TITULO : CORPO}`;
-    frases = linhas(ctx, texto, 920);
-    if (frases.length * corpo * 1.22 <= altura) break;
-  }
-  if (corpo < minimo) throw new Error("O texto não cabe no slide. Encurta-o antes de exportar.");
-  frases.forEach((l, i) => ctx.fillText(l, 80, y + i * corpo * 1.22));
-}
-
-export async function desenharSlide(canvas: HTMLCanvasElement, carrossel: Carrossel, fonte: FonteCronica, indice: number) {
-  await Promise.all([document.fonts.load(`700 80px ${TITULO}`), document.fonts.load(`400 44px ${CORPO}`)]).catch(() => undefined);
-  canvas.width = DIMENSOES.largura;
-  canvas.height = DIMENSOES.altura;
+  const url = await renderizarPaginaPng(pacote, "A", indice, m);
+  const img = await new Promise<HTMLImageElement>((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error("Não foi possível renderizar a composição.")); i.src = url; });
+  canvas.width = doc.largura; canvas.height = doc.altura;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Este navegador não permite desenhar o carrossel.");
-  const slide = carrossel.slides[indice];
-  const escuro = indice === 0 || indice === carrossel.slides.length - 1;
-  ctx.fillStyle = escuro ? R.navy : R.fundoCartao;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.textBaseline = "top";
-  ctx.fillStyle = escuro ? R.lima : R.navy;
-  ctx.font = `700 32px ${TITULO}`;
-  ctx.fillText("DIGITALSPRINT", 80, 80);
-  ctx.textAlign = "right";
-  ctx.fillStyle = escuro ? R.escuroTexto : R.textoSec;
-  ctx.font = `400 26px ${CORPO}`;
-  ctx.fillText(`${fonte.destaques?.length ? "Newsletter" : "Crónica"} · #${fonte.numero}`, 1000, 84);
-  ctx.textAlign = "left";
-  ctx.fillStyle = escuro ? R.branco : R.navy;
-  bloco(ctx, slide.titulo, 240, 360, indice === 0 ? 96 : 78, 42, true);
-  ctx.fillStyle = escuro ? R.escuroTexto : R.texto;
-  bloco(ctx, slide.texto, 670, 420, 44, 28, false);
-  ctx.fillStyle = escuro ? R.escuroFilete : R.filete;
-  ctx.fillRect(80, 1190, 920, 1);
-  ctx.fillStyle = escuro ? R.escuroTexto : R.textoSec;
-  ctx.font = `400 25px ${CORPO}`;
-  ctx.fillText("Frederico Carvalho", 80, 1230);
-  ctx.textAlign = "right";
-  ctx.fillText(`${indice + 1} / ${carrossel.slides.length}`, 1000, 1230);
-  ctx.textAlign = "left";
+  if (!ctx) throw new Error("Este navegador não permite desenhar a composição.");
+  ctx.drawImage(img, 0, 0);
+}
+
+export async function desenharSlide(canvas: HTMLCanvasElement, c: Carrossel, fonte: FonteCronica, indice: number, pacote?: PacoteProva) {
+  await desenharPacote(canvas, pacote ?? comporCarrossel(fonte.edicaoId, c, fonte), indice);
 }
 
 export function descarregar(blob: Blob, nome: string) {
@@ -73,12 +34,12 @@ export function descarregar(blob: Blob, nome: string) {
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
-async function renderizarTodos(carrossel: Carrossel, fonte: FonteCronica) {
+async function renderizarTodos(carrossel: Carrossel, fonte: FonteCronica, pacote?: PacoteProva) {
   // Render everything first: a failure never produces a partial file.
   const telas: HTMLCanvasElement[] = [];
-  for (let i = 0; i < carrossel.slides.length; i++) {
+  for (let i = 0; i < (pacote?.variantes.A.paginas.length ?? carrossel.slides.length); i++) {
     const c = document.createElement("canvas");
-    await desenharSlide(c, carrossel, fonte, i);
+    await desenharSlide(c, carrossel, fonte, i, pacote);
     telas.push(c);
   }
   return telas;
@@ -87,8 +48,8 @@ async function renderizarTodos(carrossel: Carrossel, fonte: FonteCronica) {
 const paraPng = (c: HTMLCanvasElement) =>
   new Promise<Blob>((ok, ko) => c.toBlob((b) => (b ? ok(b) : ko(new Error("Falha ao exportar uma imagem."))), "image/png"));
 
-export async function gerarFicheiros(carrossel: Carrossel, fonte: FonteCronica): Promise<{ pngs: Blob[]; pdf: Blob }> {
-  const telas = await renderizarTodos(carrossel, fonte);
+export async function gerarFicheiros(carrossel: Carrossel, fonte: FonteCronica, pacote?: PacoteProva): Promise<{ pngs: Blob[]; pdf: Blob }> {
+  const telas = await renderizarTodos(carrossel, fonte, pacote);
   const pngs = await Promise.all(telas.map(paraPng));
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: [540, 675], orientation: "portrait", compress: true });
@@ -96,14 +57,14 @@ export async function gerarFicheiros(carrossel: Carrossel, fonte: FonteCronica):
   telas.forEach((c, i) => {
     if (i) doc.addPage([540, 675], "portrait");
     doc.addImage(c.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 540, 675);
-    if (i === telas.length - 1) doc.link(0, 0, 540, 675, { url: fonte.edicaoUrl || fonte.url });
+    if (i === telas.length - 1) doc.link(0, 0, 540, 675, { url: carrossel.slides.at(-1)?.titulo === TITULO_SUBSCRICAO ? linkDivulgacao(URL_SUBSCRICAO, fonte.numero, "carrossel_d1") : fonte.edicaoUrl || fonte.url });
   });
   return { pngs, pdf: doc.output("blob") };
 }
 
-export async function exportarCarrossel(tipo: "pdf" | "zip", carrossel: Carrossel, fonte: FonteCronica) {
+export async function exportarCarrossel(tipo: "pdf" | "zip", carrossel: Carrossel, fonte: FonteCronica, pacote?: PacoteProva) {
   const legenda = legendaComLink(carrossel, fonte);
-  const { pngs, pdf } = await gerarFicheiros(carrossel, fonte);
+  const { pngs, pdf } = await gerarFicheiros(carrossel, fonte, pacote);
   const nome = `digitalsprint-${fonte.numero}-${fonte.destaques?.length ? "newsletter" : "cronica"}`;
   if (tipo === "pdf") return descarregar(pdf, `${nome}.pdf`);
   const zip = new JSZip();
@@ -112,27 +73,13 @@ export async function exportarCarrossel(tipo: "pdf" | "zip", carrossel: Carrosse
   descarregar(await zip.generateAsync({ type: "blob", compression: "STORE" }), `${nome}.zip`);
 }
 
-/** Same typography and palette as the carousel, with a 9:16 composition and room for a native link sticker. */
-export async function desenharStory(canvas: HTMLCanvasElement, story: StoryEdicao, numero: number) {
-  await Promise.all([document.fonts.load(`700 80px ${TITULO}`), document.fonts.load(`400 44px ${CORPO}`)]).catch(() => undefined);
-  canvas.width = 1080; canvas.height = 1920;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Este navegador não permite desenhar o Story.");
-  ctx.fillStyle = R.fundoCartao; ctx.fillRect(0, 0, 1080, 1920);
-  ctx.textBaseline = "top";
-  ctx.fillStyle = R.navy; ctx.fillRect(0, 0, 1080, 370);
-  ctx.fillStyle = R.lima; ctx.font = `700 42px ${TITULO}`; ctx.fillText("DIGITALSPRINT", 80, 270);
-  ctx.textAlign = "right"; ctx.fillStyle = R.escuroTexto; ctx.font = `400 30px ${CORPO}`; ctx.fillText(`#${numero}`, 1000, 278); ctx.textAlign = "left";
-  ctx.fillStyle = R.navy; bloco(ctx, story.titulo, 450, 520, 96, 52, true);
-  ctx.fillStyle = R.azul; ctx.fillRect(80, 1020, 920, 3);
-  ctx.fillStyle = R.texto; bloco(ctx, story.texto, 1080, 270, 44, 32, false);
-  // Native Instagram link sticker goes in the intentionally empty area below this invitation.
-  ctx.fillStyle = R.azul; bloco(ctx, story.cta, 1390, 120, 40, 28, true);
-  ctx.fillStyle = R.textoSec; ctx.font = `400 28px ${CORPO}`; ctx.fillText("Frederico Carvalho", 80, 1630);
+/** Story preview, layer editor and PNG export share the same canonical document. */
+export async function desenharStory(canvas: HTMLCanvasElement, story: StoryEdicao, numero: number, pacote?: PacoteProva) {
+  await desenharPacote(canvas, pacote ?? comporStory(`story-${numero}`, story, numero), 0);
 }
 
-export async function exportarStory(story: StoryEdicao, numero: number) {
+export async function exportarStory(story: StoryEdicao, numero: number, pacote?: PacoteProva) {
   const canvas = document.createElement("canvas");
-  await desenharStory(canvas, story, numero);
+  await desenharStory(canvas, story, numero, pacote);
   descarregar(await paraPng(canvas), `digitalsprint-${numero}-story-dia-envio.png`);
 }

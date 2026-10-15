@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   dividirTexto, gerarComReparacao, LIMITES, paragrafoDestaque, slidesDosDestaques, validarCarrossel, verificarLeiturasLiterais,
-  TITULO_LEITURA, type DestaqueFonte, type RespostaGerador,
+  TITULO_LEITURA, TITULO_SUBSCRICAO, type DestaqueFonte, type RespostaGerador,
 } from "../../supabase/functions/_shared/conteudos/carrossel";
 
 const LONGA = Array.from({ length: 9 }, (_, i) => `Esta é a frase número ${i + 1} da leitura aprovada, que tem de chegar intacta ao carrossel.`).join(" ");
@@ -57,7 +57,7 @@ describe("carrossel da newsletter com leituras longas", () => {
     expect(c.slides.length).toBeLessThanOrEqual(LIMITES.slidesMaxNewsletter);
     expect(() => validarCarrossel(c, fonte)).not.toThrow();
     expect(() => verificarLeiturasLiterais(c, fonte)).not.toThrow();
-    expect(c.slides[c.slides.length - 1].texto).toContain("#319");
+    expect(c.slides[c.slides.length - 1].titulo).toBe(TITULO_SUBSCRICAO);
   });
 
   it("resposta inválida da IA (slide da crónica a citar um destaque) é corrigida uma vez e depois falha", async () => {

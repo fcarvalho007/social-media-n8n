@@ -1,10 +1,11 @@
 import { DivulgacaoEditor } from "@/features/conteudos/DivulgacaoEditor";
-import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { assinaturaComposicao, repartirParaLeitura } from "../../supabase/functions/_shared/conteudos/apresentacao";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { chaveRecuperacao, guardarRecuperacao, lerRecuperacao, limparRecuperacao, type Recuperacao } from "@/lib/recuperacaoLocal";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Download, FileText, Loader2, Save, Send, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileText, Loader2, Save, Send, Sparkles, Palette, Scissors } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,10 +21,14 @@ import {
   obterConteudo, retomarJob, validarCarrossel, legendaComLink, type Carrossel, type ConteudoCompleto,
 } from "@/services/conteudos";
 import { desenharSlide, exportarCarrossel, gerarFicheiros, descarregar } from "@/features/conteudos/exportar";
+const CompositorDivulgacao = lazy(() => import("@/features/conteudos/CompositorDivulgacao").then(m => ({ default: m.CompositorDivulgacao })));
 
 export default function CarrosselCronica() {
   const { id = "" } = useParams();
   const nav = useNavigate();
+  const [query, setQuery] = useSearchParams();
+  const compositor = query.get("compositor");
+  const [editarOrigem, setEditarOrigem] = useState(false);
   const [dados, setDados] = useState<ConteudoCompleto | null>(null);
   const [carrossel, setCarrossel] = useState<Carrossel | null>(null);
   const [origemProposta, setOrigemProposta] = useState<"edicao" | "ia_manual">("edicao");
@@ -82,11 +87,15 @@ export default function CarrosselCronica() {
   }, [alterado, acao]);
 
   const fonte = dados?.conteudo.fonte;
+  const guardadaVisual = dados?.conteudo.divulgacao?.composicoes?.carrossel;
+  const composicao = !editarOrigem && fonte && carrossel && dados?.conteudo.divulgacao && guardadaVisual?.base_assinatura === assinaturaComposicao("carrossel", fonte, carrossel, dados.conteudo.divulgacao.story) ? guardadaVisual.pacote : undefined;
+  const totalVisual = composicao?.variantes.A.paginas.length ?? carrossel?.slides.length ?? 0;
+  useEffect(() => { if (totalVisual && indice >= totalVisual) setIndice(totalVisual - 1); }, [totalVisual, indice]);
   useEffect(() => {
     let vivo = true;
-    if (canvasRef.current && carrossel && fonte && carrossel.slides[indice]) {
+    if (canvasRef.current && carrossel && fonte && indice < totalVisual) {
       const c = document.createElement("canvas");
-      desenharSlide(c, carrossel, fonte, indice).then(() => {
+      desenharSlide(c, carrossel, fonte, indice, composicao).then(() => {
         if (!vivo || !canvasRef.current) return;
         canvasRef.current.width = c.width; canvasRef.current.height = c.height;
         canvasRef.current.getContext("2d")?.drawImage(c, 0, 0);
@@ -94,7 +103,7 @@ export default function CarrosselCronica() {
       }).catch((e: Error) => vivo && setErroPreview(e.message));
     }
     return () => { vivo = false; };
-  }, [carrossel, fonte, indice]);
+  }, [carrossel, fonte, indice, composicao, totalVisual, compositor]);
 
   if (!dados || !fonte) {
     if (erroCarregar) return (
@@ -154,7 +163,7 @@ export default function CarrosselCronica() {
     if (!carrossel || alterado) throw new Error("Guarda o rascunho antes de enviar para o estúdio social.");
     validarCarrossel(carrossel, fonte);
     legendaComLink(carrossel, fonte);
-    const { pngs, pdf } = await gerarFicheiros(carrossel, fonte);
+    const { pngs, pdf } = await gerarFicheiros(carrossel, fonte, composicao);
     const r = await enviarParaEstudioSocial(c.id, c.versao, fonte.numero, pngs, pdf, !!c.social_draft_id);
     toast.success(r.existente ? "O rascunho social desta versão já existia" : c.social_draft_id ? "Rascunho social atualizado" : "Rascunho social criado");
     nav(`/manual-create?draft=${r.draft_id}`);
@@ -164,8 +173,14 @@ export default function CarrosselCronica() {
     nav(`/manual-create?draft=${c.social_draft_id}`);
   };
 
+  if ((compositor === "story" || compositor === "carrossel") && c.divulgacao && (compositor === "story" || carrossel)) {
+    return <Suspense fallback={<p role="status" className="p-5">A abrir o compositor…</p>}><CompositorDivulgacao key={`${id}:${compositor}`} dados={dados} peca={compositor} aoFechar={() => { setQuery({ peca: compositor }); void carregar(); }} /></Suspense>;
+  }
+
   const conteudoEditor = <>
         <div className="flex flex-wrap gap-2">
+          {newsletter && carrossel && c.divulgacao && <Button disabled={!!acao || alterado || storyAlterado} onClick={() => setQuery({ compositor: "carrossel", peca: "carrossel" })}><Palette data-icon="inline-start" />Editar no compositor</Button>}
+          {carrossel && <Button variant="outline" disabled={!!acao || !!composicao} onClick={() => executar("repartir", async () => { const novo = repartirParaLeitura(carrossel); if (JSON.stringify(novo) === JSON.stringify(carrossel)) { toast.info("O texto já está repartido para leitura."); return; } setCarrossel(novo); setIndice(0); setAlterado(true); toast.info("Texto repartido sem cortes. Revê e guarda a nova versão."); })}><Scissors data-icon="inline-start" />Repartir texto · sem IA</Button>}
           <Button variant="outline" disabled={!!acao || fontePorRever} onClick={() => setConfirmar("gerar")}>
             {acao === "gerar" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1 h-4 w-4" />}
             {carrossel ? "Gerar alternativa com IA" : "Gerar com IA"}
@@ -227,26 +242,26 @@ export default function CarrosselCronica() {
         </p>
       )}
 
-      {carrossel && slide && (
+      {carrossel && (slide || composicao) && (
         <div className="grid items-start gap-6 lg:grid-cols-2">
           <div className="space-y-2 lg:sticky lg:top-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Slide {indice + 1} de {carrossel.slides.length}</span>
+              <span className="text-sm font-medium">Slide {indice + 1} de {totalVisual}</span>
               <div className="flex gap-1">
                 <Button size="icon" variant="outline" aria-label="Slide anterior" disabled={indice === 0} onClick={() => setIndice(indice - 1)}><ChevronLeft className="h-4 w-4" /></Button>
-                <Button size="icon" variant="outline" aria-label="Slide seguinte" disabled={indice === carrossel.slides.length - 1} onClick={() => setIndice(indice + 1)}><ChevronRight className="h-4 w-4" /></Button>
+                <Button size="icon" variant="outline" aria-label="Slide seguinte" disabled={indice === totalVisual - 1} onClick={() => setIndice(indice + 1)}><ChevronRight className="h-4 w-4" /></Button>
               </div>
             </div>
             {erroPreview && <p role="alert" className="text-xs text-destructive">Pré-visualização indisponível: {erroPreview}</p>}
-            <canvas ref={canvasRef} className="mx-auto w-full max-w-[420px] rounded-md border" aria-label={`Pré-visualização do slide ${indice + 1}`} />
+            <canvas ref={canvasRef} hidden={!!erroPreview} className="mx-auto w-full max-w-[420px] rounded-md border" aria-label={`Pré-visualização do slide ${indice + 1}`} />
             <div className="flex flex-wrap justify-center gap-2">
-              <Button size="sm" variant="outline" disabled={!!acao} onClick={() => executar("zip", async () => { validarCarrossel(carrossel, fonte); await exportarCarrossel("zip", carrossel, fonte); })}><Download className="mr-1 h-4 w-4" />PNG (ZIP)</Button>
-              <Button size="sm" variant="outline" disabled={!!acao} onClick={() => executar("pdf", async () => { validarCarrossel(carrossel, fonte); await exportarCarrossel("pdf", carrossel, fonte); })}><FileText className="mr-1 h-4 w-4" />PDF</Button>
+              <Button size="sm" variant="outline" disabled={!!acao} onClick={() => executar("zip", async () => { validarCarrossel(carrossel, fonte); await exportarCarrossel("zip", carrossel, fonte, composicao); })}><Download className="mr-1 h-4 w-4" />PNG (ZIP)</Button>
+              <Button size="sm" variant="outline" disabled={!!acao} onClick={() => executar("pdf", async () => { validarCarrossel(carrossel, fonte); await exportarCarrossel("pdf", carrossel, fonte, composicao); })}><FileText className="mr-1 h-4 w-4" />PDF</Button>
               <Button size="sm" variant="ghost" onClick={() => descarregar(new Blob([JSON.stringify({ fonte, carrossel, versao: c.versao }, null, 2)], { type: "application/json" }), `digitalsprint-${fonte.numero}-carrossel.json`)}>Cópia JSON</Button>
             </div>
           </div>
 
-          <div className="space-y-3">
+          {composicao ? <div className="flex flex-col items-start gap-4"><h3 className="text-lg font-semibold">Composição guardada no Hub</h3><p className="text-sm text-muted-foreground">A pré-visualização e os ficheiros incluem os ajustes visuais. Abre o compositor para editar cada elemento.</p><Button onClick={() => setQuery({ compositor: "carrossel", peca: "carrossel" })}><Palette data-icon="inline-start" />Editar composição</Button><Button variant="ghost" onClick={() => { setIndice(0); setEditarOrigem(true); }}>Editar texto de origem</Button></div> : slide && <div className="space-y-3">
             <div className="space-y-1">
               <Label htmlFor="titulo">Título ({slide.titulo.length}/{LIMITES.titulo})</Label>
               <Input id="titulo" value={slide.titulo} maxLength={LIMITES.titulo} onChange={(e) => editar("titulo", e.target.value)} />
@@ -265,7 +280,7 @@ export default function CarrosselCronica() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="legenda">Legenda ({carrossel.legenda.length}/{LIMITES.legenda}) · {newsletter ? "as ligações da crónica, da edição, das fontes e do curso são acrescentadas no fim" : "o endereço da crónica é acrescentado no fim"}</Label>
+              <Label htmlFor="legenda">Legenda ({carrossel.legenda.length}/{LIMITES.legenda}) · {newsletter ? "as ligações de subscrição, da crónica, da edição, das fontes e do curso são acrescentadas no fim" : "o endereço da crónica é acrescentado no fim"}</Label>
               <Textarea id="legenda" rows={6} value={carrossel.legenda} onChange={(e) => { setCarrossel({ ...carrossel, legenda: e.target.value }); setAlterado(true); }} />
             </div>
             {dados.versoes.length > 0 && (
@@ -278,7 +293,7 @@ export default function CarrosselCronica() {
                 </ul>
               </details>
             )}
-          </div>
+          </div>}
         </div>
       )}
 
@@ -307,7 +322,7 @@ export default function CarrosselCronica() {
       </header>
 
       {newsletter ? <DivulgacaoEditor id={c.id} fonte={fonte} inicial={c.divulgacao} versaoInicial={c.divulgacao_versao}
-        onActualizar={() => carregar(() => !alteradoRef.current)} onAlterado={setStoryAlterado}>{conteudoEditor}</DivulgacaoEditor> : conteudoEditor}
+        onActualizar={() => carregar(() => !alteradoRef.current)} onAlterado={setStoryAlterado} abaInicial={query.get("peca") ?? "story"} onAba={peca => setQuery({ peca }, { replace: true })} onCompor={() => setQuery({ compositor: "story", peca: "story" })}>{conteudoEditor}</DivulgacaoEditor> : conteudoEditor}
 
       <AlertDialog open={!!sairPendente} onOpenChange={(o) => !o && setSairPendente(null)}>
         <AlertDialogContent>

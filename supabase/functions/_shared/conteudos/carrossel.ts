@@ -110,13 +110,17 @@ export function linkDivulgacao(url: string, numero: number, peca: "story_d0" | "
   return u.toString();
 }
 
+export const URL_SUBSCRICAO = "https://fredericocarvalho.pt/newsletter-marketing-economia-digital/";
+export const ENDERECO_SUBSCRICAO = "podes.entrar.pt/news";
+export const TITULO_SUBSCRICAO = "Recebe a próxima edição";
+
 
 export function legendaComLink(
   carrossel: Carrossel,
   fonte: Pick<FonteCronica, "url" | "destaques" | "edicaoUrl" | "cursoUrl"> & { numero?: number },
 ): string {
   const link = (url: string) => fonte.numero ? linkDivulgacao(url, fonte.numero, "carrossel_d1") : url;
-  const linhas = [`Ler a crónica: ${link(fonte.url)}`];
+  const linhas = [...(fonte.destaques?.length ? [`Subscreve gratuitamente: ${link(URL_SUBSCRICAO)}`] : []), `Ler a crónica: ${link(fonte.url)}`];
   if (fonte.edicaoUrl) linhas.push(`Edição completa: ${link(fonte.edicaoUrl)}`);
   const fontes = [...new Set((fonte.destaques ?? []).map((d) => d.publisher).filter(Boolean))];
   if (fontes.length) linhas.push(`Fontes dos destaques: ${fontes.join(", ")}`);
@@ -163,7 +167,9 @@ export function medidasProposta(valor: unknown, min: number = LIMITES.slidesMin,
 // Newsletter highlights: built deterministically in code, never by the model.
 // ---------------------------------------------------------------------------
 
-export const TITULO_LEITURA = "A leitura de Frederico Carvalho";
+export const TITULO_LEITURA = "A minha leitura";
+/** Old drafts remain valid; only their visual label is modernised. */
+export const eSlideLeitura = (s: Pick<Slide, "titulo">) => /^(A minha leitura|A leitura de Frederico Carvalho)(?:\s*·|$)/i.test(s.titulo);
 const normalizar = (t: string) => t.replace(/\s+/g, " ").trim();
 
 function porPalavras(frase: string, max: number): string[] {
@@ -226,15 +232,16 @@ export function slidesDosDestaques(fonte: Pick<FonteCronica, "paragrafos" | "des
     const titulo = tituloCompleto.length <= LIMITES.titulo ? tituloCompleto : `Destaque ${i + 1}`;
     const corpo = [titulo === tituloCompleto ? "" : `${tituloCompleto}.`, normalizar(d.sintese)].filter(Boolean).join(" ");
     const rodape = d.publisher ? `Fonte original: ${d.publisher}` : "";
-    const partes = dividirTexto(corpo, LIMITES.texto);
+    const partes = dividirTexto(corpo, 200);
     if (!partes.length) partes.push(tituloCompleto);
     const ultima = partes[partes.length - 1];
     if (rodape) {
+      // Attribution is a separate visual layer; it need not force a source-only page.
       if (`${ultima}\n\n${rodape}`.length <= LIMITES.texto) partes[partes.length - 1] = `${ultima}\n\n${rodape}`;
       else partes.push(rodape);
     }
     partes.forEach((t) => slides.push({ titulo, texto: t, fontes: ref }));
-    const leitura = dividirTexto(d.leitura, LIMITES.texto - 2);
+    const leitura = dividirTexto(d.leitura, 198);
     leitura.forEach((t, k) => slides.push({
       titulo: leitura.length > 1 ? `${TITULO_LEITURA} · ${k + 1}/${leitura.length}` : TITULO_LEITURA,
       texto: `«${t}»`,
@@ -250,7 +257,7 @@ export function verificarLeiturasLiterais(carrossel: Carrossel, fonte: Pick<Font
     if (!normalizar(d.leitura)) return;
     const ref = paragrafoDoDestaque(fonte, i);
     const texto = carrossel.slides
-      .filter((s) => s.titulo.startsWith(TITULO_LEITURA) && s.fontes.includes(ref))
+      .filter((s) => eSlideLeitura(s) && s.fontes.includes(ref))
       .map((s) => s.texto.replace(/^«/, "").replace(/»$/, ""))
       .join(" ");
     if (normalizar(texto) !== normalizar(d.leitura)) {
@@ -259,12 +266,10 @@ export function verificarLeiturasLiterais(carrossel: Carrossel, fonte: Pick<Font
   });
 }
 
-export function slideFinalNewsletter(fonte: Pick<FonteCronica, "numero" | "destaques" | "cursoUrl">): Slide {
-  const n = fonte.destaques?.length ?? 0;
-  const curso = fonte.cursoUrl ? " e o Curso de inteligência artificial" : "";
+export function slideFinalNewsletter(_fonte: Pick<FonteCronica, "numero" | "destaques" | "cursoUrl">): Slide {
   return {
-    titulo: "Lê a edição completa",
-    texto: `A crónica, ${n === 1 ? "o destaque" : `os ${n} destaques`} com as fontes originais e as restantes novidades estão na edição #${fonte.numero} da newsletter DIGITALSPRINT. As ligações para a edição${curso} estão na legenda.`,
+    titulo: TITULO_SUBSCRICAO,
+    texto: "Marketing, IA e negócios, com a minha leitura. Gratuita. Uma vez por semana.",
     fontes: [],
   };
 }
