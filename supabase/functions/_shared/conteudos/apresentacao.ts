@@ -1,7 +1,7 @@
 // DIGITALSPRINT launch artwork, expressed in the existing editable DocumentoGrafico.
 // No second renderer, paid generation, source rewriting or publication.
 import { dividirTexto, eSlideLeitura, TITULO_LEITURA, TITULO_SUBSCRICAO, ENDERECO_SUBSCRICAO, type Carrossel, type FonteCronica, type Slide } from "./carrossel.ts";
-import type { StoryEdicao, PecaDivulgacao } from "./divulgacao.ts";
+import type { StoryEdicao, PecaDivulgacao, DivulgacaoEdicao } from "./divulgacao.ts";
 import { FONTE_DOC, validarPacote, type Camada, type CamadaTexto, type PacoteProva, type Pagina } from "../documento-grafico/nucleo.ts";
 
 // Existing Revista palette, kept here to avoid an edge -> generated browser source dependency.
@@ -131,4 +131,13 @@ export function validarComposicao(v: unknown, peca: PecaDivulgacao, id: string):
   const p = validarPacote(v, { real: true });
   if (p.id !== id || [p.variantes.A, p.variantes.B].some(d => d.formato !== peca)) throw new Error("A composição não corresponde a esta peça.");
   return p;
+}
+
+/** Persist the incumbent artwork as editable drafts, without replacing any manual composition. */
+export function prepararComposicoesEmFalta(id: string, fonte: FonteCronica, c: Carrossel | null, d: DivulgacaoEdicao, agora = new Date().toISOString()): DivulgacaoEdicao {
+  if (d.composicoes?.story && (!c || d.composicoes.carrossel)) return d;
+  const composicoes = { ...d.composicoes };
+  if (!composicoes.story) composicoes.story = { pacote: validarComposicao(comporStory(id, d.story, fonte.numero), "story", id), base_assinatura: assinaturaComposicao("story", fonte, c, d.story), guardado_em: agora };
+  if (c && !composicoes.carrossel) composicoes.carrossel = { pacote: validarComposicao(comporCarrossel(id, c, fonte), "carrossel", id), base_assinatura: assinaturaComposicao("carrossel", fonte, c, d.story), guardado_em: agora };
+  return { ...d, composicoes };
 }

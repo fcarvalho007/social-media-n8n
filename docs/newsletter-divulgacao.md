@@ -2,7 +2,7 @@
 
 Extensão do Hub existente: um Story convida a ler a crónica no dia do envio; um carrossel dos destaques dá uma segunda razão para visitar a edição no dia seguinte. Esta cadência é uma hipótese editorial a ajustar com os dados da conta, sem garantia de alcance, conversão ou melhor horário.
 
-Estado em 15 de outubro de 2026: a extensão inicial está instalada desde 14 de outubro. O refinamento visual e a edição no compositor descritos abaixo estão no código local, revistos no âmbito indicado, e **ainda não estão instalados nem publicados**.
+Estado em 15 de outubro de 2026: a extensão inicial está instalada desde 14 de outubro; o refinamento visual, sem retrato e com fecho de subscrição, e a edição no compositor foram instalados e publicados em 15 de outubro. A persistência automática dos dois documentos após confirmação de envio foi reforçada posteriormente, como descrito abaixo.
 
 ## Comportamento
 
@@ -20,13 +20,13 @@ O teste interno mantém-se pré-envio. «Preparar divulgação de teste · sem I
 4. Em «Dia seguinte · Carrossel», percorre os slides, confirma capa, factos, fontes, leitura e legenda e usa «Guardar». «PNG (ZIP)» exporta os slides de 1080 × 1350 e `legenda.txt`; «PDF» exporta o documento. A pré-visualização e a exportação usam o mesmo desenho. Texto que não cabe bloqueia a exportação com uma indicação para o encurtar.
 5. «Criar rascunho social» encaminha a versão guardada para revisão no fluxo social existente; não publica. Se já existir, usa «Abrir revisão do rascunho». A publicação e a colocação da ligação à edição no perfil continuam manuais. «Gerar com IA» ou «Gerar alternativa com IA» são ações explícitas do editor existente, com confirmação de consumo; não fazem parte da preparação automática gratuita.
 
-## Refinamento de 15 de outubro — ainda não instalado
+## Design padrão da divulgação
 
 O refinamento torna a arte mais expressiva dentro da identidade existente da DIGITALSPRINT: papel, navy, lima e azul, com Space Grotesk nos títulos e Inter no corpo. Não cria uma marca ou um sistema visual novo. A notícia usa papel e uma faixa de fonte; a opinião usa navy, o título «A minha leitura» e a assinatura discreta `@fredericocarvalho`; a crónica distingue-se por um bloco azul. O Story combina título sobre navy com excerto sobre papel e reserva espaço para o autocolante de ligação.
 
 O compositor reutiliza o editor Operate existente através de `CompositorDivulgacao` e `EditorGrafico`. Permite ajustar texto, posição, cor, tamanho e elementos da arte. Pré-visualização, editor e exportação partilham o renderer do documento gráfico, incluindo os ajustes guardados.
 
-Fluxo a usar depois da instalação:
+Fluxo de edição:
 
 1. Abre o rascunho e revê o texto. No carrossel, «Repartir texto · sem IA» divide passagens longas sem cortar conteúdo, conserva as referências e as leituras aprovadas completas e atualiza os títulos antigos de leitura para «A minha leitura». A ação prepara alterações no editor; revê e guarda a nova versão antes de compor. Se forem necessários mais slides do que o limite suportado, informa o problema e não corta o conteúdo.
 2. Guarda primeiro as alterações de origem: «Guardar Story» ou «Guardar» no carrossel. Abre «Editar Story no compositor» ou «Editar no compositor» na peça pretendida.
@@ -48,6 +48,16 @@ O último slide das novas propostas promove a subscrição: «Recebe a próxima 
 As composições já guardadas são preservadas. Para adotar o fecho novo num rascunho existente, edita o último slide de origem, guarda e usa «Recriar a partir do texto» no compositor. Só «Guardar composição» substitui a cópia visual guardada.
 
 A opinião conserva o fundo navy, o título «A minha leitura» e a assinatura discreta `@fredericocarvalho`, sem fotografia automática.
+
+## Rascunhos automáticos no compositor
+
+O padrão para novas newsletters é o design DIGITALSPRINT instalado: Story da crónica, carrossel dos três destaques, opinião «A minha leitura», sem retrato, e fecho orientado à subscrição. O processo só avança quando a E-goi confirma `sent` numa lista real; aceitar um envio, enviar para «interno» ou preparar um teste não satisfaz essa condição. A confirmação depende da reconciliação do worker; não se promete preparação instantânea no clique de envio.
+
+Depois da confirmação, a preparação gratuita grava também os dois documentos gráficos em `divulgacao.composicoes`, com estado de rascunho, para edição direta no compositor existente. Não é necessário abrir o compositor nem clicar Guardar para criar a primeira cópia visual. Só os documentos em falta são preenchidos: rascunhos e composições manuais existentes mantêm-se, incluindo quando há nova reconciliação ou repetição do pedido.
+
+A escrita compara simultaneamente a versão da divulgação e a do carrossel. Se outra pessoa editar durante a preparação, o processo relê a fonte antes de gravar; conflitos persistentes deixam a preparação por concluir para repetição gratuita, sem cair em geração paga. Não cria posts no Instagram, não agenda e não envia emails. Não exige migração nem altera RLS.
+
+Validação local do reforço: 648 testes passaram, com um teste anterior ignorado; typecheck, build e Deno dos 249 ficheiros passaram. Os testes cobrem novas edições reais simuladas, bloqueio sem confirmação, os dois documentos com o modelo aprovado, ausência de retrato, preservação de composições manuais e conflitos concorrentes. O envio real de ponta a ponta só se observa num envio real; não se falsifica essa confirmação para testar.
 
 ## Medição
 
