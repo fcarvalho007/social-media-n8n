@@ -79,7 +79,7 @@ Na revisão da extensão de 14 de outubro, quatro capturas foram comparadas loca
 
 O refinamento de 15 de outubro tem sete capturas locais: compositor em desktop e móvel, Story em desktop e móvel, notícia em desktop, leitura em desktop e carrossel em móvel. Um revisor independente concluiu que estava pronto no âmbito dessas capturas e do código revisto. A crónica com bloco azul foi verificada apenas no código. As capturas permanecem locais, sem ligações a ficheiros ausentes no GitHub. Esta revisão não constitui aprovação geral de produção nem confirmação de instalação.
 
-Os novos testes de encaixe usam fontes TTF reais e incluem o caso de 338 caracteres fornecido pelo utilizador. Após a correção da altura da caixa da crónica, a bateria completa passou: 641 testes, com um teste anterior ignorado. Typecheck, build Vite e verificação das funções Deno (249 ficheiros) passaram. No navegador local foram verificados guardar/reabrir uma alteração visual do Story, repartir e guardar o carrossel, reabrir as composições, ausência de deslocação horizontal no móvel e exportação de dez PNG a 1080 × 1350 e PDF de dez páginas. A instalação em produção continua por verificar.
+Os novos testes de encaixe usam fontes TTF reais e incluem o caso de 338 caracteres fornecido pelo utilizador. Após a correção da altura da caixa da crónica, a bateria completa passou: 644 testes, com um teste anterior ignorado. Typecheck, build Vite e verificação das funções Deno (249 ficheiros) passaram. No navegador local foram verificados guardar/reabrir uma alteração visual do Story, repartir e guardar o carrossel, reabrir as composições, ausência de deslocação horizontal no móvel e exportação de dez PNG a 1080 × 1350 e PDF de dez páginas. A instalação posterior em produção está registada abaixo.
 
 ## Instalação confirmada em 14 de outubro
 
@@ -98,15 +98,23 @@ Prompt histórico da instalação inicial:
 
 > Instala o código já commitado da branch `codex/newsletter-divulgacao`, seguindo `docs/newsletter-divulgacao.md`. Não cries nem reescrevas a implementação e não geres conteúdo com IA. Aplica uma vez a migração 0061, faz deploy de `nl-conteudos`, `nl-worker-conteudos`, `nl-api`, `nl-newsletter` e `nl-hooks` com os módulos partilhados e publica a aplicação. Verifica apenas o rascunho seguro pré-envio da edição 319, preservando a edição e o teste interno 970: guardar/reabrir, revisão, copiar ligação e exportar. Não envies email, não publiques nem agendes no Instagram e não consumas IA paga. Reporta os passos efetivamente concluídos e as limitações.
 
-## Instalação futura do refinamento de 15 de outubro
+## Instalação confirmada do refinamento de 15 de outubro
 
-A instalação deste refinamento ainda está por executar. Consumir pelo GitHub o código commitado da branch `codex/newsletter-compositor-visual`; o Lovable deve instalar essa implementação, sem a reimplementar.
+Instalação confirmada em 15 de outubro de 2026: as cinco funções foram republicadas com os módulos partilhados e a aplicação foi publicada a partir do commit `ff0a0ae1dee7282921ffe0045b05db8c5d831b8a` da branch `codex/newsletter-compositor-visual`. Não foi criada uma migração nova nem alteradas permissões ou credenciais.
+
+Na aplicação publicada, o rascunho pré-envio da 319 ficou na versão 4: 17 slides com passagens longas repartidas, capa com 84 caracteres de corpo, legenda de 240 caracteres e fecho de subscrição com 76 caracteres de benefício. A versão anterior de 12 slides permanece no histórico. As leituras aprovadas mantêm-se completas; a opinião está sem fotografia. Story e carrossel ficaram guardados como composições editáveis, por rever, e reabriram com a gravação preservada.
+
+Foram verificados Story PNG a 1080 × 1920, ZIP real com 17 PNG a 1080 × 1350 e legenda atualizada, e PDF real de 17 páginas com ligação final à subscrição e UTM. As provas da aplicação publicada ficam locais. Nenhum email ou conteúdo de Instagram foi enviado, publicado ou agendado. O disparo automático após um envio real continua por observar no próximo envio real.
+
+Validação final: 644 testes passaram, com um teste anterior ignorado; typecheck, build Vite e verificação Deno dos 249 ficheiros passaram. O Lovable mantém um aviso de resolução de dependências no seu ambiente de compilação; os deploys pelo canal próprio foram confirmados. Uma tentativa posterior de reparar esse ambiente foi interrompida após os deploys, sem alterações adicionais à branch.
+
+Receita de reinstalação pelo GitHub, sem reimplementar o código:
 
 1. Preservar a migração 0061 já aplicada, as restantes migrações, RLS, credenciais e dados existentes. Este refinamento não tem uma migração nova.
 2. Fazer redeploy de `nl-conteudos`, `nl-worker-conteudos`, `nl-api`, `nl-newsletter` e `nl-hooks`, com os respetivos módulos partilhados, e publicar a interface da mesma branch.
 3. Verificar num rascunho pré-envio o fluxo completo: repartir explicitamente se necessário, guardar origem, abrir o compositor de cada peça, ajustar, guardar composição, voltar, reabrir e exportar. Verificar também o aviso de origem alterada e a preservação da edição em conflitos.
 4. Preservar a edição 319 e a campanha interna 970. Não enviar emails, publicar ou agendar no Instagram para validar. A repartição do rascunho pré-envio exige uma ação explícita; não deve ser aplicada automaticamente aos dados existentes.
 
-Prompt para a instalação futura:
+Prompt de referência para reinstalação:
 
 > Instala pelo GitHub o código já commitado da branch `codex/newsletter-compositor-visual`, seguindo a secção de refinamento de 15 de outubro de `docs/newsletter-divulgacao.md`. Reutiliza a implementação existente; não a reescrevas no Lovable. Não há migração nova: preserva a 0061, RLS, credenciais e dados. Faz redeploy de `nl-conteudos`, `nl-worker-conteudos`, `nl-api`, `nl-newsletter` e `nl-hooks` com os módulos partilhados e publica a interface da mesma branch. Verifica apenas num rascunho pré-envio o compositor de Story e carrossel, guardar, voltar, reabrir e exportar com os ajustes. Preserva a edição 319 e a campanha interna 970; só reparte texto do rascunho por ação explícita. Não envies emails, não publiques nem agendes no Instagram e não consumas IA paga. Reporta o que foi efetivamente instalado e verificado e as limitações.
