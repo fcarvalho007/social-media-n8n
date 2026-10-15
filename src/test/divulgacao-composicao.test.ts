@@ -47,6 +47,14 @@ describe("composição editorial da divulgação", () => {
     const legadoCronica = { ...c, slides: [c.slides[0], { titulo: "Autonomia não significa bom senso", texto: "A investigação PixelLeak identificou mais de 13 mil imagens internas de empresas publicadas em repositórios públicos do GitHub. Os agentes não estavam a roubar: apenas a cumprir uma tarefa. Resolveram um problema técnico e criaram um problema de segurança. Em 93% dos casos, as imagens estavam fora da monitorização habitual das empresas.", fontes: [1] }, ...c.slides.slice(1)] };
     verificarEncaixe(comporCarrossel("id", repartirParaLeitura(legadoCronica), fonte));
   });
+  it("adapta títulos reais à capa e ao Story sem cortar texto", () => {
+    const titulo = "A IA já trabalha sozinha. E nem sempre pede autorização";
+    const real = { ...c, slides: c.slides.map((s, i) => i === 0 ? { ...s, titulo, texto: "Os agentes de Inteligência Artificial deixaram de ser uma promessa futurista. Já executam tarefas, tomam decisões e assumem compromissos. A questão deixou de ser o que conseguimos automatizar e passou a ser o que devemos autorizar." } : s) };
+    verificarEncaixe(comporCarrossel("id", real, fonte));
+    verificarEncaixe(comporStory("id", { ...story, titulo }, 319));
+    const extenso = { ...real, slides: real.slides.map((s, i) => i === 0 ? { ...s, titulo: "Inteligência Artificial, autonomia e decisões: o que devemos autorizar nas nossas empresas e equipas" } : s) };
+    verificarEncaixe(comporCarrossel("id", extenso, fonte));
+  });
   it("o Story cabe, distingue a crónica e reserva espaço para o autocolante", () => {
     const p = comporStory("id", story, 319); verificarEncaixe(p);
     expect(p.variantes.A.altura).toBe(1920);

@@ -32,7 +32,7 @@ export function repartirParaLeitura(c: Carrossel): Carrossel {
 
 const texto = (id: string, t: string, x: number, y: number, w: number, h: number, tam: number, cor: string, peso: 400 | 700 = 400, ref?: string): CamadaTexto => ({
   id, nome: id, tipo: "texto", texto: ref ? undefined : t, ref, x, y, w, h, z: 3,
-  estilo: { peso, familia: peso === 700 ? "grotesk" : "inter", tam, tamMin: tam, linha: 1.15, alinh: "esq", cor, overflow: "reduzir" },
+  estilo: { peso, familia: peso === 700 ? "grotesk" : "inter", tam, tamMin: peso === 700 && tam >= 70 ? 64 : tam >= 44 ? Math.max(36, Math.floor(tam * 0.83)) : tam, linha: 1.15, alinh: "esq", cor, overflow: "reduzir" },
 });
 const ret = (id: string, x: number, y: number, w: number, h: number, cor: string): Camada => ({ id, nome: id, tipo: "forma", forma: "ret", x, y, w, h, z: 1, estilo: { cor } });
 const seta = (id: string, x: number, y: number, cor: string): Camada => ({ id, nome: "Continuar a ler", tipo: "forma", forma: "icone", x, y, w: 64, h: 64, z: 3, estilo: { cor, icone: "seta" } });
@@ -64,8 +64,8 @@ function paginaSlide(s: Slide, fonte: FonteCronica, i: number, total: number): P
       texto("Fonte original", `Notícia ${n || ""} · ${fonteOriginal || "ver referências"}`, 80, 1120, 920, 50, 28, TINTAS.tinta));
     camadas.splice(2, 1); // source occupies the role row, which would otherwise overlap it
   } else if (papel === "capa") {
-    camadas.push(texto("Título", "", 80, 260, 920, 480, s.titulo.length > 75 ? 82 : s.titulo.length > 55 ? 94 : 106, TINTAS.branco, 700, `${sid}.titulo`),
-      texto("Convite", "", 80, 810, 820, 280, 48, TINTAS.suave, 400, `${sid}.texto`),
+    camadas.push(texto("Título", "", 80, 260, 920, 540, s.titulo.length > 75 ? 82 : s.titulo.length > 55 ? 94 : 106, TINTAS.branco, 700, `${sid}.titulo`),
+      texto("Convite", "", 80, 810, 840, 300, 48, TINTAS.suave, 400, `${sid}.texto`),
       seta("Seta", 925, 1040, TINTAS.lima));
   } else if (papel === "fecho") {
     camadas.push(texto("Título", "", 80, 260, 920, 360, 100, TINTAS.tinta, 700, `${sid}.titulo`),
