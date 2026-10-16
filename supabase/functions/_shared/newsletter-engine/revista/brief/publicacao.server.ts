@@ -80,7 +80,10 @@ export async function validarBriefsDaEdicao(
   sb?: SupabaseClient,
 ): Promise<ValidacaoBriefs> {
   const db = sb ?? clienteBrief();
-  const lista = await listarBriefsDaEdicao(edicaoId, db);
+  const todos = await listarBriefsDaEdicao(edicaoId, db);
+  // Only Destaques have a Brief journey; Radar links go straight to the source,
+  // so legacy Radar Briefs never count towards readiness.
+  const lista = todos.filter((b) => b.papel === "destaque");
 
   const out: ValidacaoBriefs = {
     prontos: [],
@@ -88,8 +91,8 @@ export async function validarBriefsDaEdicao(
     fontes: [],
     verificacoes: [],
     incompletos: [],
-    totalDestaques: lista.filter((b) => b.papel === "destaque").length,
-    totalRadar: lista.filter((b) => b.papel === "radar").length,
+    totalDestaques: lista.length,
+    totalRadar: todos.length - lista.length,
     total: lista.length,
     factualidadeOk: 0,
     fontesOk: 0,
