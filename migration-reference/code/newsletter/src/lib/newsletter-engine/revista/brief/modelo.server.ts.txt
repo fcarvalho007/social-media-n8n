@@ -238,20 +238,17 @@ export async function associarBriefAEdicao(
     .eq("edicao_id", args.edicaoId)
     .maybeSingle();
 
-  const limites = await limitesBrief(db);
-  if (!jaLa.data) {
+  // Only Destaques are capped: Radar is unlimited in the editor and links go
+  // straight to the source, so a Quick Brief cap must never block classification.
+  if (!jaLa.data && args.papel === "destaque") {
+    const limites = await limitesBrief(db);
     const { count } = await db
       .from("brief_edicoes")
       .select("id", { count: "exact", head: true })
       .eq("edicao_id", args.edicaoId)
       .eq("papel", args.papel);
-    const maximo = args.papel === "destaque" ? limites.destaque : limites.radar;
-    if ((count ?? 0) >= maximo) {
-      throw new Error(
-        args.papel === "destaque"
-          ? `Esta edição já tem ${maximo} Destaques com Brief.`
-          : `Esta edição já tem ${maximo} itens de Radar com Quick Brief.`,
-      );
+    if ((count ?? 0) >= limites.destaque) {
+      throw new Error(`Esta edição já tem ${limites.destaque} Destaques com Brief.`);
     }
   }
 
