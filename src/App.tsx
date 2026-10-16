@@ -61,7 +61,11 @@ const BriefPublico = lazy(() => import("./pages/publico/BriefPublico"));
 const SubscricaoPublica = lazy(() => import("./pages/publico/Subscricao"));
 const NewsletterLigacoes = lazy(() => import("./pages/NewsletterLigacoes"));
 const RedirectEdicao = () => <Navigate to={`/edicoes/${useParams().numero ?? ""}`} replace />;
-const queryClient = new QueryClient();
+// Data stays fresh for 30s and is not refetched just for regaining focus; saves invalidate
+// explicitly and live screens keep their own refetchInterval.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
+});
 
 // Component to handle URL-encoded redirects
 const EncodedUrlRedirect = () => {

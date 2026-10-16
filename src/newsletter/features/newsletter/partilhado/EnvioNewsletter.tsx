@@ -439,9 +439,12 @@ export function EnvioNewsletter({
         {erro && <p className="text-[14px] text-destructive">{erro}</p>}
 
         {rigidos.length > 0 && (
-          <p className="rounded-xl border border-destructive/35 bg-destructive/5 p-4 text-[13.5px] font-semibold text-destructive">
-            Há pontos obrigatórios nos Briefs. Resolve-os no editor antes de enviar.
-          </p>
+          <div className="rounded-xl border border-destructive/35 bg-destructive/5 p-4 text-[13.5px] text-destructive" role="alert">
+            <p className="font-semibold">Resolve estes pontos no editor antes de enviar:</p>
+            <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
+              {rigidos.map((m) => <li key={m}>{m}</li>)}
+            </ul>
+          </div>
         )}
 
         </div>
