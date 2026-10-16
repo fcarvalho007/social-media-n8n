@@ -289,8 +289,8 @@ export async function avaliarProntidao(
   } else {
     const val = await validarBriefsDaEdicao(edicaoId, sb).catch(() => null);
     const nDestaques = estrutura?.destaques.length ?? 0;
-    const nRadar = estrutura?.radar.length ?? 0;
-    const total = nDestaques + nRadar;
+    // Radar goes straight to the source and never needs a Brief.
+    const total = nDestaques;
 
     if (!val) {
       bloquear({
