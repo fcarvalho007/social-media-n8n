@@ -24,8 +24,9 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
   const { data: u } = await sb.auth.getUser();
   if (!u?.user) return json({ error: "Sessão inválida" }, 401);
-  const { data: staff } = await sb.rpc("nl_is_staff");
-  if (!staff) return json({ error: "Sem permissão" }, 403);
+  // One lookup for both checks: nl_me_papel() is what nl_is_staff/nl_is_admin derive from.
+  const { data: papel } = await sb.rpc("nl_me_papel");
+  if (papel !== "admin" && papel !== "curador") return json({ error: "Sem permissão" }, 403);
 
   const body = await req.json().catch(() => null) as { id?: unknown; data?: unknown; confirmar?: unknown } | null;
   const id = typeof body?.id === "string" ? body.id : "";
@@ -37,9 +38,8 @@ Deno.serve(async (req) => {
   // Fail closed: every operation must be classified in the explicit map.
   const op = NL_OPS[id];
   if (!op) return json({ error: "Operação sem classificação de acesso" }, 403);
-  if (op.nivel === "admin" || op.nivel === "externa") {
-    const { data: admin } = await sb.rpc("nl_is_admin");
-    if (!admin) return json({ error: op.nivel === "externa" ? "Apenas administradores podem enviar ou publicar" : "Apenas administradores" }, 403);
+  if ((op.nivel === "admin" || op.nivel === "externa") && papel !== "admin") {
+    return json({ error: op.nivel === "externa" ? "Apenas administradores podem enviar ou publicar" : "Apenas administradores" }, 403);
   }
   // External actions need the confirmation token for THIS operation, set only after the UI dialog.
   if (op.nivel === "externa" && body?.confirmar !== id) return json({ error: "Confirmação explícita em falta", confirmar: op.confirmar }, 428);
