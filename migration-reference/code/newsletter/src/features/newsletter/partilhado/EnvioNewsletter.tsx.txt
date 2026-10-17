@@ -46,22 +46,22 @@ function ItemVerificacao({ estado, titulo, detalhe }: {
   detalhe: string;
 }) {
   const visual = estado === "pronto"
-    ? { caixa: "border-estado-pronto-borda bg-estado-pronto-suave", cor: "text-estado-pronto", rotulo: "Concluído", icone: <CheckCircle2 /> }
+    ? { cor: "text-estado-pronto", icone: <CheckCircle2 /> }
     : estado === "bloqueado"
-      ? { caixa: "border-destructive/35 bg-destructive/5", cor: "text-destructive", rotulo: "Bloqueado", icone: <XCircle /> }
+      ? { cor: "text-destructive", icone: <XCircle /> }
       : estado === "a_verificar"
-        ? { caixa: "border-border bg-muted/30", cor: "text-muted-foreground", rotulo: "A verificar", icone: <Loader2 className="animate-spin" /> }
-        : { caixa: "border-estado-falta-borda bg-estado-falta-suave", cor: "text-estado-falta", rotulo: "Atenção", icone: <AlertTriangle /> };
+        ? { cor: "text-muted-foreground", icone: <Loader2 className="animate-spin" /> }
+        : { cor: "text-estado-falta", icone: <AlertTriangle /> };
 
+  // Linha compacta: o detalhe fica num tooltip nativo e numa segunda linha curta.
   return (
-    <div className={`grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-xl border p-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] ${visual.caixa}`}>
-      <span className={`mt-0.5 [&>svg]:size-5 ${visual.cor}`}>{visual.icone}</span>
+    <li className="flex min-w-0 items-start gap-2.5 py-1.5" title={detalhe}>
+      <span className={`mt-0.5 shrink-0 [&>svg]:size-4 ${visual.cor}`}>{visual.icone}</span>
       <span className="min-w-0">
-        <span className="block text-[14.5px] font-semibold text-foreground">{titulo}</span>
-        <span className="mt-0.5 block text-[12.5px] leading-relaxed text-muted-foreground">{detalhe}</span>
+        <span className="block text-[13.5px] font-semibold leading-tight text-foreground">{titulo}</span>
+        <span className="block truncate text-[12px] text-muted-foreground">{detalhe}</span>
       </span>
-      <span className={`col-start-2 shrink-0 text-[10px] font-bold uppercase tracking-wide sm:col-start-3 sm:row-start-1 ${visual.cor}`}>{visual.rotulo}</span>
-    </div>
+    </li>
   );
 }
 
@@ -244,274 +244,252 @@ export function EnvioNewsletter({
   };
 
 
+  const verificacoes: { estado: EstadoVerificacao; titulo: string; detalhe: string }[] = revista ? [
+    {
+      estado: estadoArea(areaEmail?.estado, areaEmail?.severidade),
+      titulo: "Email montado",
+      detalhe: areaEmail?.mensagem ?? (prontidaoQ.isError ? "Não foi possível confirmar o email." : "A confirmar assunto e composição…"),
+    },
+    {
+      estado: prontidaoQ.isPending ? "a_verificar" : cronicaPublicada ? "pronto" : "atencao",
+      titulo: "Crónica pública",
+      detalhe: cronicaPublicada ? "Publicada com endereço válido." : "Será publicada antes do envio.",
+    },
+    {
+      estado: prontidaoQ.isPending ? "a_verificar" : webPublica && areaConteudo?.estado === "pronta" ? "pronto" : areaConteudo?.severidade === "bloqueio" ? "bloqueado" : "atencao",
+      titulo: "Página web da edição",
+      detalhe: webPublica && areaConteudo?.estado === "pronta"
+        ? "Todo o conteúdo está público."
+        : areaConteudo?.estado !== "pronta"
+          ? areaConteudo?.mensagem ?? "Há conteúdo editorial por resolver."
+          : "Será publicada antes do envio.",
+    },
+    {
+      estado: escolhidas.length > 0 ? "pronto" : "atencao",
+      titulo: "Destino",
+      detalhe: escolhidas.length > 0 ? `${escolhidas.length} lista${escolhidas.length === 1 ? "" : "s"} escolhida${escolhidas.length === 1 ? "" : "s"}.` : "Escolhe pelo menos uma lista.",
+    },
+  ] : [];
+  const nProntos = verificacoes.filter((v) => v.estado === "pronto").length;
+  const [verAgenda, setVerAgenda] = useState(false);
+  const rotuloBotao = emCurso
+    ? rotuloEnvio
+    : isReal
+      ? `Enviar a ${escolhidas.length} lista${escolhidas.length === 1 ? "" : "s"} real${escolhidas.length === 1 ? "" : "is"}`
+      : "Enviar teste";
+
   return (
     <Dialog open={aberto} onOpenChange={(v) => { if (!emCurso) onAberto(v); }}>
-      <DialogContent className="max-h-[92vh] w-[calc(100%-1.5rem)] max-w-[820px] gap-0 overflow-y-auto p-0">
-        <DialogHeader className="border-b border-border px-5 pb-5 pt-6 sm:px-8 sm:pt-8">
-          <DialogTitle className="text-[22px]">Enviar a edição #{numero}</DialogTitle>
-          <DialogDescription className="text-[14.5px]">
+      <DialogContent className="flex max-h-[90vh] w-[calc(100%-1.5rem)] max-w-[720px] flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="shrink-0 space-y-1 border-b border-border px-5 py-4 pr-12 sm:px-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <DialogTitle className="text-[19px]">Enviar a edição #{numero}</DialogTitle>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+              isReal ? "bg-destructive/10 text-destructive" : "bg-estado-pronto-suave text-estado-pronto"
+            }`}>
+              {isReal ? "Envio real" : "Teste"}
+            </span>
+          </div>
+          <DialogDescription className="text-[13px]">
             {isReal
-              ? "Estão escolhidas listas reais: os subscritores vão receber o email."
-              : "Só listas de teste seleccionadas — nada segue para subscritores."}
+              ? "Os subscritores das listas reais escolhidas vão receber o email."
+              : "Só listas de teste — nada segue para subscritores."}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-7 px-5 py-6 sm:px-8 sm:py-7">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 sm:px-6">
 
         {revista && (
-          <section>
-            <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-              <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Checklist de prontidão</p>
-              <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold uppercase text-muted-foreground">Automático</span>
+          <section className="rounded-xl border border-border bg-muted/30 px-3.5 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[12px] font-bold text-muted-foreground">Prontidão</p>
+              <span className={`text-[12px] font-semibold ${nProntos === verificacoes.length ? "text-estado-pronto" : "text-muted-foreground"}`}>
+                {prontidaoQ.isPending && escolhidas.length > 0 ? "A verificar…" : `${nProntos} de ${verificacoes.length} prontos`}
+              </span>
             </div>
-            <div className="space-y-2.5">
-              <ItemVerificacao
-                estado={estadoArea(areaEmail?.estado, areaEmail?.severidade)}
-                titulo="Email montado"
-                detalhe={areaEmail?.mensagem ?? (prontidaoQ.isError ? "Não foi possível confirmar o email." : "A confirmar assunto e composição final…")}
-              />
-              <ItemVerificacao
-                estado={prontidaoQ.isPending ? "a_verificar" : cronicaPublicada ? "pronto" : "atencao"}
-                titulo="Crónica pública e atualizada"
-                detalhe={cronicaPublicada ? "O artigo está publicado com um endereço público válido." : "Será publicada ou atualizada após confirmação, antes do envio."}
-              />
-              <ItemVerificacao
-                estado={prontidaoQ.isPending ? "a_verificar" : webPublica && areaConteudo?.estado === "pronta" ? "pronto" : areaConteudo?.severidade === "bloqueio" ? "bloqueado" : "atencao"}
-                titulo="Página completa da edição pública"
-                detalhe={webPublica && areaConteudo?.estado === "pronta"
-                  ? "As notícias e todo o conteúdo estão públicos e prontos."
-                  : areaConteudo?.estado !== "pronta"
-                    ? areaConteudo?.mensagem ?? "Há conteúdo editorial por resolver."
-                    : "O conteúdo está pronto; a página será publicada antes do envio."}
-              />
-              <ItemVerificacao
-                estado={escolhidas.length > 0 ? "pronto" : "atencao"}
-                titulo="Destino selecionado"
-                detalhe={escolhidas.length > 0 ? `${escolhidas.length} destino${escolhidas.length === 1 ? "" : "s"} selecionado${escolhidas.length === 1 ? "" : "s"}.` : "Escolhe pelo menos um destino para continuar."}
-              />
-            </div>
-          </section>
-        )}
-
-        {revista && (
-          <section>
-            <p className="mb-3 text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Rever antes de enviar</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Button variant="outline"
-                type="button" onClick={() => abrirPrevia("edicao")}
-                className="h-auto min-h-24 items-start justify-start whitespace-normal rounded-xl p-4 text-left"
-              >
-                <Globe className="mt-0.5 text-primary" />
-                <span className="min-w-0">
-                  <span className="block text-[14.5px] font-semibold text-foreground">Ver a página web da edição</span>
-                  <span className="mt-1 block text-[12.5px] font-normal leading-relaxed text-muted-foreground">
-                  {webPublica
-                    ? "Abre a edição com todas as notícias, tal como está publicada."
-                    : "Pré-visualização interna — a edição ainda não está publicada."}
-                  </span>
-                </span>
+            <ul className="mt-1 grid gap-x-4 sm:grid-cols-2">
+              {verificacoes.map((v) => <ItemVerificacao key={v.titulo} {...v} />)}
+            </ul>
+            <div className="mt-2 flex flex-wrap gap-2 border-t border-border pt-2.5">
+              <Button variant="outline" size="sm" type="button" onClick={() => abrirPrevia("edicao")}>
+                <Globe /> Ver página web
               </Button>
-
-              <Button variant="outline"
-                type="button" onClick={() => abrirPrevia("cronica")}
-                className="h-auto min-h-24 items-start justify-start whitespace-normal rounded-xl p-4 text-left"
-              >
-                <FileText className="mt-0.5 text-primary" />
-                <span className="min-w-0">
-                  <span className="block text-[14.5px] font-semibold text-foreground">Ver a crónica como vai para o site</span>
-                  <span className="mt-1 block text-[12.5px] font-normal leading-relaxed text-muted-foreground">
-                  {cronicaPublicada
-                    ? "Já está publicada em FredericoCarvalho.pt — abre também a ligação ao site."
-                    : urlCronica
-                      ? "O artigo ainda é rascunho no site — abre a pré-visualização interna."
-                      : "Ainda não há artigo em FredericoCarvalho.pt — abre a pré-visualização, sem publicar nada."}
-                  </span>
-                </span>
+              <Button variant="outline" size="sm" type="button" onClick={() => abrirPrevia("cronica")}>
+                <FileText /> Ver crónica
               </Button>
-            </div>
-            {!cronicaPublicada && (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button type="button" variant="secondary" disabled={aPublicarCronica || emCurso} onClick={publicarSoCronica}>
-                  {aPublicarCronica && <Loader2 size={16} className="animate-spin" />}
-                  {aPublicarCronica ? "A publicar a crónica…" : "Publicar crónica no site"}
+              {!cronicaPublicada && (
+                <Button type="button" size="sm" variant="ghost" disabled={aPublicarCronica || emCurso} onClick={publicarSoCronica}>
+                  {aPublicarCronica && <Loader2 className="animate-spin" />}
+                  {aPublicarCronica ? "A publicar…" : "Publicar só a crónica"}
                 </Button>
-                <span className="text-[12.5px] text-muted-foreground">Publica só a crónica; o URL é preenchido automaticamente.</span>
-              </div>
-            )}
+              )}
+            </div>
           </section>
         )}
 
         {problemas.length > 0 && (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3">
-            <p className="flex items-center gap-2 text-[14.5px] font-semibold text-destructive">
-              <AlertTriangle size={16} /> {problemas.length} ponto(s) por resolver
+          <div className="rounded-xl border border-estado-falta-borda bg-estado-falta-suave px-3.5 py-2.5">
+            <p className="flex items-center gap-2 text-[13px] font-semibold text-estado-falta">
+              <AlertTriangle size={15} /> {problemas.length} ponto(s) por rever
             </p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-[13.5px] text-muted-foreground">
+            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[12.5px] text-muted-foreground">
               {problemas.map((p) => <li key={p}>{p}</li>)}
             </ul>
           </div>
         )}
 
-        <div>
-          <p className="mb-2 text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Destino</p>
+        <section>
+          <p className="mb-2 text-[12px] font-bold text-muted-foreground">Listas de destino</p>
           {activas.length === 0 && (
-            <p className="text-[14px] text-muted-foreground">
-              Não há listas activas. Configura-as em Definições.
-            </p>
+            <p className="text-[13px] text-muted-foreground">Não há listas activas. Configura-as em Definições.</p>
           )}
-          <div className="space-y-2.5">
+          <div className="grid gap-2 sm:grid-cols-2">
             {activas.map((l) => {
               const real = l.tipo === "real";
               const desactivar = (real && !isAdmin) || emCurso;
               const sel = listasSel.includes(l.id);
               return (
-                <Button variant="outline"
+                <button
                   key={l.id} type="button" role="checkbox" aria-checked={sel} disabled={desactivar}
                   onClick={() => setListasSel((p) => p.includes(l.id) ? p.filter((x) => x !== l.id) : [...p, l.id])}
-                  className={`h-auto w-full justify-between whitespace-normal rounded-xl border-2 p-4 text-left ${
-                    sel ? "border-estado-pronto bg-estado-pronto-suave" : "border-border bg-card hover:border-estado-pronto-borda"
+                  className={`flex min-w-0 items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-55 ${
+                    sel
+                      ? real ? "border-destructive/50 bg-destructive/5" : "border-estado-pronto bg-estado-pronto-suave"
+                      : "border-border bg-card hover:bg-muted/40"
                   }`}
                 >
-                  <span className="flex min-w-0 items-center gap-3">
-                    {real ? <Radio className="text-estado-falta" /> : <TestTube2 className="text-estado-pronto" />}
-                    <span className="min-w-0">
-                      <span className="block text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{real ? "Real" : "Teste"}</span>
-                      <span className="mt-0.5 block text-[14.5px] font-semibold text-foreground">{l.nome}</span>
+                  {sel
+                    ? <CheckCircle2 size={17} className={`shrink-0 ${real ? "text-destructive" : "text-estado-pronto"}`} />
+                    : <Circle size={17} className="shrink-0 text-muted-foreground" />}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13.5px] font-semibold text-foreground">{l.nome}</span>
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      {real ? <Radio size={11} /> : <TestTube2 size={11} />}
+                      {real ? "Subscritores reais" : "Lista de teste"}
+                      {real && !isAdmin && <Lock size={11} />}
                     </span>
-                    {real && !isAdmin && <Lock size={12} className="text-muted-foreground" />}
                   </span>
-                  {sel ? <CheckCircle2 className="shrink-0 text-estado-pronto" /> : <Circle className="shrink-0 text-muted-foreground" />}
-                </Button>
+                </button>
               );
             })}
           </div>
-        </div>
+        </section>
 
         {isReal && (
-          <label className="block">
-            <span className="mb-1.5 block text-[13px] font-semibold text-muted-foreground">
-              Confirma o número da edição para libertar o envio real
+          <label className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-3.5 py-2.5">
+            <span className="min-w-0 flex-1 text-[13px] font-semibold text-foreground">
+              Escreve <span className="tabular-nums">{numero}</span> para confirmar o envio real
             </span>
             <input
               value={confirmNumero} onChange={(e) => setConfirmNumero(e.target.value)}
-              inputMode="numeric" placeholder={String(numero)}
-              className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-[15px]"
+              inputMode="numeric" placeholder={String(numero)} aria-label="Número da edição"
+              className="w-24 rounded-lg border border-input bg-background px-3 py-1.5 text-center text-[15px] tabular-nums"
             />
           </label>
         )}
 
         {progresso.length > 0 && (
-          <div className="space-y-2.5" aria-live="polite">
-            <div className="flex items-center justify-between gap-3 text-[12.5px] font-semibold text-muted-foreground">
+          <section className="space-y-1.5" aria-live="polite">
+            <div className="flex items-center justify-between gap-3 text-[12px] font-semibold text-muted-foreground">
               <span>{emCurso ? rotuloEnvio : `${concluidas} de ${progresso.length} listas concluídas`}</span>
-              {actual && <span>Lista {(indiceAEnviar >= 0 ? indiceAEnviar : indiceEmEspera) + 1} de {progresso.length}</span>}
+              {esperaSeg !== null && <span>Pausa: {esperaSeg}s</span>}
             </div>
-          <ul className="space-y-1.5">
-            {progresso.map((p) => (
-              <li key={p.lista_id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-[14px]">
-                <span className="font-medium text-foreground">{p.lista_nome}</span>
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  {p.estado === "ok" && <><CheckCircle2 size={15} className="text-emerald-600" /> Enviada</>}
-                  {p.estado === "a_enviar" && <><Loader2 size={15} className="animate-spin" /> A enviar agora…</>}
-                  {p.estado === "a_preparar" && <><Loader2 size={15} className="animate-spin" /> A preparar…</>}
-                  {p.estado === "espera" && "Em espera"}
-                  {p.estado === "erro" && (
-                    <>
-                      <span className="text-destructive">{p.erro ?? "Falhou"}</span>
-                      <button
-                        type="button" onClick={() => repetirLista.mutate(p.lista_id)} disabled={repetirLista.isPending}
-                        className="rounded-md border border-border px-2 py-1 text-[12.5px] font-semibold text-foreground"
-                      >
-                        Repetir
-                      </button>
-                    </>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-          </div>
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {progresso.map((p) => (
+                <li key={p.lista_id} className="flex items-center justify-between gap-2 px-3 py-2 text-[13px]">
+                  <span className="truncate font-medium text-foreground">{p.lista_nome}</span>
+                  <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
+                    {p.estado === "ok" && <><CheckCircle2 size={14} className="text-estado-pronto" /> Enviada</>}
+                    {p.estado === "a_enviar" && <><Loader2 size={14} className="animate-spin" /> A enviar…</>}
+                    {p.estado === "a_preparar" && <><Loader2 size={14} className="animate-spin" /> A preparar…</>}
+                    {p.estado === "espera" && "Em espera"}
+                    {p.estado === "erro" && (
+                      <>
+                        <span className="max-w-[180px] truncate text-destructive" title={p.erro}>{p.erro ?? "Falhou"}</span>
+                        <Button type="button" size="sm" variant="outline" onClick={() => repetirLista.mutate(p.lista_id)} disabled={repetirLista.isPending}>
+                          Repetir lista
+                        </Button>
+                      </>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
-        {esperaSeg !== null && (
-          <p className="text-[14px] text-muted-foreground">Pausa entre listas: {esperaSeg}s…</p>
-        )}
         {resultadoFinal && (
-          <p className="rounded-xl border border-estado-pronto-borda bg-estado-pronto-suave p-4 text-[14px] font-semibold text-estado-pronto" role="status">
-            <CheckCircle2 size={17} className="mr-2 inline" />
+          <p className="rounded-xl border border-estado-pronto-borda bg-estado-pronto-suave px-3.5 py-2.5 text-[13px] font-semibold text-estado-pronto" role="status">
+            <CheckCircle2 size={15} className="mr-1.5 inline" />
             {resultadoFinal}
           </p>
         )}
-        {erro && <p className="text-[14px] text-destructive">{erro}</p>}
+        {erro && <p className="rounded-xl bg-destructive/5 px-3.5 py-2.5 text-[13px] text-destructive" role="alert">{erro}</p>}
 
         {rigidos.length > 0 && (
-          <div className="rounded-xl border border-destructive/35 bg-destructive/5 p-4 text-[13.5px] text-destructive" role="alert">
-            <p className="font-semibold">Resolve estes pontos no editor antes de enviar:</p>
-            <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
+          <div className="rounded-xl border border-destructive/35 bg-destructive/5 px-3.5 py-2.5 text-[13px] text-destructive" role="alert">
+            <p className="font-semibold">Resolve no editor antes de enviar:</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-5">
               {rigidos.map((m) => <li key={m}>{m}</li>)}
             </ul>
           </div>
         )}
 
-        </div>
-
-        <div className="sticky bottom-0 space-y-4 border-t border-border bg-card px-5 py-5 sm:px-8">
-        <div className="flex flex-wrap gap-2">
-          {revista && isReal && (
-            <button
-              type="button" disabled={emCurso} onClick={() => onAberto(false)}
-              className="rounded-2xl border border-border px-5 py-3.5 text-[15px] font-semibold text-foreground disabled:opacity-55"
-            >
-              Cancelar
-            </button>
-          )}
-          <Button
-            type="button" disabled={!podeEnviar}
-            onClick={pedirDisparo}
-            className="h-auto min-h-12 flex-1 whitespace-normal rounded-xl px-4 py-2.5 text-[16px] leading-snug"
-          >
-            {emCurso && <Loader2 size={18} className="animate-spin" />}
-            {emCurso ? rotuloEnvio : isReal ? (revista ? "Enviar edição" : "Aprovar e enviar") : "Enviar teste"}
-          </Button>
-        </div>
-
         {registo.length > 0 && (
-          <div className="max-h-40 overflow-y-auto rounded-xl border border-border bg-muted/40 p-3" aria-live="polite">
-            <p className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Registo do envio</p>
-            <ul className="space-y-1 text-[13px]">
+          <details className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-[12.5px]">
+            <summary className="cursor-pointer font-semibold text-muted-foreground">Registo do envio ({registo.length})</summary>
+            <ul className="mt-1.5 max-h-32 space-y-0.5 overflow-y-auto" aria-live="polite">
               {registo.map((l, i) => (
                 <li key={i} className={l.erro ? "text-destructive" : "text-foreground"}>
                   <span className="mr-2 tabular-nums text-muted-foreground">{l.hora}</span>{l.texto}
                 </li>
               ))}
-              {emCurso && <li className="text-muted-foreground">{rotuloEnvio}</li>}
             </ul>
-          </div>
+          </details>
         )}
 
-        {bloqueioCurador && (
-          <p className="text-[13px] text-muted-foreground">Só um administrador pode disparar envios reais.</p>
-        )}
-
-        <div className="rounded-xl border border-border p-3">
-          <p className="mb-2 flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            <CalendarClock size={13} /> Ou agenda
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
+        {verAgenda && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border px-3.5 py-2.5">
+            <CalendarClock size={15} className="text-muted-foreground" />
             <input
               type="datetime-local" value={agendarQuando} onChange={(e) => setAgendarQuando(e.target.value)}
-              className="rounded-xl border border-input bg-background px-3 py-2 text-[15px]"
+              aria-label="Data e hora do envio"
+              className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-[13.5px]"
             />
-            <button
-              type="button"
+            <Button
+              type="button" size="sm" variant="outline"
               disabled={agendar.isPending || !agendarQuando || escolhidas.length === 0 || !numOk || bloqueioCurador}
               onClick={pedirAgendamento}
-              className="rounded-xl border border-border px-3.5 py-2 text-[14.5px] font-semibold text-foreground disabled:opacity-55"
             >
-              {agendar.isPending ? "A agendar…" : "Agendar envio"}
-            </button>
+              {agendar.isPending ? "A agendar…" : "Confirmar agendamento"}
+            </Button>
           </div>
+        )}
         </div>
+
+        <div className="shrink-0 space-y-2 border-t border-border bg-card px-5 py-3.5 sm:px-6">
+          {bloqueioCurador && (
+            <p className="text-[12px] text-muted-foreground">Só um administrador pode fazer envios reais.</p>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setVerAgenda((v) => !v)} disabled={emCurso}>
+              <CalendarClock /> {verAgenda ? "Esconder agenda" : "Agendar"}
+            </Button>
+            <div className="ml-auto flex gap-2">
+              <Button type="button" variant="outline" disabled={emCurso} onClick={() => onAberto(false)}>Cancelar</Button>
+              <Button
+                type="button" disabled={!podeEnviar} onClick={pedirDisparo}
+                variant={isReal ? "destructive" : "default"}
+                className="min-w-[160px]"
+              >
+                {emCurso && <Loader2 className="animate-spin" />}
+                {rotuloBotao}
+              </Button>
+            </div>
+          </div>
+          {emCurso && isReal && (
+            <p className="text-[12px] text-muted-foreground">Podes fechar esta página — o servidor continua o envio.</p>
+          )}
         </div>
         {avisosPendentes && (
           <AvisoChecklistModal

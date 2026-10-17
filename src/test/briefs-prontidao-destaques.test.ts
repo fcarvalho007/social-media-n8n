@@ -12,8 +12,10 @@ vi.mock("../../supabase/functions/_shared/newsletter-engine/revista/destinos.ser
   baseUrlEdicoes: async () => "https://exemplo.pt",
 }));
 
+// Path held in a variable so the app typecheck does not walk the Deno-only send engine.
+const MODULO_PUBLICACAO = "../../supabase/functions/_shared/newsletter-engine/revista/brief/publicacao.server.ts";
 const { validarBriefsDaEdicao } = await import(
-  "../../supabase/functions/_shared/newsletter-engine/revista/brief/publicacao.server.ts"
+  /* @vite-ignore */ MODULO_PUBLICACAO
 );
 
 const brief = (id: string, papel: "destaque" | "radar", pronto: boolean) => ({
