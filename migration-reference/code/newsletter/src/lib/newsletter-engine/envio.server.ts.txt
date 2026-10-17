@@ -108,7 +108,13 @@ function proximaQuinta(): string {
 
 /** Cria a edição seguinte em rascunho (idempotente: não cria se já houver rascunho). */
 export async function garantirEdicaoSeguinte(sb: SupabaseClient, quem: string) {
-  const { data: rasc } = await sb.from("edicoes").select("id").eq("estado", "rascunho").limit(1).maybeSingle();
+  // Só conta um rascunho POSTERIOR à última enviada: rascunhos antigos e
+  // abandonados não impedem que a edição seguinte seja aberta.
+  const { data: ult } = await sb.from("edicoes").select("numero").eq("estado", "enviada")
+    .order("numero", { ascending: false }).limit(1).maybeSingle();
+  const ultimaEnviada = (ult as { numero: number } | null)?.numero ?? 0;
+  const { data: rasc } = await sb.from("edicoes").select("id").eq("estado", "rascunho")
+    .gt("numero", ultimaEnviada).limit(1).maybeSingle();
   if (rasc) return null;
 
   const { data: max } = await sb.from("edicoes").select("numero").order("numero", { ascending: false }).limit(1).maybeSingle();
