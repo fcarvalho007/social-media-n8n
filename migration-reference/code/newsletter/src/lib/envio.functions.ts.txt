@@ -129,6 +129,47 @@ export const agendarEnvioFn = createServerFn({ method: "POST" })
     return { ok: true as const, agendado_para: quando.toISOString() };
   });
 
+/**
+ * Envio real em segundo plano: regista a ordem (edição + listas) e o servidor
+ * executa preparar → disparar lista a lista → finalizar sem depender da página.
+ * Reutiliza o motor de agendamento com hora "agora" (claim idempotente).
+ */
+export const enviarSegundoPlanoFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string; lista_ids: string[]; confirmacao_numero: number; publicar_conteudos?: boolean }) => d)
+  .handler(async ({ data, context }) => {
+    const { admin, autorizar, ErroEnvio } = await import("./newsletter-engine/envio.server");
+    const sb = admin();
+    const user = await autorizar(sb, context.userId, "real");
+    if (!data.lista_ids?.length) throw new ErroEnvio("Escolhe pelo menos uma lista.");
+    const { data: ed } = await sb.from("edicoes")
+      .select("estado, numero, agendamento_estado").eq("id", data.edicao_id).maybeSingle();
+    const e = ed as { estado: string; numero: number; agendamento_estado: string | null } | null;
+    if (!e) throw new ErroEnvio("Edição não encontrada", 404);
+    if (e.estado === "enviada") throw new ErroEnvio("Edição já foi enviada.", 409);
+    if (Number(data.confirmacao_numero) !== e.numero) throw new ErroEnvio("Número de confirmação não corresponde à edição.");
+    if (e.agendamento_estado === "agendado" || e.agendamento_estado === "a_executar") {
+      throw new ErroEnvio("Já existe uma ordem de envio para esta edição.", 409);
+    }
+    const agora = new Date().toISOString();
+    // Claim condicional: dois cliques seguidos não criam duas ordens.
+    const { data: claim } = await sb.from("edicoes").update({
+      agendado_para: agora,
+      agendamento_estado: "agendado",
+      agendamento_listas: data.lista_ids,
+      agendamento_wordpress: data.publicar_conteudos === true,
+      agendamento_erro: null,
+      agendado_por: user.nome,
+    }).eq("id", data.edicao_id).not("agendamento_estado", "in", "(agendado,a_executar)").select("id").maybeSingle();
+    if (!claim) throw new ErroEnvio("Já existe uma ordem de envio para esta edição.", 409);
+    await sb.from("audit_log").insert({
+      quem: user.nome,
+      accao: `Deu ordem de envio da edição #${e.numero} (em segundo plano)`,
+      detalhe: agora,
+    });
+    return { ok: true as const, segundo_plano: true as const };
+  });
+
 /** Cancela o agendamento de uma edição (apenas admin). */
 export const cancelarAgendamentoFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
