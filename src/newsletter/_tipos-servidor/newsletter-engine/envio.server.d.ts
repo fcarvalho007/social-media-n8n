@@ -154,6 +154,7 @@ export declare function dispararEgoi(opts: {
     listaIds: string[];
     confirmacaoNumero?: number;
     exigirConfirmacao?: boolean;
+    publicarConteudos?: boolean;
 }): Promise<{
     ok: boolean;
     modo: "teste" | "real";

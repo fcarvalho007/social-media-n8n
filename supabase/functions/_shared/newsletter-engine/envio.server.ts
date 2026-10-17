@@ -755,6 +755,7 @@ export async function dispararEgoi(opts: {
   listaIds: string[];
   confirmacaoNumero?: number;
   exigirConfirmacao?: boolean;
+  publicarConteudos?: boolean;
 }) {
   const prep = await prepararEnvio(opts);
 
@@ -772,7 +773,11 @@ export async function dispararEgoi(opts: {
     }));
   }
 
-  await finalizarEnvio({ userId: opts.userId, quemNome: opts.quemNome, edicaoId: opts.edicaoId, listaIds: opts.listaIds });
+  // Com listas por repetir, liberta o bloqueio mas não fecha a edição.
+  await finalizarEnvio({
+    userId: opts.userId, quemNome: opts.quemNome, edicaoId: opts.edicaoId, listaIds: opts.listaIds,
+    adiarFecho: resultados.some((r) => !r.ok),
+  });
 
   const sucessos = resultados.filter((r) => r.ok);
   const falhas = resultados.filter((r) => !r.ok);

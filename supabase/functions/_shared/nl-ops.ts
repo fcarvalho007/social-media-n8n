@@ -95,6 +95,7 @@ export const NL_OPS: Record<string, NlOp> = {
   "envio:finalizarEnvioFn": X("Fechar o envio desta edição. Só fecha quando a E-goi confirmar a entrega. Continuar?"),
   "envio:publicarWordpressFn": X("Publicar a edição no WordPress torna-a pública. Continuar?"),
   "envio:agendarEnvioFn": X("Agendar o envio automático desta edição para os subscritores. Continuar?"),
+  "envio:enviarSegundoPlanoFn": X("Enviar a newsletter agora para os subscritores, em segundo plano. Esta ação não pode ser anulada. Continuar?"),
   "envio:cancelarAgendamentoFn": X("Cancelar o envio agendado desta edição. Continuar?"),
 
   "ferramentas:listarFerramentas": L,
