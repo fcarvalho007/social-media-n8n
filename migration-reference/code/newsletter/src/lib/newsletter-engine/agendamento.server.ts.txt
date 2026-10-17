@@ -12,7 +12,7 @@ export async function executarAgendamentos(): Promise<ResultadoAgendamento> {
   const agora = new Date().toISOString();
 
   const { data } = await sb.from("edicoes")
-    .select("id, numero, agendamento_listas, agendamento_wordpress, agendado_por, estado")
+    .select("id, numero, agendamento_listas, agendamento_wordpress, agendado_por, estado, template_version")
     .eq("agendamento_estado", "agendado")
     .lte("agendado_para", agora)
     .order("agendado_para", { ascending: true })
@@ -20,7 +20,7 @@ export async function executarAgendamentos(): Promise<ResultadoAgendamento> {
 
   const pendentes = (data ?? []) as Array<{
     id: string; numero: number; agendamento_listas: unknown;
-    agendamento_wordpress: boolean; agendado_por: string | null; estado: string;
+    agendamento_wordpress: boolean; agendado_por: string | null; estado: string; template_version: string | null;
   }>;
 
   const detalhes: ResultadoAgendamento["detalhes"] = [];
@@ -40,7 +40,9 @@ export async function executarAgendamentos(): Promise<ResultadoAgendamento> {
       if (ed.estado === "enviada") throw new Error("Edição já tinha sido enviada.");
       if (listaIds.length === 0) throw new Error("Agendamento sem listas.");
 
-      if (ed.agendamento_wordpress) {
+      // Revista: a publicação da crónica/página web faz parte da preparação.
+      const revista = ed.template_version === "revista";
+      if (ed.agendamento_wordpress && !revista) {
         try {
           await publicarWordpress({ edicaoId: ed.id, quemNome: quem });
         } catch (e) {
@@ -56,6 +58,7 @@ export async function executarAgendamentos(): Promise<ResultadoAgendamento> {
         edicaoId: ed.id,
         listaIds,
         exigirConfirmacao: false,
+        publicarConteudos: revista && ed.agendamento_wordpress,
       });
 
       await sb.from("edicoes").update({

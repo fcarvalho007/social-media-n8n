@@ -160,7 +160,7 @@ export const enviarSegundoPlanoFn = createServerFn({ method: "POST" })
       agendamento_wordpress: data.publicar_conteudos === true,
       agendamento_erro: null,
       agendado_por: user.nome,
-    }).eq("id", data.edicao_id).not("agendamento_estado", "in", "(agendado,a_executar)").select("id").maybeSingle();
+    }).eq("id", data.edicao_id).or("agendamento_estado.is.null,agendamento_estado.not.in.(agendado,a_executar)").select("id").maybeSingle();
     if (!claim) throw new ErroEnvio("Já existe uma ordem de envio para esta edição.", 409);
     await sb.from("audit_log").insert({
       quem: user.nome,
