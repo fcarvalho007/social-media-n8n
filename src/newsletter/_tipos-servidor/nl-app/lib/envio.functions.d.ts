@@ -106,6 +106,20 @@ export declare const agendarEnvioFn: import("../_shim/start.ts").NlServerFn<{
     ok: true;
     agendado_para: string;
 }>;
+/**
+ * Envio real em segundo plano: regista a ordem (edição + listas) e o servidor
+ * executa preparar → disparar lista a lista → finalizar sem depender da página.
+ * Reutiliza o motor de agendamento com hora "agora" (claim idempotente).
+ */
+export declare const enviarSegundoPlanoFn: import("../_shim/start.ts").NlServerFn<{
+    edicao_id: string;
+    lista_ids: string[];
+    confirmacao_numero: number;
+    publicar_conteudos?: boolean;
+}, {
+    ok: true;
+    segundo_plano: true;
+}>;
 /** Cancela o agendamento de uma edição (apenas admin). */
 export declare const cancelarAgendamentoFn: import("../_shim/start.ts").NlServerFn<{
     edicao_id: string;

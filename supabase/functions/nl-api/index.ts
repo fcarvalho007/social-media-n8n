@@ -52,6 +52,12 @@ Deno.serve(async (req) => {
       const bg = import("../_shared/conteudos/jobs.server.ts").then((m) => m.processarJobs(2)).catch(() => {});
       (globalThis as { EdgeRuntime?: { waitUntil: (p: Promise<unknown>) => void } }).EdgeRuntime?.waitUntil(bg);
     }
+    // Background send: run the due order right away; the nl-hooks cron is the fallback.
+    if (id === "envio:enviarSegundoPlanoFn") {
+      const bg = import("../_shared/newsletter-engine/agendamento.server.ts").then((m) => m.executarAgendamentos())
+        .catch((e) => console.error("[nl-api] envio em segundo plano", (e as Error).message));
+      (globalThis as { EdgeRuntime?: { waitUntil: (p: Promise<unknown>) => void } }).EdgeRuntime?.waitUntil(bg);
+    }
     return json(out);
   } catch (e) {
     const msg = (e as Error).message ?? "Erro";

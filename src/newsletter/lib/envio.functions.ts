@@ -12,5 +12,6 @@ export const reconciliarEdicaoFn = nlServerFn<typeof import("@/newsletter/_tipos
 export const finalizarEnvioFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").finalizarEnvioFn>("envio:finalizarEnvioFn");
 export const publicarWordpressFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").publicarWordpressFn>("envio:publicarWordpressFn");
 export const agendarEnvioFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").agendarEnvioFn>("envio:agendarEnvioFn");
+export const enviarSegundoPlanoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").enviarSegundoPlanoFn>("envio:enviarSegundoPlanoFn");
 export const cancelarAgendamentoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").cancelarAgendamentoFn>("envio:cancelarAgendamentoFn");
 

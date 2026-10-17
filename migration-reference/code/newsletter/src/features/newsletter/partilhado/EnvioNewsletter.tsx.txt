@@ -90,6 +90,12 @@ export function EnvioNewsletter({
     numero,
     onDisparoConcluido: (r) => {
       onEnviado?.();
+      if (r.segundoPlano) {
+        registar("Ordem de envio registada no servidor.");
+        setErro(null);
+        setResultadoFinal(r.mensagem);
+        return;
+      }
       for (const item of r.resultados) registar(`Lista ${item.lista_nome}: pedido aceite.`);
       registar(r.falhas > 0 ? `Terminado com ${r.falhas} falha(s): ${r.mensagem}` : "Envio concluído.", r.falhas > 0);
       if (r.falhas > 0) {
