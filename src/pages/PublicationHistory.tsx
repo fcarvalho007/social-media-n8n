@@ -42,6 +42,7 @@ import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface PublicationAttempt {
   id: string;
@@ -155,7 +156,7 @@ export default function PublicationHistory() {
     }
   }, [searchParams]);
 
-  const { data: attempts, isLoading: attemptsLoading, refetch: refetchAttempts } = useQuery({
+  const { data: attempts, isLoading: attemptsLoading, error: attemptsError, refetch: refetchAttempts } = useQuery({
     queryKey: ['publication-attempts'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -168,7 +169,7 @@ export default function PublicationHistory() {
     },
   });
 
-  const { data: posts, isLoading: postsLoading, refetch: refetchPosts } = useQuery({
+  const { data: posts, isLoading: postsLoading, error: postsError, refetch: refetchPosts } = useQuery({
     queryKey: ['publication-posts'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -747,6 +748,18 @@ export default function PublicationHistory() {
       </Collapsible>
     );
   };
+
+  if (attemptsError || postsError) return <div className="mx-auto flex max-w-4xl flex-col gap-4 p-4 sm:p-6">
+    <h1 className="text-2xl font-semibold">Histórico de publicações</h1>
+    <Alert variant="destructive">
+      <AlertCircle aria-hidden="true" />
+      <AlertTitle>Não foi possível carregar o histórico completo</AlertTitle>
+      <AlertDescription className="flex flex-col items-start gap-3">
+        <p>As publicações e as tentativas têm de estar disponíveis para calcular os resultados. Tenta atualizar a lista.</p>
+        <Button variant="outline" onClick={refetch} disabled={isLoading}><RefreshCw aria-hidden="true" />Tentar de novo</Button>
+      </AlertDescription>
+    </Alert>
+  </div>;
 
   return (
     <div className="container mx-auto py-6 px-4 max-w-4xl">

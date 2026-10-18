@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 import { Resend } from 'https://esm.sh/resend@4.0.0';
 import { ERRO_BASE_APP, linkApp } from '../_shared/app-publico.ts';
+import { enviarEmailERegistar, registoTesteEmail } from './envio.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,10 +61,11 @@ serve(async (req) => {
       if (!token) return json({ error: 'Sessão obrigatória' }, 401);
       const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       if (authError || !user?.email) return json({ error: 'Sessão inválida' }, 401);
+      const emailDestinatario = user.email;
 
-      await resend.emails.send({
+      await enviarEmailERegistar(() => resend.emails.send({
         from: 'Sistema de Publicação <onboarding@resend.dev>',
-        to: [user.email],
+        to: [emailDestinatario],
         subject: 'Teste de lembrete — Story com Link',
         html: storyEmailHtml({
           mediaUrl: payload.media_url || 'https://placehold.co/720x1280/png',
@@ -74,9 +76,8 @@ serve(async (req) => {
           launcherUrl: payload.confirm_url || linkApp('/settings/notifications') || '',
           fallbackUrl: 'https://www.instagram.com/',
         }),
-      });
-
-      await supabase.from('user_notification_preferences').upsert({ user_id: user.id, reminder_channel: 'email', email_tested_at: new Date().toISOString() });
+      }), () => supabase.from('user_notification_preferences')
+        .upsert(registoTesteEmail(user.id), { onConflict: 'user_id' }).select('user_id').single());
       return json({ ok: true, sent: 1 });
     }
 
@@ -91,14 +92,18 @@ serve(async (req) => {
     if (storiesError) throw storiesError;
 
     let sent = 0;
+    let failed = 0;
     for (const story of stories ?? []) {
       try {
         if (story.reminder_channel && story.reminder_channel !== 'email') {
-          await supabase.from('story_link_publications').update({ last_error: `Canal ${story.reminder_channel} ainda não configurado nesta fase.` }).eq('id', story.id);
+          const { error } = await supabase.from('story_link_publications').update({ last_error: `Canal ${story.reminder_channel} ainda não configurado nesta fase.` }).eq('id', story.id);
+          if (error) throw error;
+          failed += 1;
           continue;
         }
 
-        const { data: profile } = await supabase.from('profiles').select('email').eq('id', story.user_id).maybeSingle();
+        const { data: profile, error: profileError } = await supabase.from('profiles').select('email').eq('id', story.user_id).maybeSingle();
+        if (profileError) throw profileError;
         if (!profile?.email) throw new Error('Email do utilizador não encontrado');
 
         const tokenValue = randomToken();
@@ -108,12 +113,13 @@ serve(async (req) => {
         if (!confirmUrl || !launcherUrl) throw new Error(ERRO_BASE_APP);
         const stickerText = story.sticker_text || new URL(story.link_url).hostname.replace(/^www\./, '');
 
-        await supabase.from('story_link_publications').update({
+        const { error: tokenError } = await supabase.from('story_link_publications').update({
           confirmation_token_hash: tokenHash,
           confirmation_token_expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-        }).eq('id', story.id);
+        }).eq('id', story.id).select('id').single();
+        if (tokenError) throw tokenError;
 
-        await resend.emails.send({
+        await enviarEmailERegistar(() => resend.emails.send({
           from: 'Sistema de Publicação <onboarding@resend.dev>',
           to: [profile.email],
           subject: 'A tua Story com Link está pronta para publicar',
@@ -126,20 +132,21 @@ serve(async (req) => {
             launcherUrl,
             fallbackUrl: 'https://www.instagram.com/',
           }),
-        });
-
-        await supabase.from('story_link_publications').update({
+        }), () => supabase.from('story_link_publications').update({
           reminder_sent_at: new Date().toISOString(),
           status: 'reminder_sent',
           last_error: null,
-        }).eq('id', story.id);
+        }).eq('id', story.id).select('id').single());
         sent += 1;
       } catch (error) {
-        await supabase.from('story_link_publications').update({ last_error: error instanceof Error ? error.message : 'Erro ao enviar lembrete' }).eq('id', story.id);
+        failed += 1;
+        const message = error instanceof Error ? error.message : (error as { message?: string })?.message || 'Erro ao enviar lembrete';
+        const { error: logError } = await supabase.from('story_link_publications').update({ last_error: message }).eq('id', story.id);
+        if (logError) console.error('[send_story_reminder] Falha ao registar o erro:', logError.message);
       }
     }
 
-    return json({ ok: true, processed: stories?.length ?? 0, sent });
+    return json({ ok: failed === 0, processed: stories?.length ?? 0, sent, failed });
   } catch (error) {
     console.error('[send_story_reminder]', error);
     return json({ error: error instanceof Error ? error.message : 'Erro inesperado' }, 500);

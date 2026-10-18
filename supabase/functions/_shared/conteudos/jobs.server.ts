@@ -242,6 +242,16 @@ export async function processarJobs(limite = 2): Promise<{ processados: number }
       await gravarJob(sb, job, { estado: "concluido", erro: null });
     } catch (e) {
       const msg = (e as Error).message ?? "Erro";
+      // A failed delivery lookup is still unconfirmed. Never cross into the legacy
+      // paid generation branch, and never consume its attempt allowance.
+      if (job.estado === "aguarda_confirmacao") {
+        await gravarJob(sb, job, {
+          estado: "aguarda_confirmacao", tentativas: job.tentativas,
+          erro: `Não foi possível confirmar a entrega: ${msg}`.slice(0, 500),
+          proxima_tentativa_em: backoff(3),
+        });
+        continue;
+      }
       const tentativas = job.tentativas + 1;
       const semCredencial = /DEEPSEEK_API_KEY|recusou a chave|Sem saldo/i.test(msg);
       await gravarJob(sb, job, {

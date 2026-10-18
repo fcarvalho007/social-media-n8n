@@ -14,6 +14,10 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,tsx}', 'supabase/functions/_shared/newsletter-engine/revista/briefs-destinos.test.ts'],
   },
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      // Deno's pinned npm specifier is resolved only by the test runner; production stays pinned.
+      'npm:@supabase/supabase-js@2.57.4': '@supabase/supabase-js',
+    },
   },
 });

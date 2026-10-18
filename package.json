@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "dev:local": "vite --mode offline --host 127.0.0.1 --port 5178",
+    "dev:hub": "vite --mode hub --host 127.0.0.1 --port 5183 --strictPort",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "check:edge": "python3 scripts/verificar-grafo-edge.py",

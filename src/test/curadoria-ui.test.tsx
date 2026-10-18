@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CuradoriaNoticias, nomeFonteCuradoria, canalCuradoria, type API_CURADORIA } from '@/features/curadoria/CuradoriaNoticias';
@@ -44,6 +44,60 @@ describe('curadoria: decisão partilhada e escolha sem geração', () => {
  });
  it('falha de leitura tem recuperação e não é apresentada como lista vazia', async () => {
   const a=api();vi.mocked(a.listar).mockRejectedValueOnce(new Error('Ligação indisponível'));render(<MemoryRouter><CuradoriaNoticias api={a}/></MemoryRouter>);expect(await screen.findByRole('alert')).toHaveTextContent('Ligação indisponível');fireEvent.click(screen.getByRole('button',{name:'Tentar de novo'}));await screen.findByRole('heading',{name:n.titulo});expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+ });
+ it('esconde os resultados anteriores durante a troca de filtro e ignora respostas ultrapassadas', async () => {
+  let resolverAprovadas!: (valor: { total: number; itens: NoticiaCurada[] }) => void;
+  const lenta = new Promise<{ total: number; itens: NoticiaCurada[] }>((resolve) => { resolverAprovadas = resolve; });
+  const a = api();
+  vi.mocked(a.listar).mockResolvedValueOnce({ total: 1, itens: [n] }).mockReturnValueOnce(lenta).mockResolvedValueOnce({ total: 1, itens: [{ ...n, id: 'rejeitada', titulo: 'Resultado mais recente' }] });
+  render(<MemoryRouter><CuradoriaNoticias api={a} /></MemoryRouter>);
+  await screen.findByRole('heading', { name: n.titulo });
+  fireEvent.click(screen.getByRole('radio', { name: 'Aprovadas' }));
+  expect(screen.queryByRole('heading', { name: n.titulo })).not.toBeInTheDocument();
+  expect(screen.getByRole('status', { name: 'A carregar notícias' })).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Criar carrossel' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('radio', { name: 'Rejeitadas' }));
+  await screen.findByRole('heading', { name: 'Resultado mais recente' });
+  await act(async () => { resolverAprovadas({ total: 1, itens: [n] }); });
+  expect(screen.queryByRole('heading', { name: n.titulo })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Resultado mais recente' })).toBeInTheDocument();
+ });
+ it('uma falha ao atualizar não conserva ações sobre uma lista antiga nem aparenta estar vazia', async () => {
+  const a = api();
+  vi.mocked(a.listar).mockResolvedValueOnce({ total: 1, itens: [n] }).mockRejectedValueOnce(new Error('Sem ligação ao atualizar'));
+  render(<MemoryRouter><CuradoriaNoticias api={a} /></MemoryRouter>);
+  await screen.findByRole('heading', { name: n.titulo });
+  fireEvent.click(screen.getByRole('button', { name: 'Atualizar' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Sem ligação ao atualizar');
+  expect(screen.queryByRole('button', { name: 'Aprovar' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Não há notícias neste filtro')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+  await screen.findByRole('heading', { name: n.titulo });
+ });
+ it('a mudança de edição consulta os candidatos dessa edição e retira os anteriores enquanto espera', async () => {
+  let resolver!: (valor: { total: number; itens: NoticiaCurada[] }) => void;
+  const a = api();
+  vi.mocked(a.listar).mockResolvedValueOnce({ total: 1, itens: [n] }).mockReturnValueOnce(new Promise((resolve) => { resolver = resolve; }));
+  const r = render(<MemoryRouter><CuradoriaNoticias api={a} paraEdicao={{ id: 'edicao-a', onSelecionada: vi.fn() }} /></MemoryRouter>);
+  await screen.findByRole('button', { name: 'Usar nesta edição' });
+  r.rerender(<MemoryRouter><CuradoriaNoticias api={a} paraEdicao={{ id: 'edicao-b', onSelecionada: vi.fn() }} /></MemoryRouter>);
+  await waitFor(() => expect(a.listar).toHaveBeenLastCalledWith(expect.objectContaining({ edicao: 'edicao-b' })));
+  expect(screen.queryByRole('button', { name: 'Usar nesta edição' })).not.toBeInTheDocument();
+  await act(async () => { resolver({ total: 0, itens: [] }); });
+  expect(screen.getByText('Não há notícias neste filtro')).toBeInTheDocument();
+ });
+ it('impede decisões individuais e mudanças de filtro enquanto uma rejeição em lote está a guardar', async () => {
+  let resolver!: () => void;
+  const a = api();
+  vi.mocked(a.decidir).mockReturnValueOnce(new Promise((resolve) => { resolver = resolve; }));
+  render(<MemoryRouter><CuradoriaNoticias api={a} /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Selecionar notícias visíveis' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Rejeitar selecionadas' }));
+  expect(screen.getByRole('button', { name: 'Aprovar' })).toBeDisabled();
+  expect(screen.getByRole('radio', { name: 'Aprovadas' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Atualizar' })).toBeDisabled();
+  await act(async () => { resolver(); });
+  expect(a.decidir).toHaveBeenCalledTimes(1);
  });
  it('prepara ligações para os três formatos com a mesma notícia', async () => {
   const a=api();render(<MemoryRouter><CuradoriaNoticias api={a}/></MemoryRouter>);await screen.findByRole('heading',{name:n.titulo});fireEvent.click(screen.getByRole('radio',{name:'Aprovadas'}));await waitFor(()=>expect(a.listar).toHaveBeenLastCalledWith(expect.objectContaining({estado:'aprovada'})));

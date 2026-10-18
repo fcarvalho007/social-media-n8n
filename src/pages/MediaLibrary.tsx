@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -128,7 +129,7 @@ export default function MediaLibrary() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Fetch media library
-  const { data: mediaItems, isLoading, refetch } = useQuery({
+  const { data: mediaItems, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['media-library'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -349,7 +350,7 @@ export default function MediaLibrary() {
 
   // Auto-sync when library is empty (no prompts, automatic)
   useEffect(() => {
-    if (!isLoading && mediaItems && mediaItems.length === 0 && user && !hasAutoSynced && !isSyncing) {
+    if (!isLoading && !isFetching && !error && mediaItems && mediaItems.length === 0 && user && !hasAutoSynced && !isSyncing) {
       setHasAutoSynced(true);
       
       // Check last sync time to avoid excessive syncs
@@ -367,7 +368,7 @@ export default function MediaLibrary() {
         importExistingPublications();
       }
     }
-  }, [isLoading, mediaItems, user, hasAutoSynced, isSyncing]);
+  }, [isLoading, isFetching, error, mediaItems, user, hasAutoSynced, isSyncing]);
 
   // Toggle favorite mutation
   const toggleFavoriteMutation = useMutation({
@@ -548,6 +549,22 @@ export default function MediaLibrary() {
       toast.error('Erro ao fazer download');
     }
   };
+
+  if (error) {
+    return (
+      <div className="space-y-6 px-4 py-4 md:px-6">
+        <h1 className="text-2xl font-bold">Biblioteca de Média</h1>
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" aria-hidden />
+          <AlertTitle>Não foi possível carregar a biblioteca</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <p>A lista de ficheiros está indisponível. Tenta carregar novamente.</p>
+            <Button variant="outline" size="sm" disabled={isFetching} onClick={() => void refetch()}><RefreshCw className="mr-2 h-4 w-4" aria-hidden />Tentar de novo</Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">

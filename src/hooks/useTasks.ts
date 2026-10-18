@@ -21,7 +21,7 @@ export interface Task {
 export const useTasks = (projectId?: string) => {
   const queryClient = useQueryClient();
 
-  const { data: tasks = [], isLoading, error } = useQuery({
+  const { data: tasks = [], isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['tasks', projectId],
     queryFn: async () => {
       let query = supabase
@@ -109,7 +109,9 @@ export const useTasks = (projectId?: string) => {
   return {
     tasks,
     isLoading,
+    isFetching,
     error,
+    refetch,
     createTask,
     updateTask,
     deleteTask,

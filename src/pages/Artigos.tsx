@@ -32,6 +32,10 @@ export default function Artigos() {
   const [edit, setEdit] = useState<Edit>(novo);
   const [base, setBase] = useState<Edit>(novo);
   const [aGuardar, setAGuardar] = useState(false);
+  const gravacaoEmCurso = useRef(false);
+  const [aApagar, setAApagar] = useState(false);
+  const eliminacaoEmCurso = useRef(false);
+  const ocupado = aGuardar || aApagar;
   const [erroGuardar, setErroGuardar] = useState<string | null>(null);
   const [pendente, setPendente] = useState<null | { tipo: "trocar"; alvo: Edit } | { tipo: "apagar"; artigo: Artigo }>(null);
   const sujo = !igual(edit, base);
@@ -80,8 +84,8 @@ export default function Artigos() {
   useEffect(() => {
     const id = params.get("id");
     const a = id ? lista.artigos.find((x) => x.id === id) : undefined;
-    if (a && !sujo && edit.id !== a.id) { const e = deArtigo(a); setEdit(e); setBase(e); }
-  }, [params, lista.artigos]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!gravacaoEmCurso.current && !eliminacaoEmCurso.current && a && !sujo && edit.id !== a.id) { const e = deArtigo(a); setEdit(e); setBase(e); }
+  }, [params, lista.artigos, ocupado]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!sujo) return;
@@ -91,13 +95,16 @@ export default function Artigos() {
   }, [sujo]);
 
   const abrir = (alvo: Edit) => {
+    if (gravacaoEmCurso.current || eliminacaoEmCurso.current) return;
     if (sujo) return setPendente({ tipo: "trocar", alvo });
     setEdit(alvo); setBase(alvo); setErroGuardar(null);
     setParams(alvo.id ? { id: alvo.id } : {}, { replace: true });
   };
 
   const guardar = async () => {
+    if (gravacaoEmCurso.current || eliminacaoEmCurso.current) return;
     if (!edit.titulo.trim()) { setErroGuardar("Indica um título."); return; }
+    gravacaoEmCurso.current = true;
     setAGuardar(true); setErroGuardar(null);
     const enviado = { ...edit, titulo: edit.titulo.trim() };
     const chaveAntes = chave;
@@ -113,26 +120,29 @@ export default function Artigos() {
       toast.success("Rascunho guardado");
       carregar();
     } catch (e) { setErroGuardar(`Não foi guardado — o texto continua no editor. ${(e as Error).message}`); }
-    finally { setAGuardar(false); }
+    finally { gravacaoEmCurso.current = false; setAGuardar(false); }
   };
 
   const confirmarApagar = async (a: Artigo) => {
+    if (gravacaoEmCurso.current || eliminacaoEmCurso.current) return;
+    eliminacaoEmCurso.current = true; setAApagar(true);
     try {
       await apagarArtigo(a.id);
       toast.success("Rascunho apagado");
-      if (edit.id === a.id) { const n = novo(); setEdit(n); setBase(n); setParams({}, { replace: true }); }
+      if (editRef.current.id === a.id) { const n = novo(); setEdit(n); setBase(n); setParams({}, { replace: true }); }
       carregar();
     } catch (e) { toast.error(`Não foi apagado: ${(e as Error).message}`); }
+    finally { eliminacaoEmCurso.current = false; setAApagar(false); }
   };
 
   const nomeProjeto = (id: string | null) => ctx.projetos.find((p) => p.id === id)?.name ?? "Sem projeto";
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-4 p-4 md:grid-cols-[1fr_2fr]">
-      <div className="space-y-2">
+    <div className="mx-auto grid w-full min-w-0 max-w-5xl grid-cols-1 gap-4 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      <div className="flex min-w-0 flex-col gap-2">
         <h1 className="text-2xl font-semibold">Artigos</h1>
         <p className="text-xs text-muted-foreground">{ctx.projeto ? `Projeto ${ctx.projeto.name}` : "Todos os projetos"} · só rascunhos, nada é publicado</p>
-        <Button variant="outline" size="sm" onClick={() => abrir(novo())}><Plus className="mr-1 h-4 w-4" />Novo rascunho</Button>
+        <Button variant="outline" size="sm" disabled={ocupado} onClick={() => abrir(novo())}><Plus className="mr-1 h-4 w-4" />Novo rascunho</Button>
         {lista.fase === "a_carregar" && <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-9 w-full" />)}</div>}
         {lista.fase === "erro" && (
           <Alert variant="destructive">
@@ -144,11 +154,11 @@ export default function Artigos() {
           <ul className="divide-y rounded-md border">
             {lista.artigos.map((a) => (
               <li key={a.id} className={`flex items-center justify-between gap-2 p-2 ${edit.id === a.id ? "bg-muted" : ""}`}>
-                <button className="min-w-0 flex-1 text-left text-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => abrir(deArtigo(a))}>
+                <button disabled={ocupado} className="min-w-0 flex-1 text-left text-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60" onClick={() => abrir(deArtigo(a))}>
                   <span className="block truncate font-medium">{a.titulo}</span>
                   <span className="block text-xs text-muted-foreground">{nomeProjeto(a.project_id)} · {dataPt(a.updated_at)}</span>
                 </button>
-                <Button variant="ghost" size="sm" aria-label={`Apagar ${a.titulo}`} onClick={() => setPendente({ tipo: "apagar", artigo: a })}>Apagar</Button>
+                <Button variant="ghost" size="sm" aria-label={`Apagar ${a.titulo}`} disabled={ocupado} onClick={() => { if (!gravacaoEmCurso.current && !eliminacaoEmCurso.current) setPendente({ tipo: "apagar", artigo: a }); }}>Apagar</Button>
               </li>
             ))}
             {lista.artigos.length === 0 && <li className="p-2 text-sm text-muted-foreground">Sem rascunhos{ctx.projeto ? " neste projeto" : ""}.</li>}
@@ -156,15 +166,15 @@ export default function Artigos() {
         )}
       </div>
 
-      <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); guardar(); }}>
+      <form className="flex min-w-0 flex-col gap-3" onSubmit={(e) => { e.preventDefault(); guardar(); }}>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <span className={sujo ? "text-destructive" : "text-muted-foreground"}>
-            {aGuardar ? "A guardar…" : sujo ? "Alterações por guardar" : edit.id ? "Guardado" : "Rascunho novo"}
+            {aApagar ? "A apagar…" : aGuardar ? "A guardar…" : sujo ? "Alterações por guardar" : edit.id ? "Guardado" : "Rascunho novo"}
           </span>
         </div>
         <div className="space-y-1">
           <Label htmlFor="art-projeto">Projeto</Label>
-          <Select value={edit.project_id ?? SEM} onValueChange={(v) => setEdit({ ...edit, project_id: v === SEM ? null : v })}>
+          <Select disabled={aApagar} value={edit.project_id ?? SEM} onValueChange={(v) => setEdit({ ...edit, project_id: v === SEM ? null : v })}>
             <SelectTrigger id="art-projeto"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value={SEM}>Sem projeto</SelectItem>
@@ -174,27 +184,29 @@ export default function Artigos() {
         </div>
         <div className="space-y-1">
           <Label htmlFor="art-titulo">Título</Label>
-          <Input id="art-titulo" value={edit.titulo} onChange={(e) => setEdit({ ...edit, titulo: e.target.value })} />
+          <Input disabled={aApagar} id="art-titulo" value={edit.titulo} onChange={(e) => setEdit({ ...edit, titulo: e.target.value })} />
         </div>
         <div className="space-y-1">
           <Label htmlFor="art-resumo">Resumo</Label>
-          <Textarea id="art-resumo" rows={3} value={edit.resumo} onChange={(e) => setEdit({ ...edit, resumo: e.target.value })} />
+          <Textarea disabled={aApagar} id="art-resumo" rows={3} value={edit.resumo} onChange={(e) => setEdit({ ...edit, resumo: e.target.value })} />
         </div>
         <div className="space-y-1">
           <Label htmlFor="art-corpo">Texto do artigo</Label>
-          <Textarea id="art-corpo" rows={18} value={edit.corpo} onChange={(e) => setEdit({ ...edit, corpo: e.target.value })} />
+          <Textarea disabled={aApagar} id="art-corpo" rows={18} value={edit.corpo} onChange={(e) => setEdit({ ...edit, corpo: e.target.value })} />
         </div>
         {oferta && (
           <Alert>
             <AlertTitle>Há texto não guardado de {dataPt(oferta.guardado_em)}</AlertTitle>
             <AlertDescription className="flex flex-wrap gap-2">
-              <Button type="button" size="sm" onClick={() => { setEdit({ ...oferta.dados, id: edit.id }); setOferta(null); }}>Restaurar</Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => { if (chave) limparRecuperacao(chave); setOferta(null); }}>Descartar</Button>
+              <Button type="button" size="sm" disabled={aApagar} onClick={() => { setEdit({ ...oferta.dados, id: edit.id }); setOferta(null); }}>Restaurar</Button>
+              <Button type="button" size="sm" variant="outline" disabled={aApagar} onClick={() => { if (chave) limparRecuperacao(chave); setOferta(null); }}>Descartar</Button>
             </AlertDescription>
           </Alert>
         )}
         {erroGuardar && <p role="alert" className="text-sm text-destructive">{erroGuardar}</p>}
-        <Button type="submit" disabled={aGuardar || (!sujo && !!edit.id)}>
+        {aGuardar && <p className="text-xs text-muted-foreground" role="status">Podes continuar a escrever. Abre outro rascunho quando a gravação terminar.</p>}
+        {aApagar && <p className="text-xs text-muted-foreground" role="status">A aguardar a confirmação da eliminação. O editor fica disponível quando terminar.</p>}
+        <Button type="submit" disabled={ocupado || (!sujo && !!edit.id)}>
           {aGuardar && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Guardar rascunho
         </Button>
       </form>
@@ -211,7 +223,8 @@ export default function Artigos() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
+            <AlertDialogAction disabled={ocupado} onClick={() => {
+              if (gravacaoEmCurso.current || eliminacaoEmCurso.current) return;
               const p = pendente; setPendente(null);
               if (!p) return;
               if (p.tipo === "apagar") confirmarApagar(p.artigo);

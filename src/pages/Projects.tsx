@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, FolderOpen } from 'lucide-react';
+import { Plus, Search, FolderOpen, AlertCircle, RefreshCw } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { ProjectCard } from '@/components/projects/ProjectCard';
@@ -12,8 +13,8 @@ import { SkeletonCard } from '@/components/ui/skeleton-card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Projects() {
-  const { projects, isLoading, createProject } = useProjects();
-  const { tasks } = useTasks();
+  const { projects, isLoading, isFetching, error, refetch } = useProjects();
+  const { tasks, isLoading: tasksLoading, isFetching: tasksFetching, error: tasksError, refetch: refetchTasks } = useTasks();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -68,6 +69,22 @@ export default function Projects() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Projetos</h1>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" aria-hidden />
+          <AlertTitle>Não foi possível carregar os projetos</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <p>A lista está indisponível. Tenta carregar novamente.</p>
+            <Button variant="outline" size="sm" disabled={isFetching} onClick={() => void refetch()}><RefreshCw className="mr-2 h-4 w-4" aria-hidden />Tentar de novo</Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Skip to main content for accessibility */}
@@ -94,17 +111,18 @@ export default function Projects() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               placeholder="Pesquisar projetos..."
+              aria-label="Pesquisar projetos"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 min-h-[44px] text-base"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full min-h-[44px] active:scale-95 transition-transform">
+            <SelectTrigger aria-label="Filtrar projetos por estado" className="w-full min-h-[44px] active:scale-95 transition-transform">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os Status</SelectItem>
+              <SelectItem value="all">Todos os estados</SelectItem>
               <SelectItem value="active">Ativos</SelectItem>
               <SelectItem value="on_hold">Em Pausa</SelectItem>
               <SelectItem value="completed">Concluídos</SelectItem>
@@ -112,6 +130,17 @@ export default function Projects() {
             </SelectContent>
           </Select>
         </div>
+
+        {tasksError && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" aria-hidden />
+            <AlertTitle>As estatísticas das tarefas estão indisponíveis</AlertTitle>
+            <AlertDescription className="space-y-3">
+              <p>Podes abrir os projetos. Volta a carregar as tarefas para consultar o progresso e a equipa.</p>
+              <Button variant="outline" size="sm" disabled={tasksFetching} onClick={() => void refetchTasks()}><RefreshCw className="mr-2 h-4 w-4" aria-hidden />Tentar carregar tarefas</Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Projects Grid */}
         {filteredProjects.length === 0 ? (
@@ -143,6 +172,7 @@ export default function Projects() {
                 <ProjectCard
                   key={project.id}
                   project={project}
+                  estadoEstatisticas={tasksError ? "erro" : tasksLoading ? "a_carregar" : "pronto"}
                   completionPercentage={stats.completionPercentage}
                   totalTasks={stats.totalTasks}
                   totalMembers={stats.totalMembers}

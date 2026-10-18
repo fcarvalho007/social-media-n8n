@@ -20,7 +20,7 @@ export interface Project {
 export const useProjects = () => {
   const queryClient = useQueryClient();
 
-  const { data: projects = [], isLoading, error } = useQuery({
+  const { data: projects = [], isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -105,7 +105,9 @@ export const useProjects = () => {
   return {
     projects,
     isLoading,
+    isFetching,
     error,
+    refetch,
     createProject,
     updateProject,
     deleteProject,
