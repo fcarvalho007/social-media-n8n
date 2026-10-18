@@ -844,6 +844,27 @@ export type Database = {
           },
         ]
       }
+      hub_worker_config: {
+        Row: {
+          ativo: boolean
+          id: boolean
+          token: string
+          url: string
+        }
+        Insert: {
+          ativo?: boolean
+          id?: boolean
+          token: string
+          url: string
+        }
+        Update: {
+          ativo?: boolean
+          id?: boolean
+          token?: string
+          url?: string
+        }
+        Relationships: []
+      }
       idempotency_keys: {
         Row: {
           created_at: string | null
@@ -5887,6 +5908,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      hub_agenda_documentos_definir: {
+        Args: { _agenda: Json; _projeto: string }
+        Returns: undefined
+      }
       hub_enfileirar: {
         Args: { _dedup: string; _pedido: Json; _projeto: string; _tipo: string }
         Returns: string
@@ -5961,6 +5986,8 @@ export type Database = {
         Args: { _owner: string; _projeto: string; _tabelas: Json }
         Returns: boolean
       }
+      hub_worker_acordar: { Args: never; Returns: undefined }
+      hub_worker_instalar: { Args: { _url: string }; Returns: undefined }
       log_ai_usage: {
         Args: {
           _action_type: string
