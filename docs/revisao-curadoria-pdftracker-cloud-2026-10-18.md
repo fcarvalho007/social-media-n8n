@@ -36,9 +36,37 @@ Avaliação heurística inicial das superfícies inspecionadas: acessibilidade 2
 
 ## Instalação e validação Cloud
 
-A preencher após sincronização e auditoria restrita do Lovable. O backend da ronda anterior está instalado. Nesta ronda, a pré-visualização ainda não tem o endpoint configurado: a ligação exige a autorização específica pedida após a recusa da revisão automática. Não se alterou `.env`, `.env.production`, `.env.development` ou mecanismo alternativo de configuração.
+A auditoria Cloud confirmou o commit `b5bf92bd0d4e3781e3a32f5aa299c2cea3d0d628`, árvore `89aac4dd1938a8ba22ac0947848d54465f732c44`. Foram instaladas **apenas `nl-api` e `nl-hooks`**, com as consultas corrigidas. Nenhuma migração adicional ou configuração foi alterada.
+
+- Relação `nl_edicoes!edicao_id` confirmada no catálogo real.
+- Email processado: **HTTP 200 e quatro notícias**, uma ligada à edição 318 e três sem edição. Email em fila: **200 e zero notícias**. Pedido anónimo: **401**.
+- Consulta autenticada de duplicados: **200 e um resultado**, apenas leitura.
+- Serviço Hub, projeto atual: **200 nas três leituras**; **99 fontes, zero documentos e zero tarefas**. Estes valores são do projeto atual e não de todos os projetos.
+- **27 testes dirigidos aprovados no Lovable**. Não havia registo automático de compilação disponível nessa sessão; o build local passou.
+- Fluxos comprovados no Lovable: menu com quatro opções e teclado Enter/setas/Escape; Todo o histórico; alternância de separadores conservando filtros; botão voltar; abertura de uma notícia do email na Curadoria e regresso aos Emails. A inspeção direta nesta ronda voltou a confirmar os quatro itens, o texto guardado da notícia e os filtros conservados.
+- Vista móvel Lovable: `scrollWidth = clientWidth = 393`.
+
+A última correção de apresentação das ferramentas mantém o painel recolhido até abertura explícita. Foi importada separadamente em `b1cee940e4e7d589b6759683b37a69fed7f8fae7`, árvore `0f22bed5aadc3979d1ab9031e5c4e0fab7ffa0fc`; não muda o código das funções instaladas. Os três testes do painel passaram após essa correção.
+
+**Bloqueio pendente:** a pré-visualização ainda não tem o endpoint configurado e oculta Documentos e relatórios. A ligação exige a autorização específica pedida após a recusa da revisão automática. Não se alterou `.env`, `.env.production`, `.env.development` ou mecanismo alternativo de configuração.
 
 Sem essa ligação não se declara validação pela UI Cloud de upload, extração, capa, leitura ou transferência de documentos para campanha/compositor. Também não foram importados os PDFs antigos nem ativado o worker. As funcionalidades locais e a presença do código não substituem essas provas.
+
+## Limites editoriais e próximos ensaios
+
+O acervo Cloud do projeto atual está vazio: as 99 fontes configuradas não equivalem a 99 PDFs importados. A importação do acervo antigo é um trabalho separado. Sem o worker ativo não se declara que extração e capas correm continuamente.
+
+Uma notícia histórica consultada conserva um texto que inclui outras notícias do email de origem. A leitura está corretamente identificada como texto guardado; esta ronda não reescreveu o histórico. Antes de produção autónoma, importa ensaiar a delimitação da evidência por notícia e a revisão das fontes para evitar transportar contexto alheio para um artigo.
+
+O ensaio do leitor local confirmou uma capa, duas páginas com texto, seleção explícita de páginas e habilitação dos destinos Artigo, compositor e campanha. Não foram acionados esses destinos nem criada qualquer peça. Os testes de seleção foram limpos.
+
+## Custos e fecho da ronda
+
+A execução terminou já em 19 de outubro. Saldo Lovable observado antes do pedido de auditoria: **3 673,84**; após conclusão: **3 669,24 créditos**. Diferença desta ronda: **4,60 créditos**, ou **1,38 € a 0,30 €/crédito**. Valores brutos do indicador: 3673.840087890625 e 3669.239990234375, arredondados a duas casas. É uma medição da workspace durante o pedido; não é faturação de infraestrutura Cloud nem prova de consumo de fornecedores externos.
+
+A revisão técnica principal confirmou o erro dos emails resolvido; uma confirmação adicional do mesmo pedido terminou com zero erros de execução ou respostas 500. O último ajuste visual foi importado pelo GitHub e a atualização de preview acionada. A interface pública não foi republicada. A ligação do PDF Tracker no preview permanece pendente da autorização específica já pedida. Não foi enviada nova tentativa de configuração nem feita alteração equivalente para contornar a revisão automática.
+
+O último ajuste do painel de ferramentas foi verificado com **três testes dirigidos aprovados** e novo build aprovado. A bateria completa de 1 120 testes refere-se à revisão imediatamente anterior; não foi repetida integralmente por esta correção de apresentação.
 
 ## Referências técnicas
 
