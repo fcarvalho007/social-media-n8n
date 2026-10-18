@@ -8,7 +8,7 @@ Esta ronda melhora a navegação comum e os estados de trabalho editorial, com d
 - Branch de trabalho: `codex/hub-ux-consistencia-2026-10-18`.
 - Mantêm-se autenticação, base de dados e motores existentes. Esta ronda não introduz tabelas, fornecedor de IA ou migrações de esquema.
 - Os padrões aprovados da divulgação da newsletter continuam sem retrato e com fecho de subscrição. Os Briefs e o radar preservam os destinos existentes.
-- A branch foi importada no Lovable, que confirmou o commit `5188552bcfbf60d9773dc4b82409d1facb9fef49`, a árvore `ae64c2f84780e1296531e530ab3dabe5d6423078` e a área de trabalho limpa. Os sete deploys de funções foram confirmados. A publicação da interface pública está pendente de autorização específica pedida pela revisão automática.
+- A branch foi importada no Lovable, que confirmou o commit `5188552bcfbf60d9773dc4b82409d1facb9fef49`, a árvore `ae64c2f84780e1296531e530ab3dabe5d6423078` e a área de trabalho limpa. Os sete deploys de funções foram confirmados. Após autorização explícita do proprietário, a interface pública foi atualizada; o Lovable apresentou «Your website was updated» e a aplicação pública carregou com a nova interface.
 
 ## Alterações realizadas
 
@@ -72,7 +72,7 @@ A verificação ESLint direcionada identificou seis erros preexistentes em `Publ
 
 O desenvolvimento, a demonstração e os testes locais desta ronda consumiram **0 créditos Lovable**. Os dois pedidos de instalação consumiram **0,50 + 0,80 = 1,30 créditos**, confirmados nos menus das respostas do Lovable, equivalentes a **0,39 €** à taxa indicada de 0,30 €/crédito. O primeiro parou por ainda estar selecionada a branch anterior; a branch foi depois trocada nas definições Git. Não se atribui uma poupança hipotética por linha de código.
 
-Para a instalação final, enviar a alteração consolidada da branch depois da validação. O código partilhado de confirmação de entrega é alcançado por `nl-api`, `nl-conteudos`, `nl-hooks`, `nl-newsletter`, `nl-publico` e `nl-worker-conteudos`; estas funções requerem atualização além da aplicação frontend. Atualizar também `send_story_reminder`, cuja confirmação de sucesso foi corrigida e testada sem envios reais. Conferir o resultado remoto e registar os passos efetivamente concluídos; não tratar a importação do código como prova de funcionamento dos serviços externos.
+A instalação consolidada foi concluída: as seis funções de newsletter que alcançam o código partilhado de confirmação de entrega e `send_story_reminder` foram atualizadas, seguidas pela publicação da aplicação frontend. A confirmação de sucesso do lembrete foi corrigida e testada sem envios reais. O carregamento público e a navegação foram verificados; estes controlos não demonstram entrega por serviços externos.
 
 
 ## Registo da instalação
@@ -81,5 +81,7 @@ Para a instalação final, enviar a alteração consolidada da branch depois da 
 - Versão de código instalada nas funções: `5188552bcfbf60d9773dc4b82409d1facb9fef49`.
 - Lovable confirmou deploy individual de `nl-api`, `nl-conteudos`, `nl-hooks`, `nl-newsletter`, `nl-publico`, `nl-worker-conteudos` e `send_story_reminder`.
 - O agente Lovable reportou não ter alterado ficheiros, dependências, migrações, credenciais, permissões ou dados, nem executado jobs, envios ou publicações de conteúdo.
-- A revisão automática recusou o clique em «Publish changes», por considerar que a autorização para sincronização/deploy não cobria suficientemente o passo separado de atualização da aplicação pública. Foi solicitada autorização específica ao proprietário; não foi usada uma via alternativa para contornar a recusa.
-- A pré-visualização local continua disponível em `http://127.0.0.1:5183/`, sem Cloud ou operações externas. Falta validar a interface publicada depois dessa aprovação.
+- A revisão automática recusou inicialmente o clique em «Publish changes», por considerar que a autorização para sincronização/deploy não cobria suficientemente o passo separado de atualização da aplicação pública. O proprietário autorizou depois expressamente essa publicação; o clique foi concluído e o Lovable confirmou «Your website was updated». Não foi usada uma via alternativa para contornar a recusa inicial.
+- A aplicação pública em `https://hub-conteudo.lovable.app/` foi verificada com a sessão existente: Painel, novo menu, pesquisa por «artigos» seguida de Enter, página Artigos e lista da Curadoria carregaram. A consola não apresentou erros nas leituras verificadas. Este registo público não inclui dados pessoais nem contagens privadas.
+- A verificação pública foi de leitura e navegação: não foram gravados dados, enviados emails ou publicadas peças de conteúdo. A publicação autorizada foi a atualização da aplicação frontend. Os limites relativos a E-goi, WordPress, Instagram e restantes pendências mantêm-se.
+- A pré-visualização local continua disponível em `http://127.0.0.1:5183/`, sem Cloud ou operações externas.
