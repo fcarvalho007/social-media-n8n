@@ -1,3 +1,4 @@
+import {useProjetoOpcional} from '@/contexts/ProjetoContext';
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,36 +35,28 @@ interface UseInstagramProfilesOptions {
 
 export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
   const { user } = useAuth();
+  const projectId=useProjetoOpcional()?.projetoId??null;
   const queryClient = useQueryClient();
   const isPublicMode = options?.publicMode === true;
 
   const { data: profiles = [], isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: ["instagram-profiles", isPublicMode ? "public" : user?.id],
+    queryKey: ["instagram-profiles", user?.id, projectId],
     queryFn: async () => {
-      // Public mode: ALWAYS fetch global dataset (for production app)
-      if (isPublicMode) {
-        const { data, error } = await supabase
-          .from("instagram_profiles")
-          .select("*")
-          .order("scraped_at", { ascending: false });
-
-        if (error) throw error;
-        return data as InstagramProfile[];
-      }
-
       // Private mode: filter by user_id
       if (!user?.id) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("instagram_profiles")
         .select("*")
         .eq("user_id", user.id)
         .order("scraped_at", { ascending: false });
+      if(projectId) query=query.eq('project_id',projectId);
+      const {data,error}=await query;
 
       if (error) throw error;
       return data as InstagramProfile[];
     },
-    enabled: !!user?.id || isPublicMode,
+    enabled: !!user?.id,
     retry: 1,
   });
 
@@ -84,10 +77,11 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
   const importMutation = useMutation({
     mutationFn: async (profilesData: any[]) => {
       const { data, error } = await supabase.functions.invoke("import-instagram-profiles", {
-        body: { profiles: profilesData },
+        body: { profiles: profilesData,project_id:projectId },
       });
 
       if (error) throw error;
+      if(data?.success===false) throw new Error(data.errors?.join(" ")||data.error||"Importação incompleta. Revê os resultados antes de repetir.");
       return data;
     },
     onSuccess: (data) => {

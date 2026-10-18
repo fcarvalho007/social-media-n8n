@@ -498,14 +498,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       setUploadProgress(50);
 
       const primaryFormat = selectedFormats[0];
-      let platform: string;
-      if (primaryFormat.startsWith('instagram_')) platform = 'instagram_carousel';
-      else if (primaryFormat.startsWith('linkedin_')) platform = 'linkedin';
-      else if (primaryFormat.startsWith('youtube_')) platform = 'youtube';
-      else if (primaryFormat.startsWith('tiktok_')) platform = 'tiktok';
-      else if (primaryFormat.startsWith('facebook_')) platform = 'facebook';
-      else platform = 'instagram_carousel';
-
+      const platform = primaryFormat;
       let scheduledDateStr = '';
       let scheduledTimeStr = '';
 
@@ -522,12 +515,42 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         throw new Error('Sessão inválida. Faça login novamente.');
       }
 
+      const projetoDaPublicacao=await getMarca();
+      const postData = {
+        project_id:projetoDaPublicacao,
+        id: crypto.randomUUID(),
+        user_id: user.id,
+        post_type: primaryFormat.includes('carousel')
+          ? 'carousel'
+          : primaryFormat.includes('video') || primaryFormat.includes('reel')
+            ? 'video'
+            : 'image',
+        selected_networks: selectedNetworks,
+        caption,
+        linkedin_body: useSeparateCaptions && networkCaptions.linkedin ? networkCaptions.linkedin : null,
+        network_options: JSON.parse(JSON.stringify(networkOptions)),
+        raw_transcription: rawTranscription || null,
+        ai_metadata: JSON.parse(JSON.stringify(aiMetadata ?? {})),
+        scheduled_date: scheduledDate?.toISOString() || null,
+        schedule_asap: scheduleAsap,
+        status: 'pending',
+        origin_mode: 'manual',
+        tema: 'Manual post',
+        template_a_images: mediaUrls,
+        template_b_images: [],
+        workflow_id: 'manual-' + Date.now(),
+      };
+
+      const {error:dbError}=await supabase.from('posts').insert(postData);
+      if(dbError) throw new Error('Não foi possível guardar a publicação. Nada foi enviado.');
+
       toast.loading('A submeter publicação...', { id: 'submit' });
       setUploadProgress(80);
 
       const { data, error } = await supabase.functions.invoke('submit-to-n8n', {
         body: {
           platform,
+          post_id: postData.id,
           caption: useSeparateCaptions && networkCaptions[platform] ? networkCaptions[platform] : caption,
           media_urls: mediaUrls,
           scheduled_date: scheduledDateStr || undefined,
@@ -553,36 +576,9 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
 
       toast.dismiss('submit');
       setUploadProgress(90);
+      await supabase.from('posts').update({status:'waiting_for_approval'}).eq('id',postData.id).eq('user_id',user.id);
 
-      const postData = {
-        user_id: user.id,
-        post_type: primaryFormat.includes('carousel')
-          ? 'carousel'
-          : primaryFormat.includes('video') || primaryFormat.includes('reel')
-            ? 'video'
-            : 'image',
-        selected_networks: selectedNetworks,
-        caption,
-        linkedin_body: useSeparateCaptions && networkCaptions.linkedin ? networkCaptions.linkedin : null,
-        network_options: JSON.parse(JSON.stringify(networkOptions)),
-        raw_transcription: rawTranscription || null,
-        ai_metadata: JSON.parse(JSON.stringify(aiMetadata ?? {})),
-        scheduled_date: scheduledDate?.toISOString() || null,
-        schedule_asap: scheduleAsap,
-        status: 'waiting_for_approval',
-        origin_mode: 'manual',
-        tema: 'Manual post',
-        template_a_images: mediaUrls,
-        template_b_images: [],
-        workflow_id: 'manual-' + Date.now(),
-      };
-
-      console.log('[submitForApproval] Inserting post with user_id:', user.id);
-      const { error: dbError } = await supabase.from('posts').insert(postData);
-      if (dbError) {
-        console.error('DB insert error:', dbError);
-        toast.error('Erro ao guardar publicação na base de dados');
-      } else {
+      {
         if (mediaUrls.length > 0) {
           const mediaEntries = mediaUrls.map((url, idx) => {
             const fileName = url.split('/').pop() || `media-${idx}`;

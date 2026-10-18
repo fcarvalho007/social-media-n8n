@@ -1,5 +1,6 @@
+import { exigirEditor, exigirProjeto, erroSocial } from '../_shared/social-seguro.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,7 +48,9 @@ async function downloadWithRetry(
   ];
 
   for (const url of urls) {
-    if (!url || url.includes("supabase")) continue;
+    let parsed:URL;
+    try {parsed=new URL(url);} catch {continue;}
+    if(parsed.protocol!=='https:' || parsed.username || parsed.password || parsed.port || !/\.(cdninstagram\.com|fbcdn\.net)$/.test(parsed.hostname)) continue;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -59,6 +62,7 @@ async function downloadWithRetry(
         
         const response = await fetch(url, {
           signal: controller.signal,
+          redirect:'error',
           headers: {
             "User-Agent": userAgents[attempt - 1] || userAgents[0],
             "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
@@ -70,8 +74,14 @@ async function downloadWithRetry(
         clearTimeout(timeoutId);
 
         if (response.ok) {
-          const blob = await response.blob();
+          if(Number(response.headers.get('content-length')??0)>10*1024*1024) throw new Error('Imagem demasiado grande.');
+          const reader=response.body?.getReader();
+          if(!reader) throw new Error('Imagem sem conteúdo.');
+          const chunks:Uint8Array<ArrayBuffer>[]=[];let size=0;
+          try {while(true){const r=await reader.read();if(r.done)break;size+=r.value.length;if(size>10*1024*1024)throw new Error('Imagem demasiado grande.');chunks.push(new Uint8Array(r.value));}} finally {await reader.cancel().catch(()=>{});}
+          const blob = new Blob(chunks);
           const contentType = response.headers.get("content-type") || "image/jpeg";
+          if(!contentType.startsWith('image/')) throw new Error('Tipo de ficheiro inválido.');
           console.log(`[Image] Success (${Math.round(blob.size / 1024)}KB)`);
           return { blob, contentType };
         }
@@ -230,12 +240,18 @@ serve(async (req) => {
       });
     }
 
-    const { posts, alsoImportToMediaLibrary = false } = await req.json() as { 
+    await exigirEditor(req,supabaseAdmin);
+    if(req.method!=='POST') return new Response(JSON.stringify({error:'Método não permitido'}),{status:405,headers:{...corsHeaders,'Content-Type':'application/json'}});
+
+    const { posts, alsoImportToMediaLibrary = false,project_id } = await req.json() as {
       posts: InstagramPost[];
       alsoImportToMediaLibrary?: boolean;
+      project_id?:string|null;
     };
 
-    if (!posts || !Array.isArray(posts)) {
+    const projectId=await exigirProjeto(supabaseAdmin,user.id,project_id);
+
+    if (!posts || !Array.isArray(posts) || posts.length>100) {
       return new Response(JSON.stringify({ error: "Invalid posts data" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -253,10 +269,11 @@ serve(async (req) => {
         .from("instagram_analytics")
         .select("shortcode")
         .eq("user_id", user.id)
+        .filter("project_id",projectId?"eq":"is",projectId??"null")
         .in("shortcode", shortcodes);
 
       if (existingError) {
-        console.warn("Duplicate check warning:", existingError.message);
+        throw new Error("Não foi possível verificar os duplicados.");
       }
 
       for (const p of existingPosts || []) {
@@ -300,6 +317,9 @@ serve(async (req) => {
       if (post.shortCode && existingShortcodes.has(post.shortCode)) {
         continue;
       }
+
+      if(!post.shortCode || !/^[A-Za-z0-9_-]{1,100}$/.test(post.shortCode)) continue;
+      existingShortcodes.add(post.shortCode);
 
       // Skip posts before January 2025 (backend safety check)
       if (post.timestamp) {
@@ -371,6 +391,7 @@ serve(async (req) => {
 
       const row = {
         user_id: user.id,
+        project_id:projectId,
         post_url: post.url || `https://instagram.com/p/${post.shortCode}`,
         shortcode: post.shortCode,
         post_type: normalizePostType(post.type),
@@ -447,15 +468,5 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (error: unknown) {
-    console.error("Error in import-instagram-data:", error);
-    const errorMessage = error instanceof Error ? error.message : "Internal server error";
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  }
+  } catch(error) {return erroSocial(error,corsHeaders);}
 });

@@ -19,7 +19,7 @@ function base(siteId = 'sms', aprovar = true) {
     let remoto: Record<string, unknown> | null = null;
     const pedir = vi.fn(async (_c: unknown, caminho: string, method = 'GET', dados?: unknown) => {
         if (method === 'GET')
-            return remoto ? [remoto] : [];
+            return caminho.includes('/posts/99?') ? remoto : remoto ? [remoto] : [];
         remoto = { id: 99, link: `https://${s.dominio}/procedimento-comunicar-clientes/`, status: (dados as {
                 status: string;
             }).status, modified_gmt: '2026-10-18T12:00:00', content: { raw: (dados as {
@@ -68,6 +68,19 @@ describe('WordPress por destino, versão e aprovação', () => {
         const envio = b.tabelas.hub_publicacoes[0];
         expect(await b.publicador.reconciliar(projeto, String(envio.id))).toMatchObject({ confirmado: true });
         expect(vi.mocked(b.pedir).mock.calls.filter(c => c[2] === 'POST')).toHaveLength(1);
+    });
+    it('mudar a versão depois de uma resposta perdida não contorna a reserva',async()=>{
+        const b=base();vi.mocked(b.pedir).mockImplementation(async (_c,_u,m)=>{if(m==='POST')throw new Error('Resposta perdida');return [];});
+        await expect(b.publicador.executar(b.job)).rejects.toThrow('Resposta perdida');
+        const p=(b.tabelas.hub_editorial_estados[0].dados as typeof b.e).pautas[0];p.versao=2;p.aprovacao={assinatura:assinaturaPauta(p,b.s),versao:2,em:'2026-10-18'};
+        await expect(b.publicador.executar({...b.job,pedido:{...b.job.pedido,versao:2}})).rejects.toThrow('incerto');
+        expect(vi.mocked(b.pedir).mock.calls.filter(c=>c[2]==='POST')).toHaveLength(1);
+    });
+    it('mudar o slug de uma nova versão atualiza o id remoto em vez de duplicar',async()=>{
+        const b=base();await b.publicador.executar(b.job);
+        const p=(b.tabelas.hub_editorial_estados[0].dados as typeof b.e).pautas[0];p.versao=2;p.texto!.slug='nova-url';p.aprovacao={assinatura:assinaturaPauta(p,b.s),versao:2,em:'2026-10-18'};
+        await b.publicador.executar({...b.job,pedido:{...b.job.pedido,versao:2}});
+        expect(vi.mocked(b.pedir).mock.calls.filter(c=>c[2]==='POST').map(c=>c[1])).toEqual(['/wp-json/wp/v2/posts','/wp-json/wp/v2/posts/99']);
     });
     it('não mistura credenciais entre os domínios nem aceita redirecionamentos configurados', () => { expect(() => credencialWordPress('sms', { HUB_WP_SMS_URL: 'https://fredericocarvalho.pt', HUB_WP_SMS_USER: 'u', HUB_WP_SMS_PASSWORD: 'p' })).toThrow('domínio'); expect(credencialWordPress('ensino', {})).toBeNull(); });
     it('renderiza fontes e markdown com HTML escapado', () => { const b = base(); b.p.texto!.corpo = '## Um título\n\nTexto **destacado** [fonte:f1] <script>erro</script>\n\n- Uma tarefa\n- Outra tarefa'; const html = htmlArtigo(b.p, 'marcador-teste'); expect(html).toContain('<strong>destacado</strong>'); expect(html).toContain('href="https://example.org/guia"'); expect(html).toContain('&lt;script&gt;'); expect(html).not.toContain('<script>'); expect(html).toContain('<ul><li>Uma tarefa</li>'); });

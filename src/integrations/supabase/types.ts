@@ -888,6 +888,7 @@ export type Database = {
       }
       instagram_analytics: {
         Row: {
+          project_id: string | null
           caption: string | null
           comments_count: number | null
           created_at: string | null
@@ -913,6 +914,7 @@ export type Database = {
           views_count: number | null
         }
         Insert: {
+          project_id?: string | null
           caption?: string | null
           comments_count?: number | null
           created_at?: string | null
@@ -938,6 +940,7 @@ export type Database = {
           views_count?: number | null
         }
         Update: {
+          project_id?: string | null
           caption?: string | null
           comments_count?: number | null
           created_at?: string | null
@@ -966,6 +969,7 @@ export type Database = {
       }
       instagram_profiles: {
         Row: {
+          project_id: string | null
           biography: string | null
           business_category: string | null
           created_at: string | null
@@ -990,6 +994,7 @@ export type Database = {
           username: string
         }
         Insert: {
+          project_id?: string | null
           biography?: string | null
           business_category?: string | null
           created_at?: string | null
@@ -1014,6 +1019,7 @@ export type Database = {
           username: string
         }
         Update: {
+          project_id?: string | null
           biography?: string | null
           business_category?: string | null
           created_at?: string | null
@@ -4618,6 +4624,7 @@ export type Database = {
       }
       posts: {
         Row: {
+          project_id: string | null
           ai_features_extracted: Json | null
           ai_generated_fields: Json | null
           ai_metadata: Json
@@ -4676,6 +4683,7 @@ export type Database = {
           workflow_id: string
         }
         Insert: {
+          project_id?: string | null
           ai_features_extracted?: Json | null
           ai_generated_fields?: Json | null
           ai_metadata?: Json
@@ -4734,6 +4742,7 @@ export type Database = {
           workflow_id: string
         }
         Update: {
+          project_id?: string | null
           ai_features_extracted?: Json | null
           ai_generated_fields?: Json | null
           ai_metadata?: Json

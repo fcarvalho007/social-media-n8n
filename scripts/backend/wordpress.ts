@@ -148,6 +148,9 @@ export class PublicadorWordPress {
         const pausa = await this.sb.from('hub_operacao').select('pausado').eq('project_id', job.project_id).single();
         if (pausa.error || pausa.data?.pausado !== false)
             throw new Error('Publicação pausada antes do envio.');
+        const pendentes = await this.sb.from('hub_publicacoes').select('id').eq('project_id', job.project_id).eq('pauta_id',p.id).eq('site_id',s.id).in('estado',['reservado','incerto']).limit(1);
+        if(pendentes.error || pendentes.data?.length)
+            throw new Error('Existe um envio reservado ou incerto deste artigo. Reconcilia antes de mudar a versão ou repetir.');
         const reserva = await this.sb.from('hub_publicacoes').insert({ project_id: job.project_id, pauta_id: p.id, site_id: s.id, versao: p.versao, assinatura, destino: a.destino, estado: 'reservado' }).select('*').single();
         if (reserva.error) {
             const anterior = await this.sb.from('hub_publicacoes').select('*').eq('project_id', job.project_id).eq('pauta_id', p.id).eq('site_id', s.id).eq('versao', p.versao).eq('destino', a.destino).single();
@@ -157,13 +160,22 @@ export class PublicadorWordPress {
         }
         const marcador = `hub-artigo:${job.project_id}:${p.id}:${p.versao}:${assinatura}`;
         try {
-            const existentes = z.array(remotoZ).parse(await this.pedir(c, `/wp-json/wp/v2/posts?context=edit&slug=${encodeURIComponent(p.texto!.slug)}&status=draft,pending,publish,future,private&per_page=10`));
+            // The remote identity survives a slug change. Never create a new article
+            // merely because its current URL differs from the previous version.
+            const anteriores = await this.sb.from('hub_publicacoes').select('*').eq('project_id',job.project_id).eq('pauta_id',p.id).eq('site_id',s.id).eq('estado','enviado').order('versao',{ascending:false}).limit(1);
+            if(anteriores.error) throw new Error('Não foi possível verificar o histórico de publicação.');
+            const conhecido=anteriores.data?.[0];
+            const existentes = conhecido?.remoto_id
+                ? [remotoZ.parse(await this.pedir(c,`/wp-json/wp/v2/posts/${conhecido.remoto_id}?context=edit`))]
+                : z.array(remotoZ).parse(await this.pedir(c, `/wp-json/wp/v2/posts?context=edit&slug=${encodeURIComponent(p.texto!.slug)}&status=draft,pending,publish,future,private&per_page=10`));
             let caminho = '/wp-json/wp/v2/posts';
             if (existentes.length) {
                 if (existentes.length !== 1)
                     throw new Error('Há vários artigos com este slug. É necessária revisão.');
                 const post = existentes[0], referencias = await this.sb.from('hub_publicacoes').select('*').eq('project_id', job.project_id).eq('pauta_id', p.id).eq('site_id', s.id).eq('estado', 'enviado').eq('remoto_id', post.id).order('versao', { ascending: false }).limit(1);
                 const ref = referencias.data?.[0];
+                if(['publish','future','private'].includes(post.status)&&a.destino==='draft')
+                    throw new Error('Esta ação retiraria uma versão já publicada ou agendada. Revê a operação no WordPress.');
                 if (referencias.error || !ref || !post.modified_gmt || ref.remoto_modificado_em !== post.modified_gmt || !post.content.raw?.includes(`hub-artigo:${job.project_id}:${p.id}:`))
                     throw new Error('Artigo já existente ou alterado no WordPress. Não foi substituído; reconcilia a versão remota.');
                 caminho = `/wp-json/wp/v2/posts/${post.id}`;
