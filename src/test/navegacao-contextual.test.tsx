@@ -4,7 +4,7 @@ import {MemoryRouter,Route,Routes,useLocation,useNavigate} from 'react-router-do
 import {CuradoriaNavegacao,RedirecionarDocumentos} from '@/components/CuradoriaNavegacao';
 import {BreadcrumbsHub} from '@/components/BreadcrumbsHub';
 import {migalhasNavegacao} from '@/lib/navegacao';
-vi.mock('@/features/documentos/modelo',async()=>({...await vi.importActual('@/features/documentos/modelo'),DOCUMENTOS_LOCAL:true}));
+vi.mock('@/features/documentos/modelo',async()=>({...await vi.importActual('@/features/documentos/modelo'),DOCUMENTOS_LOCAL:true,DOCUMENTOS_DISPONIVEL:true}));
 afterEach(cleanup);
 function Contexto(){const l=useLocation(),n=useNavigate();return <><output aria-label="Localização">{l.pathname+l.search+l.hash}</output><output aria-label="Estado">{JSON.stringify(l.state)}</output><button onClick={()=>n(-1)}>Voltar no navegador</button><CuradoriaNavegacao/></>;}
 describe('percursos da curadoria',()=>{

@@ -3,7 +3,7 @@ import { CuradoriaNoticias } from "@/features/curadoria/CuradoriaNoticias";
 import type { FonteCuradoria } from "@/services/curadoria";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { DOCUMENTOS_LOCAL } from '@/features/documentos/modelo';
+import { DOCUMENTOS_DISPONIVEL } from '@/features/documentos/modelo';
 import { lerFonteAcervo } from '@/features/documentos/transferencia';
 import { ArrowLeft, ArrowRight, FileText, FlaskConical, Link2, Loader2, Type, Upload } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -75,7 +75,7 @@ export default function CarrosselNovo() {
   const configFormato = CONFIG_FORMATOS[formato];
   const { user } = useAuth();
   const location = useLocation();
-  const fonteAcervo = DOCUMENTOS_LOCAL ? lerFonteAcervo(location.state, user?.id) : null;
+  const fonteAcervo = DOCUMENTOS_DISPONIVEL ? lerFonteAcervo(location.state, user?.id) : null;
   const [acervoImportado, setAcervoImportado] = useState(false);
   const { projetos, projetoId, estado } = useProjeto();
   const [etapa, setEtapa] = useState<"fonte" | "narrativa">("fonte");

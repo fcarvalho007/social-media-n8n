@@ -1,7 +1,9 @@
+import { MODO_HUB_LOCAL, BACKEND_NUVEM } from '@/lib/backendHub';
 import type { PdfLido } from '@/features/motor/fontePdf';
 import type {MetadadosPdfTracker} from './legado';
 
-export const DOCUMENTOS_LOCAL = import.meta.env.DEV && import.meta.env.MODE === 'hub';
+export const DOCUMENTOS_LOCAL = MODO_HUB_LOCAL;
+export const DOCUMENTOS_DISPONIVEL = DOCUMENTOS_LOCAL || BACKEND_NUVEM;
 export interface DocumentoAcervo {
   id: string; ambito: string; titulo: string; origem: string | null; recolhidoEm: string;
   publicadoEm: string | null; ficheiro: Blob; pdf: PdfLido;

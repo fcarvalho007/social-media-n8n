@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-vi.mock('@/features/documentos/modelo', async () => ({...await vi.importActual('@/features/documentos/modelo'),DOCUMENTOS_LOCAL:true}));
+vi.mock('@/features/documentos/modelo', async () => ({...await vi.importActual('@/features/documentos/modelo'),DOCUMENTOS_LOCAL:true,DOCUMENTOS_DISPONIVEL:true}));
 import { useQuery } from '@tanstack/react-query';
 import { DESTINOS_NAVEGACAO, SECOES_NAVEGACAO, itemNavegacaoAtivo, migalhasNavegacao } from '@/lib/navegacao';
 import { urlRecarga } from '@/components/ErrorBoundary';

@@ -4678,7 +4678,7 @@ function adaptarWeb(servidor) {
         codigo = status;
         for (const [k, v] of Object.entries(h))
           cabecalhos.set(k, v);
-      }, end: (body) => resolve(new Response(body ?? null, { status: codigo, headers: cabecalhos })) };
+      }, end: (body) => resolve(new Response(typeof body === "string" ? body : body ? new Uint8Array(body) : null, { status: codigo, headers: cabecalhos })) };
       servidor.emit("request", entrada, res);
     });
   };

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { DOCUMENTOS_LOCAL } from '@/features/documentos/modelo';
+import { DOCUMENTOS_DISPONIVEL } from '@/features/documentos/modelo';
 import { lerArtigoAcervo, lerFonteAcervo } from '@/features/documentos/transferencia';
 import { toast } from "sonner";
 import { Loader2, Plus } from "lucide-react";
@@ -46,7 +46,7 @@ export default function Artigos() {
   const sujo = !igual(edit, base);
   const { user } = useAuth();
   const location = useLocation();
-  const fonteAcervo = DOCUMENTOS_LOCAL ? (lerFonteAcervo(location.state, user?.id)??lerArtigoAcervo(location.state,user?.id)) : null;
+  const fonteAcervo = DOCUMENTOS_DISPONIVEL ? (lerFonteAcervo(location.state, user?.id)??lerArtigoAcervo(location.state,user?.id)) : null;
   const [acervoImportado, setAcervoImportado] = useState(false);
   const editRef = useRef(edit);
   editRef.current = edit;

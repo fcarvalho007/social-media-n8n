@@ -59,8 +59,8 @@ const PlanoEditorial = SEO_DISPONIVEL ? lazy(() => import("./pages/PlanoEditoria
 const AutomacaoEditorial = SEO_DISPONIVEL ? lazy(() => import("./pages/AutomacaoEditorial")) : () => null;
 const CustosEditorial = SEO_DISPONIVEL ? lazy(() => import("./pages/CustosEditorial")) : () => null;
 import { RedirecionarDocumentos } from "./components/CuradoriaNavegacao";
-import { DOCUMENTOS_LOCAL } from "./features/documentos/modelo";
-const Documentos = DOCUMENTOS_LOCAL ? lazy(() => import("./pages/Documentos")) : () => null;
+import { DOCUMENTOS_DISPONIVEL } from "./features/documentos/modelo";
+const Documentos = DOCUMENTOS_DISPONIVEL ? lazy(() => import("./pages/Documentos")) : () => null;
 const SegurancaConta = lazy(() => import("./pages/SegurancaConta"));
 import { useParams } from "react-router-dom";
 const EdicoesArquivo = lazy(() => import("./pages/publico/EdicoesArquivo"));
@@ -121,7 +121,7 @@ const App = () => (
                   <Route path="/failed-publications" element={<Navigate to="/publication-history?tab=failed" replace />} />
                   <Route path="/publication-history" element={<PublicationHistory />} />
                   <Route path="/media-library" element={<MediaLibrary />} />
-                  {DOCUMENTOS_LOCAL && <><Route path="/curadoria/documentos" element={<Documentos />} /><Route path="/documentos" element={<RedirecionarDocumentos />} /></>}
+                  {DOCUMENTOS_DISPONIVEL && <><Route path="/curadoria/documentos" element={<Documentos />} /><Route path="/documentos" element={<RedirecionarDocumentos />} /></>}
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
                   <Route path="/templates" element={<Templates />} />

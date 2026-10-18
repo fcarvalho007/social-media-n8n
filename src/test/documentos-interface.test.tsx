@@ -5,7 +5,7 @@ import {selecionarIntervalo,selecionarInicio,unirSelecao,lerEstadoBiblioteca,pag
 import {mensagemFalha} from '@/features/documentos/apiLocal';
 import type {DocumentoAcervo} from '@/features/documentos/modelo';
 
-vi.mock('@/features/documentos/modelo',async()=>({...await vi.importActual('@/features/documentos/modelo'),DOCUMENTOS_LOCAL:true}));
+vi.mock('@/features/documentos/modelo',async()=>({...await vi.importActual('@/features/documentos/modelo'),DOCUMENTOS_LOCAL:true,DOCUMENTOS_DISPONIVEL:true}));
 vi.mock('@/contexts/AuthContext',()=>({useAuth:()=>({user:{id:'u'}})}));
 let projeto='p';
 vi.mock('@/contexts/ProjetoContext',()=>({useProjeto:()=>({projetoId:projeto,estado:'pronto',aGuardar:false,projetos:[{id:'p',name:'Projeto principal'},{id:'outro',name:'Outro projeto'}],escolher:vi.fn()})}));

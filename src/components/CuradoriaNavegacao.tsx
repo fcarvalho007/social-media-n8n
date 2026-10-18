@@ -1,5 +1,5 @@
 import { Link, Navigate, useLocation } from 'react-router-dom';
-import { DOCUMENTOS_LOCAL } from '@/features/documentos/modelo';
+import { DOCUMENTOS_DISPONIVEL } from '@/features/documentos/modelo';
 import { cn } from '@/lib/utils';
 
 export function CuradoriaNavegacao() {
@@ -10,7 +10,7 @@ export function CuradoriaNavegacao() {
   const destinos = [
     { id:'noticias', nome:'Notícias', to:'/curadoria' },
     { id:'emails', nome:'Emails', to:'/curadoria?separador=emails' },
-    ...(DOCUMENTOS_LOCAL ? [{ id:'documentos', nome:'Documentos e relatórios', to:'/curadoria/documentos' }] : []),
+    ...(DOCUMENTOS_DISPONIVEL ? [{ id:'documentos', nome:'Documentos e relatórios', to:'/curadoria/documentos' }] : []),
     { id:'fontes', nome:'Fontes de notícias', to:'/curadoria?separador=fontes' },
   ];
   return <nav aria-label="Áreas da curadoria" className="flex flex-wrap gap-1 border-b pb-3">

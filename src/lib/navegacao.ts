@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { SEO_DISPONIVEL } from '@/features/seo/local';
-import { DOCUMENTOS_LOCAL } from '@/features/documentos/modelo';
+import { DOCUMENTOS_DISPONIVEL } from '@/features/documentos/modelo';
 
 export interface DestinoNavegacao {
   label: string;
@@ -27,7 +27,7 @@ export const DESTINOS_NAVEGACAO: DestinoNavegacao[] = [
   { label: 'Roteiros de Reels', url: '/estudio/roteiros', descricao: 'Escrever e preparar a gravação', grupo: 'Trabalho', icon: Video },
   { label: 'Newsletter', url: '/newsletter', descricao: 'Edições, crónica e envio', grupo: 'Trabalho', icon: Mail },
   { label: 'Artigos', url: '/artigos', descricao: SEO_DISPONIVEL ? 'Pesquisa SEO, plano editorial e textos' : 'Escrever e guardar rascunhos', grupo: 'Trabalho', icon: FileText },
-  ...(DOCUMENTOS_LOCAL ? [{ label: 'Documentos e relatórios', url: '/curadoria/documentos', pai: '/curadoria', palavrasChave: ['PDF Tracker', 'PDFs', 'acervo'], descricao: 'Biblioteca de PDFs, capas e páginas de referência', grupo: 'Trabalho' as const, icon: FileText }] : []),
+  ...(DOCUMENTOS_DISPONIVEL ? [{ label: 'Documentos e relatórios', url: '/curadoria/documentos', pai: '/curadoria', palavrasChave: ['PDF Tracker', 'PDFs', 'acervo'], descricao: 'Biblioteca de PDFs, capas e páginas de referência', grupo: 'Trabalho' as const, icon: FileText }] : []),
   { label: 'Rascunhos', url: '/drafts', descricao: 'Publicações sociais por concluir', grupo: 'Publicação', icon: FileText },
   { label: 'Divulgação da newsletter', url: '/estudio/redes-sociais', pai: '/newsletter', descricao: 'Story e carrossel após o envio', grupo: 'Publicação', icon: GalleryHorizontal },
   { label: 'Para aprovar', url: '/pending', descricao: 'Rever publicações das redes sociais', grupo: 'Publicação', icon: CheckCircle2, badge: true },
@@ -49,7 +49,7 @@ export const DESTINOS_NAVEGACAO: DestinoNavegacao[] = [
 
 /** Main tasks remain visible; account options live together in the footer. */
 export const SECOES_NAVEGACAO = [
-  { titulo: 'Recolher conteúdo', urls: ['/curadoria', ...(DOCUMENTOS_LOCAL ? ['/curadoria/documentos'] : [])] },
+  { titulo: 'Recolher conteúdo', urls: ['/curadoria', ...(DOCUMENTOS_DISPONIVEL ? ['/curadoria/documentos'] : [])] },
   { titulo: 'Criar conteúdo', urls: ['/newsletter', '/estudio/redes-sociais', '/artigos', '/estudio/carrosseis', '/estudio/roteiros'] },
   { titulo: 'Rever e publicar nas redes', urls: ['/drafts', '/pending', '/calendar', '/publication-history'] },
   { titulo: 'Organizar', urls: ['/projects', '/media-library'] },
@@ -86,7 +86,7 @@ export function migalhasNavegacao(pathname: string, search = ''): Migalha[] {
   const detalhe = (url: string, label: string): Migalha[] => [...caminho(url), {label,path:null}];
   const atual = caminhoAtual(pathname);
   if (atual === '/') return [{...inicio,path:null}];
-  if (atual === '/curadoria/documentos' && DOCUMENTOS_LOCAL) {
+  if (atual === '/curadoria/documentos' && DOCUMENTOS_DISPONIVEL) {
     const separador = params.get('separador');
     const nomes: Record<string,string> = {fontes:'Sites com PDFs',recolher:'Adicionar por endereço',historico:'Histórico de recolhas'};
     const label = nomes[separador ?? ''] ?? (params.has('documento') ? 'Ler documento' : null);
