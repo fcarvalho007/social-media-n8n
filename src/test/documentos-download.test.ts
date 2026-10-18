@@ -12,7 +12,7 @@ import https from 'node:https';
 import { obterPublico } from '../../scripts/documentos/obter';
 const dnsMock = vi.mocked(lookup) as unknown as Mock<(host: string, options: unknown) => Promise<LookupAddress[]>>;
 
-function resposta(status: number, headers: Record<string, string>, body = Buffer.from('conteudo')) {
+function resposta(status: number, headers: Record<string, string>, body: Uint8Array = Buffer.from('conteudo')) {
   vi.mocked(https.get).mockImplementationOnce(((_url, _opts, cb) => {
     const req = new EventEmitter() as EventEmitter & { destroy: (e?: Error) => void };
     req.destroy = e => { if (e) req.emit('error', e); };

@@ -32,7 +32,7 @@ export function adaptarWeb(servidor: Server) {
                     codigo = status;
                     for (const [k, v] of Object.entries(h))
                         cabecalhos.set(k, v);
-                }, end: (body?: Buffer | string) => resolve(new Response(body ?? null, { status: codigo, headers: cabecalhos })) } as unknown as ServerResponse;
+                }, end: (body?: Buffer | string) => resolve(new Response(typeof body === 'string' ? body : body ? new Uint8Array(body) : null, { status: codigo, headers: cabecalhos })) } as unknown as ServerResponse;
             servidor.emit('request', entrada, res);
         });
     };

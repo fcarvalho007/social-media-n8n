@@ -102,7 +102,7 @@ export function supabaseMemoria(iniciais: Record<string, Linha[]> = {}) {
         }, storage: { from: () => ({ upload: async (p: string, b: Uint8Array) => {
                     if (objetos.has(p))
                         return { data: null, error: { code: '409' } };
-                    objetos.set(p, new Blob([b]));
+                    objetos.set(p, new Blob([new Uint8Array(b)]));
                     return { data: { path: p }, error: null };
                 }, download: async (p: string) => ({ data: objetos.get(p) ?? null, error: objetos.has(p) ? null : { code: '404' } }), createSignedUrl: async (p: string) => ({ data: { signedUrl: `https://storage.example/${p}?token=teste` }, error: null }) }) } };
     return { sb: sb as unknown as SupabaseClient, tabelas, objetos, chamadas, perderLease: () => { token = crypto.randomUUID(); } };
