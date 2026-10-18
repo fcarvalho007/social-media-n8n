@@ -5418,6 +5418,59 @@ export type Database = {
         }
         Relationships: []
       }
+      social_publicacoes: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          destino: string
+          estado: string
+          fase: string
+          fingerprint: string
+          http_status: number | null
+          id: string
+          post_id: string
+          resultado: Json | null
+          token: string
+          user_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          destino: string
+          estado?: string
+          fase: string
+          fingerprint: string
+          http_status?: number | null
+          id?: string
+          post_id: string
+          resultado?: Json | null
+          token?: string
+          user_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          destino?: string
+          estado?: string
+          fase?: string
+          fingerprint?: string
+          http_status?: number | null
+          id?: string
+          post_id?: string
+          resultado?: Json | null
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_publicacoes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stories: {
         Row: {
           caption: string
@@ -6721,6 +6774,33 @@ export type Database = {
       }
       social_membro: { Args: never; Returns: boolean }
       social_pode_escrever: { Args: never; Returns: boolean }
+      social_publicacao_concluir: {
+        Args: {
+          _estado: string
+          _http_status: number
+          _id: string
+          _resultado: Json
+          _token: string
+        }
+        Returns: boolean
+      }
+      social_publicacao_reservar: {
+        Args: {
+          _destino: string
+          _fase: string
+          _fingerprint: string
+          _post: string
+          _user: string
+        }
+        Returns: {
+          estado: string
+          http_status: number
+          id: string
+          reservada: boolean
+          resultado: Json
+          token: string
+        }[]
+      }
       social_tem_papel: { Args: never; Returns: boolean }
       update_account_insight_visibility: {
         Args: { _action: string; _insight_id: string }
