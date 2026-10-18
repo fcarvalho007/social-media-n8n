@@ -38,17 +38,17 @@ export async function carregarCatalogo(banco: SupabaseClient, userId: string, pr
     }, 'pdf'],
     ['Notícias', async () => {
       const rows = await linhas('nl_noticias', 'id,titulo,descricao,corpo_artigo,updated_at', q => q, 'Notícias', 'noticia');
-      for (const r of rows) itens.push({ id: `noticia:${r.id}`, tipo: 'noticia', titulo: r.titulo, texto: `${r.descricao ?? ''} ${r.corpo_artigo ?? ''}`, atualizadoEm: r.updated_at ?? '', contexto: 'Curadoria partilhada · acesso da conta', url: `/curadoria?noticia=${encodeURIComponent(r.id)}` });
+      for (const r of rows) itens.push({ id: `noticia:${r.id}`, tipo: 'noticia', titulo: r.titulo ?? '', texto: `${r.descricao ?? ''} ${r.corpo_artigo ?? ''}`, atualizadoEm: r.updated_at ?? '', contexto: 'Curadoria partilhada · acesso da conta', url: `/curadoria?noticia=${encodeURIComponent(r.id)}` });
     }, 'noticia'],
     ['Artigos', async () => {
       const [e, rows] = await Promise.all([estadoSeo(), linhas('art_rascunhos', 'id,titulo,resumo,corpo,updated_at', q => q.eq('project_id', projeto).eq('created_by', userId), 'Textos de artigos', 'artigo')]);
       for (const p of e.pautas) itens.push({ id: `pauta:${p.id}`, tipo: 'artigo', titulo: p.texto?.titulo || p.titulo, texto: [p.palavra, p.contributo, p.objetivo, p.texto?.resumo, p.texto?.corpo].filter(Boolean).join(' '), atualizadoEm: p.alteradoEm, contexto: `${e.sites.find(s => s.id === p.siteId)?.dominio ?? p.siteId} · plano editorial`, url: `/artigos/plano?id=${encodeURIComponent(p.id)}&secao=texto` });
       for(const c of e.campanhas??[])for(const p of c.pecas)itens.push({id:`campanha:${c.id}:${p.tipo}`,tipo:p.tipo==='artigo'?'artigo':'social',titulo:`${c.nome} · ${p.titulo}`,texto:[p.papel,p.texto,p.cta,c.angulo].join(' '),atualizadoEm:c.alteradoEm,contexto:`Campanha · ${p.tipo==='newsletter'?'proposta para newsletter':p.tipo} · rascunho`,url:`/campanhas/${encodeURIComponent(c.id)}?peca=${p.tipo}`});
-      for (const r of rows) itens.push({ id: `artigo:${r.id}`, tipo: 'artigo', titulo: r.titulo, texto: `${r.resumo ?? ''} ${r.corpo ?? ''}`, atualizadoEm: r.updated_at, contexto: 'Texto guardado · projeto atual', url: `/artigos?id=${encodeURIComponent(r.id)}` });
+      for (const r of rows) itens.push({ id: `artigo:${r.id}`, tipo: 'artigo', titulo: r.titulo ?? '', texto: `${r.resumo ?? ''} ${r.corpo ?? ''}`, atualizadoEm: r.updated_at ?? '', contexto: 'Texto guardado · projeto atual', url: `/artigos?id=${encodeURIComponent(r.id)}` });
     }, 'artigo'],
     ['Rascunhos sociais', async () => {
       const rows = await linhas('posts_drafts', 'id,caption,platform,updated_at', q => q.eq('project_id', projeto).eq('user_id', userId), 'Rascunhos sociais', 'social');
-      for (const r of rows) itens.push({ id: `social:${r.id}`, tipo: 'social', titulo: (r.caption || 'Rascunho social').slice(0, 95), texto: r.caption ?? '', atualizadoEm: r.updated_at, contexto: `${r.platform} · rascunho`, url: `/drafts?draft=${encodeURIComponent(r.id)}` });
+      for (const r of rows) itens.push({ id: `social:${r.id}`, tipo: 'social', titulo: (r.caption || 'Rascunho social').slice(0, 95), texto: r.caption ?? '', atualizadoEm: r.updated_at ?? '', contexto: `${r.platform} · rascunho`, url: `/drafts?draft=${encodeURIComponent(r.id)}` });
     }, 'social'],
     ['Compositor visual', async () => {
       const docs = await linhas('mc_documentos', 'id,proposta_id,versao_actual,actualizado_em', q => q.eq('project_id', projeto), 'Compositor visual', 'social');
@@ -57,7 +57,7 @@ export async function carregarCatalogo(banco: SupabaseClient, userId: string, pr
         const lote = docs.slice(inicio, inicio + 40);
         const propostas = await banco.from('mc_propostas').select('id,trabalho_id').in('id', [...new Set(lote.map(d => d.proposta_id))]);
         if (propostas.error) throw new Error('Compositor indisponível.');
-        const atuais = lote.filter(d => d.versao_actual > 0 && /^[0-9a-f-]{36}$/i.test(d.id));
+        const atuais = lote.filter(d => typeof d.versao_actual === 'number' && d.versao_actual > 0 && /^[0-9a-f-]{36}$/i.test(d.id));
         if (!atuais.length) continue;
         const versoes = await banco.from('mc_documentos_versoes').select('documento_id,versao,documento').or(atuais.map(d => `and(documento_id.eq.${d.id},versao.eq.${d.versao_actual})`).join(','));
         if (versoes.error) throw new Error('Versões do compositor indisponíveis.');
@@ -66,7 +66,7 @@ export async function carregarCatalogo(banco: SupabaseClient, userId: string, pr
           const v = versoes.data?.find(v => v.documento_id === d.id && v.versao === d.versao_actual);
           if (!trabalho || !v) continue;
           const texto = textoSocial(v.documento);
-          itens.push({ id: `visual:${d.id}`, tipo: 'social', titulo: texto.trim().slice(0, 95) || 'Composição visual', texto, atualizadoEm: d.actualizado_em, contexto: `Compositor · versão ${d.versao_actual}`, url: `/estudio/carrosseis/${encodeURIComponent(trabalho)}` });
+          itens.push({ id: `visual:${d.id}`, tipo: 'social', titulo: texto.trim().slice(0, 95) || 'Composição visual', texto, atualizadoEm: d.actualizado_em ?? '', contexto: `Compositor · versão ${d.versao_actual}`, url: `/estudio/carrosseis/${encodeURIComponent(trabalho)}` });
         }
       }
     }, 'social'],
@@ -76,7 +76,7 @@ export async function carregarCatalogo(banco: SupabaseClient, userId: string, pr
         const d = r.divulgacao?.composicoes?.[peca];
         const texto = textoSocial(d ?? (peca === 'story' ? r.divulgacao?.story : r.carrossel));
         if (!texto.trim()) continue;
-        itens.push({ id: `newsletter:${r.id}:${peca}`, tipo: 'social', titulo: `${peca === 'story' ? 'Story' : 'Carrossel'} · ${texto.trim().slice(0, 85)}`, texto, atualizadoEm: r.actualizado_em, contexto: 'Divulgação da newsletter · compositor', url: `/estudio/redes-sociais/${encodeURIComponent(r.id)}?compositor=${peca}&peca=${peca}` });
+        itens.push({ id: `newsletter:${r.id}:${peca}`, tipo: 'social', titulo: `${peca === 'story' ? 'Story' : 'Carrossel'} · ${texto.trim().slice(0, 85)}`, texto, atualizadoEm: r.actualizado_em ?? '', contexto: 'Divulgação da newsletter · compositor', url: `/estudio/redes-sociais/${encodeURIComponent(r.id)}?compositor=${peca}&peca=${peca}` });
       }
     }, 'social'],
   ];
