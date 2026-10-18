@@ -1,3 +1,4 @@
+import process from 'node:process';
 import path from 'node:path';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { MotorDocumentos } from './motor-local';

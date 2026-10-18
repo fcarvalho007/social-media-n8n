@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer';
+import process from 'node:process';
 import https from 'node:https';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';

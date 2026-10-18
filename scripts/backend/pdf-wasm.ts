@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { init, type WrappedPdfiumModule } from '@embedpdf/pdfium';
 import { encode } from 'fast-png';
 import { createHash } from 'node:crypto';

@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { schemaPesquisa, mercados, type DadosPesquisa, type PesquisaSeo, type PalavraSeo } from '../../src/features/seo/contratos';
 import { OPERACOES_SEO } from '../../src/features/seo/precos';

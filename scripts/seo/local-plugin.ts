@@ -1,3 +1,6 @@
+import { Buffer } from 'node:buffer';
+import process from 'node:process';
+import { setInterval, clearInterval } from 'node:timers';
 import { loadEnv, type Plugin } from 'vite';
 import path from 'node:path';
 import { MotorSeo } from './motor-local';

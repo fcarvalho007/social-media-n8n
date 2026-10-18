@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { RepositorioSeo, type ArmazemSeo } from './persistencia';

@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { Readable } from 'node:stream';
 import type { Server, IncomingMessage, ServerResponse } from 'node:http';
 /** Shared tested HTTP router, exposed as a Web Request handler in the Edge runtime. No listening socket. */

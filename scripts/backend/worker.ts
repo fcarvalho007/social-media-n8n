@@ -1,3 +1,4 @@
+import { setInterval, clearInterval } from 'node:timers';
 import path from 'node:path';
 import { diaLisboa } from '../../src/features/seo/precos';
 import { mkdir, rm } from 'node:fs/promises';

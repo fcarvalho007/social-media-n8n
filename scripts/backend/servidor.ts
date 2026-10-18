@@ -1,3 +1,6 @@
+import { Buffer } from 'node:buffer';
+import process from 'node:process';
+import { setInterval, clearInterval } from 'node:timers';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';

@@ -196,6 +196,7 @@ var init_fontes = __esm({
 });
 
 // scripts/documentos/obter.ts
+import { Buffer as Buffer5 } from "buffer";
 import { lookup } from "dns/promises";
 import https from "https";
 import { isIP } from "net";
@@ -273,7 +274,7 @@ async function obterPublico(bruto, signal, opcoes = {}) {
             res.destroy();
           } else partes.push(chunk);
         });
-        stream.on("end", () => resolve({ bytes: Buffer.concat(partes), tipo, status, etag: res.headers.etag, modificadoEm: res.headers["last-modified"] }));
+        stream.on("end", () => resolve({ bytes: Buffer5.concat(partes), tipo, status, etag: res.headers.etag, modificadoEm: res.headers["last-modified"] }));
         stream.on("error", (e) => {
           res.destroy();
           reject(e);
@@ -301,6 +302,7 @@ var init_obter = __esm({
 });
 
 // scripts/documentos/robots.ts
+import { Buffer as Buffer6 } from "buffer";
 function permitidoRobots(txt, url) {
   const grupos = [];
   let atual = null;
@@ -328,7 +330,7 @@ function permitidoRobots(txt, url) {
   for (const r of aplicaveis.flatMap((g) => g.regras)) {
     const pattern = r.caminho.split("*").map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*").replace(/\\\$$/, "$");
     if (!new RegExp(`^${pattern}`).test(caminho)) continue;
-    const tamanho = Buffer.byteLength(r.caminho.replace(/[*$]/g, ""));
+    const tamanho = Buffer6.byteLength(r.caminho.replace(/[*$]/g, ""));
     if (tamanho > melhor || tamanho === melhor && r.permitir) {
       melhor = tamanho;
       permitir = r.permitir;
@@ -445,10 +447,12 @@ function origemPermitida(origem, origens) {
 import { z as z8 } from "zod";
 
 // scripts/seo/motor-local.ts
+import { Buffer as Buffer4 } from "buffer";
 import { z as z7 } from "zod";
 import { randomUUID } from "crypto";
 
 // scripts/seo/persistencia.ts
+import process from "process";
 import { mkdir, open, readFile, rename, unlink } from "fs/promises";
 import path from "path";
 
@@ -757,6 +761,7 @@ var RepositorioSeo = class {
 };
 
 // scripts/seo/dataforseo.ts
+import { Buffer as Buffer2 } from "buffer";
 import { createHash } from "crypto";
 
 // src/features/seo/contratos.ts
@@ -888,9 +893,9 @@ function exemploPesquisa(p) {
 }
 async function pedirDataforseo(p, cred, f = fetch) {
   const host = p.modo === "sandbox" ? "sandbox.dataforseo.com" : "api.dataforseo.com";
-  const r = await f(`https://${host}/v3/${OPERACOES_SEO[p.operacao].endpoint}`, { method: "POST", redirect: "error", headers: { "Content-Type": "application/json", Authorization: `Basic ${Buffer.from(`${cred.login}:${cred.password}`).toString("base64")}` }, body: JSON.stringify([corpoDataforseo(p)]), signal: AbortSignal.timeout(45e3) });
+  const r = await f(`https://${host}/v3/${OPERACOES_SEO[p.operacao].endpoint}`, { method: "POST", redirect: "error", headers: { "Content-Type": "application/json", Authorization: `Basic ${Buffer2.from(`${cred.login}:${cred.password}`).toString("base64")}` }, body: JSON.stringify([corpoDataforseo(p)]), signal: AbortSignal.timeout(45e3) });
   const text = await r.text();
-  if (Buffer.byteLength(text) > 16 * 1024 * 1024) throw new Error("A resposta excedeu o limite local. Confirma o custo no painel do fornecedor antes de repetir.");
+  if (Buffer2.byteLength(text) > 16 * 1024 * 1024) throw new Error("A resposta excedeu o limite local. Confirma o custo no painel do fornecedor antes de repetir.");
   let raw;
   try {
     raw = objeto(JSON.parse(text));
@@ -901,6 +906,7 @@ async function pedirDataforseo(p, cred, f = fetch) {
 }
 
 // scripts/seo/editorial.ts
+import { Buffer as Buffer3 } from "buffer";
 import { createHash as createHash2 } from "crypto";
 import { z as z6 } from "zod";
 
@@ -1022,7 +1028,7 @@ function promptEditorial(p, s, etapa = "texto") {
 }
 function estimarTexto(p, s, etapa = "texto") {
   const prompt = promptEditorial(p, s, etapa);
-  const input = Buffer.byteLength(JSON.stringify(corpoDeepSeek(prompt)), "utf8") + 512;
+  const input = Buffer3.byteLength(JSON.stringify(corpoDeepSeek(prompt)), "utf8") + 512;
   const tarifa = PRECOS_DEEPSEEK[MODELO_DEEPSEEK].pico;
   const linhas = [{ descricao: "Entrada \xB7 limite conservador de tokens, sem cache, tarifa de pico", quantidade: input, unitarioMicro: tarifa.cacheMiss, totalMicro: Math.ceil(input * tarifa.cacheMiss) }, { descricao: `Sa\xEDda \xB7 m\xE1ximo de ${prompt.maxTokens} tokens, tarifa de pico`, quantidade: prompt.maxTokens, unitarioMicro: tarifa.saida, totalMicro: Math.ceil(prompt.maxTokens * tarifa.saida) }];
   return { linhas, total: linhas.reduce((a, l) => a + l.totalMicro, 0) };
@@ -1511,7 +1517,7 @@ var MotorSeo = class {
   async verificarLigacao() {
     const c = this.credenciais();
     if (!c.login || !c.password) throw new Error("Configura DATAFORSEO_LOGIN e DATAFORSEO_PASSWORD em .env.seo.local.");
-    const r = await this.f("https://api.dataforseo.com/v3/appendix/user_data", { redirect: "error", headers: { Authorization: `Basic ${Buffer.from(`${c.login}:${c.password}`).toString("base64")}` }, signal: AbortSignal.timeout(2e4) });
+    const r = await this.f("https://api.dataforseo.com/v3/appendix/user_data", { redirect: "error", headers: { Authorization: `Basic ${Buffer4.from(`${c.login}:${c.password}`).toString("base64")}` }, signal: AbortSignal.timeout(2e4) });
     const j = objeto(await r.json()), t = objeto(vetor(j.tasks)[0]), info = objeto(vetor(t.result)[0]);
     if (!r.ok || j.status_code !== 2e4 || t.status_code !== 2e4) throw new Error("A DataForSEO recusou a liga\xE7\xE3o. Confere o acesso API e a liga\xE7\xE3o, sem publicar credenciais.");
     return this.repo.alterar((e) => {
@@ -1668,6 +1674,7 @@ var MotorSeo = class {
 };
 
 // scripts/backend/repositorio-seo.ts
+import { setInterval, clearInterval } from "timers";
 var RepositorioSeoNuvem = class {
   constructor(sb, projeto) {
     this.sb = sb;
@@ -1921,11 +1928,13 @@ var ServicoSeo = class {
 import { createHash as createHash7 } from "crypto";
 
 // scripts/backend/documentos.ts
+import { Buffer as Buffer9 } from "buffer";
 import { createHash as createHash6 } from "crypto";
 import { z as z9 } from "zod";
 
 // scripts/documentos/motor-local.ts
 init_descoberta();
+import { Buffer as Buffer7 } from "buffer";
 import * as jsdom from "jsdom";
 import { createHash as createHash3, randomUUID as randomUUID2 } from "crypto";
 import { mkdir as mkdir2, readFile as readFile2, readdir, rename as rename2, writeFile } from "fs/promises";
@@ -2149,7 +2158,7 @@ var MotorDocumentos = class {
         ev.paginas++;
         ev.finalUrl ??= r.url;
         let itens;
-        if (r.bytes.subarray(0, 1024).includes(Buffer.from("%PDF-"))) itens = { itens: [{ url: r.url, titulo: f.name, tipo: "pdf", origem: url, publicadoEm: null }], seguir: [], feeds: [] };
+        if (r.bytes.subarray(0, 1024).includes(Buffer7.from("%PDF-"))) itens = { itens: [{ url: r.url, titulo: f.name, tipo: "pdf", origem: url, publicadoEm: null }], seguir: [], feeds: [] };
         else {
           let bytes = r.bytes;
           if (bytes[0] === 31 && bytes[1] === 139) bytes = gunzipSync(bytes, { maxOutputLength: 2 * 1024 * 1024 });
@@ -2200,7 +2209,7 @@ var MotorDocumentos = class {
           try {
             const restante = LIMITES_RECOLHA.bytesPorTarefa - j.pdfs.reduce((n, p2) => n + p2.bytes, 0);
             const r = await obterPublico(downloadConhecido(p.url), AbortSignal.timeout(3e4), { antesDeVisitar: (u) => robots.verificar(u), maxBytes: Math.min(restante, 50 * 1024 * 1024) });
-            if (!r.bytes.subarray(0, 1024).includes(Buffer.from("%PDF-"))) throw new Error("A liga\xE7\xE3o devolveu HTML ou outro ficheiro; n\xE3o \xE9 um PDF.");
+            if (!r.bytes.subarray(0, 1024).includes(Buffer7.from("%PDF-"))) throw new Error("A liga\xE7\xE3o devolveu HTML ou outro ficheiro; n\xE3o \xE9 um PDF.");
             const hash = createHash3("sha256").update(r.bytes).digest("hex");
             if (!j.pdfs.some((x) => x.hash === hash)) {
               const destino = path2.join(this.pasta, "pdfs", `${hash}.pdf`);
@@ -3420,6 +3429,8 @@ var fontes_originais_default = [
 init_obter();
 
 // scripts/backend/pdf.ts
+import { Buffer as Buffer8 } from "buffer";
+import process2 from "process";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { mkdtemp, writeFile as writeFile2, readFile as readFile3, rm } from "fs/promises";
@@ -3428,19 +3439,19 @@ import path3 from "path";
 import { createHash as createHash4 } from "crypto";
 var executar = promisify(execFile);
 var ferramenta = (nome) => {
-  const pasta = process.env.HUB_POPPLER_DIR;
+  const pasta = process2.env.HUB_POPPLER_DIR;
   if (pasta && !path3.isAbsolute(pasta))
     throw new Error("HUB_POPPLER_DIR exige uma pasta absoluta do servidor.");
   return pasta ? path3.join(pasta, nome) : nome;
 };
 async function extrairPdfServidor(bytes, nome) {
-  if (bytes.byteLength < 8 || bytes.byteLength > 50 * 1024 * 1024 || !Buffer.from(bytes.subarray(0, 1024)).includes(Buffer.from("%PDF-")))
+  if (bytes.byteLength < 8 || bytes.byteLength > 50 * 1024 * 1024 || !Buffer8.from(bytes.subarray(0, 1024)).includes(Buffer8.from("%PDF-")))
     throw new Error("O ficheiro n\xE3o \xE9 um PDF v\xE1lido at\xE9 50 MB.");
   const pasta = await mkdtemp(path3.join(tmpdir(), "hub-pdf-"));
   const original = path3.join(pasta, "original.pdf");
   try {
     await writeFile2(original, bytes, { mode: 384 });
-    const opcoes = { timeout: 45e3, maxBuffer: 12 * 1024 * 1024, env: { PATH: process.env.PATH, LANG: "C.UTF-8", HOME: pasta }, cwd: pasta };
+    const opcoes = { timeout: 45e3, maxBuffer: 12 * 1024 * 1024, env: { PATH: process2.env.PATH, LANG: "C.UTF-8", HOME: pasta }, cwd: pasta };
     const info = (await executar(ferramenta("pdfinfo"), [original], opcoes)).stdout;
     const total = Number(info.match(/^Pages:\s+(\d+)/m)?.[1]);
     if (!Number.isSafeInteger(total) || total < 1 || total > 600 || /^Encrypted:\s+yes/m.test(info))
@@ -3487,7 +3498,7 @@ var DocumentosNuvem = class {
   }
   async guardar(ctx, bytes, meta2) {
     exigirEscrita(ctx);
-    if (bytes.byteLength > 50 * 1024 * 1024 || !Buffer.from(bytes.subarray(0, 1024)).includes(Buffer.from("%PDF-")))
+    if (bytes.byteLength > 50 * 1024 * 1024 || !Buffer9.from(bytes.subarray(0, 1024)).includes(Buffer9.from("%PDF-")))
       throw new Error("O ficheiro n\xE3o \xE9 um PDF at\xE9 50 MB.");
     const hash = createHash6("sha256").update(bytes).digest("hex");
     await this.binario(`${ctx.projeto}/${hash}/original.pdf`, bytes, "application/pdf");
@@ -3848,6 +3859,7 @@ var DocumentosEdge = class extends DocumentosNuvem {
 };
 
 // scripts/backend/pdf-wasm.ts
+import { Buffer as Buffer10 } from "buffer";
 import { init } from "@embedpdf/pdfium";
 import { encode } from "fast-png";
 import { createHash as createHash8 } from "crypto";
@@ -3866,7 +3878,7 @@ var PdfNuvem = class {
     });
   }
   async parte(bytes, nome, inicio = 0, lote = 5, comCapa = true) {
-    if (bytes.length > 32 * 1024 * 1024 || !Buffer.from(bytes.subarray(0, 1024)).includes(Buffer.from("%PDF-")))
+    if (bytes.length > 32 * 1024 * 1024 || !Buffer10.from(bytes.subarray(0, 1024)).includes(Buffer10.from("%PDF-")))
       throw new Error("O processamento na nuvem aceita PDFs at\xE9 32 MB. O original permanece preservado.");
     if (!Number.isInteger(inicio) || inicio < 0 || !Number.isInteger(lote) || lote < 1 || lote > 5)
       throw new Error("Intervalo de p\xE1ginas inv\xE1lido.");
@@ -3955,10 +3967,12 @@ var PdfNuvem = class {
 
 // scripts/backend/wordpress.ts
 init_obter();
+import { Buffer as Buffer11 } from "buffer";
+import process3 from "process";
 import https2 from "https";
 import { z as z10 } from "zod";
 var DOMINIOS = { sms: "smsonline.pt", teletrabalho: "teletrabalhoweb.com", digitalfc: "digitalfc.pt", frederico: "fredericocarvalho.pt", digitalsprint: "digitalsprint.pt", academia: "academiamarketing.pt", certificacao: "certificacaomarketing.pt", auditoria: "auditoriaseo.pt" };
-function credencialWordPress(site2, env = process.env) {
+function credencialWordPress(site2, env = process3.env) {
   const dominio = DOMINIOS[site2];
   if (!dominio)
     return null;
@@ -3978,9 +3992,9 @@ function credencialWordPress(site2, env = process.env) {
 async function pedidoWordPress(c, caminho, method = "GET", dados) {
   if (!caminho.startsWith("/wp-json/wp/v2/") || caminho.includes(".."))
     throw new Error("Opera\xE7\xE3o WordPress inv\xE1lida.");
-  const u = validarDestino(new URL(caminho, c.url).href), ip = await resolverPublico(u), body = dados === void 0 ? void 0 : Buffer.from(JSON.stringify(dados));
+  const u = validarDestino(new URL(caminho, c.url).href), ip = await resolverPublico(u), body = dados === void 0 ? void 0 : Buffer11.from(JSON.stringify(dados));
   return new Promise((resolve, reject) => {
-    const r = https2.request(u, { method, agent: false, signal: AbortSignal.timeout(45e3), timeout: 3e4, family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { Authorization: `Basic ${Buffer.from(`${c.user}:${c.password}`).toString("base64")}`, Accept: "application/json", "Accept-Encoding": "identity", ...body ? { "Content-Type": "application/json", "Content-Length": String(body.length) } : {} } }, (res) => {
+    const r = https2.request(u, { method, agent: false, signal: AbortSignal.timeout(45e3), timeout: 3e4, family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { Authorization: `Basic ${Buffer11.from(`${c.user}:${c.password}`).toString("base64")}`, Accept: "application/json", "Accept-Encoding": "identity", ...body ? { "Content-Type": "application/json", "Content-Length": String(body.length) } : {} } }, (res) => {
       if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
         res.resume();
         reject(new Error(`WordPress respondeu HTTP ${res.statusCode ?? 0}. Confere o resultado antes de repetir.`));
@@ -3998,7 +4012,7 @@ async function pedidoWordPress(c, caminho, method = "GET", dados) {
       res.on("error", reject);
       res.on("end", () => {
         try {
-          resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+          resolve(JSON.parse(Buffer11.concat(chunks).toString("utf8")));
         } catch {
           reject(new Error("Resposta WordPress inv\xE1lida."));
         }
@@ -4166,6 +4180,7 @@ var PublicadorWordPress = class {
 };
 
 // scripts/backend/worker.ts
+import { setInterval as setInterval2, clearInterval as clearInterval2 } from "timers";
 import path4 from "path";
 import { mkdir as mkdir3, rm as rm2 } from "fs/promises";
 var WorkerHub = class {
@@ -4270,7 +4285,7 @@ var WorkerHub = class {
         renovando = false;
       }
     };
-    const timer = setInterval(() => void renovar(), 15e3);
+    const timer = setInterval2(() => void renovar(), 15e3);
     timer.unref();
     const continuar = async () => vivo && !this.parar && await this.permitido(job.project_id);
     try {
@@ -4300,7 +4315,7 @@ var WorkerHub = class {
     } catch (e) {
       await this.sb.rpc("hub_job_concluir", { _id: job.id, _token: job.lease_token, _estado: "incerto", _resultado: { erro: e.message } });
     } finally {
-      clearInterval(timer);
+      clearInterval2(timer);
     }
   }
   async recolher(job, continuar) {
@@ -4323,7 +4338,7 @@ var WorkerHub = class {
     let timer;
     try {
       tarefa = await motor.iniciar(ambito, this.prepararDocumento ? ids.slice(0, 1) : ids, job.pedido.modo);
-      timer = setInterval(() => void progresso(), 5e3);
+      timer = setInterval2(() => void progresso(), 5e3);
       timer.unref();
       await motor.aguardar(tarefa.id, ambito);
       for (const p of tarefa.pdfs) {
@@ -4345,7 +4360,7 @@ var WorkerHub = class {
         throw new Error("Recolha interrompida. Resultados parciais preservados.");
       return this.prepararDocumento && ids.length > 1 ? { ...agregar(), continuarPedido: { ...job.pedido, ids: ids.slice(1) } } : agregar();
     } finally {
-      clearInterval(timer);
+      clearInterval2(timer);
       await progresso();
       await rm2(pasta, { recursive: true, force: true });
     }
@@ -4353,10 +4368,14 @@ var WorkerHub = class {
 };
 
 // scripts/backend/servidor.ts
+import { Buffer as Buffer12 } from "buffer";
+import process4 from "process";
+import { setInterval as setInterval4, clearInterval as clearInterval4 } from "timers";
 import { createServer } from "http";
 import { z as z12 } from "zod";
 
 // scripts/backend/backup.ts
+import { setInterval as setInterval3, clearInterval as clearInterval3 } from "timers";
 import { z as z11 } from "zod";
 import { createHash as createHash9 } from "crypto";
 var TABELAS = ["hub_editorial_estados", "hub_editorial_artefactos", "hub_documentos", "hub_recolhas", "hub_operacao", "hub_jobs", "hub_publicacoes"];
@@ -4378,7 +4397,7 @@ async function criarBackup(sb, projeto) {
       perdido = true;
     }
   };
-  const timer = setInterval(() => void renovar(), 3e4);
+  const timer = setInterval3(() => void renovar(), 3e4);
   timer.unref();
   const verificar = () => {
     if (perdido)
@@ -4424,7 +4443,7 @@ async function criarBackup(sb, projeto) {
     const conteudo = { versao: 1, projeto, em: (/* @__PURE__ */ new Date()).toISOString(), tabelas, objetos };
     return { ...conteudo, hash: assinaturaBackup(conteudo) };
   } finally {
-    clearInterval(timer);
+    clearInterval3(timer);
     await sb.rpc("hub_lease_libertar", { _projeto: projeto, _recurso: "backup", _token: lease.data });
   }
 }
@@ -4441,13 +4460,13 @@ async function lerCorpo(req, limite) {
   const partes = [];
   let total = 0;
   for await (const c of req) {
-    const b = Buffer.isBuffer(c) ? c : Buffer.from(c);
+    const b = Buffer12.isBuffer(c) ? c : Buffer12.from(c);
     total += b.length;
     if (total > limite)
       throw new FalhaHttp("O ficheiro ou pedido excede o limite permitido.", 413);
     partes.push(b);
   }
-  return Buffer.concat(partes);
+  return Buffer12.concat(partes);
 }
 function criarServidor(config, servicos) {
   const limites = /* @__PURE__ */ new Map();
@@ -4511,13 +4530,13 @@ function criarServidor(config, servicos) {
         const lease = await servicos.sb.rpc("hub_lease_reservar", { _projeto: ctx.projeto, _recurso: "documentos", _segundos: 600 });
         if (lease.error || !lease.data)
           throw new FalhaHttp("J\xE1 existe uma edi\xE7\xE3o ou c\xF3pia de documentos neste projeto. Aguarda antes de repetir.", 409);
-        const timer = setInterval(() => {
+        const timer = setInterval4(() => {
           void Promise.resolve(servicos.sb.rpc("hub_lease_renovar", { _projeto: ctx.projeto, _recurso: "documentos", _token: lease.data })).catch(() => {
           });
         }, 3e4);
         timer.unref();
         libertar = async () => {
-          clearInterval(timer);
+          clearInterval4(timer);
           await servicos.sb.rpc("hub_lease_libertar", { _projeto: ctx.projeto, _recurso: "documentos", _token: lease.data });
         };
       }
@@ -4548,7 +4567,7 @@ function criarServidor(config, servicos) {
         resultado = await servicos.documentos.operar(ctx, caminho[2], a);
         if (resultado instanceof Blob) {
           res.setHeader("Content-Type", resultado.type || "application/octet-stream");
-          res.end(Buffer.from(await resultado.arrayBuffer()));
+          res.end(Buffer12.from(await resultado.arrayBuffer()));
           return;
         }
         if (caminho[2] === "obter") {
@@ -4567,7 +4586,7 @@ function criarServidor(config, servicos) {
           const [p, j] = await Promise.all([servicos.sb.from("hub_publicacoes").select("id,versao,destino,estado,remoto_url,atualizado_em").eq("project_id", ctx.projeto).eq("pauta_id", id).order("atualizado_em", { ascending: false }).limit(20), servicos.sb.from("hub_jobs").select("id,estado,resultado,pedido,criado_em").eq("project_id", ctx.projeto).eq("tipo", "wordpress").contains("pedido", { pautaId: id }).order("criado_em", { ascending: false }).limit(10)]);
           if (p.error || j.error)
             throw new Error("N\xE3o foi poss\xEDvel consultar os envios WordPress.");
-          resultado = { envios: p.data, trabalhos: j.data, podeEditar: ctx.escrever, publicacaoAtiva: process.env.HUB_WORDPRESS_PUBLICAR === "1" };
+          resultado = { envios: p.data, trabalhos: j.data, podeEditar: ctx.escrever, publicacaoAtiva: process4.env.HUB_WORDPRESS_PUBLICAR === "1" };
         } else {
           exigirEscrita(ctx);
           if (caminho[2] === "verificar")

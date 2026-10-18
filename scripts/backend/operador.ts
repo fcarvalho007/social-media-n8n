@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { prepararMigracaoLocal } from './migracao-local';
 import { clienteServico } from './seguranca';
 import { exportarCopia, restaurarCopia } from './backup-operador';

@@ -1,3 +1,4 @@
+import process from 'node:process';
 import path from 'node:path';
 import {prepararLegado} from './legado-local';
 import {documentosLegado} from '../../src/features/documentos/legado';

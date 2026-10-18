@@ -1,3 +1,4 @@
+import process from 'node:process';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { MotorSeo, type CredenciaisSeo } from '../seo/motor-local';

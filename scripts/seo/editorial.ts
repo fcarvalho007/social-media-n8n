@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { EstruturaArtigo } from '../../src/features/seo/sequencia';

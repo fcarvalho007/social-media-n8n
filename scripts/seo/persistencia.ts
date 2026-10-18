@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { schemaConhecimento } from '../../src/features/seo/sequencia';

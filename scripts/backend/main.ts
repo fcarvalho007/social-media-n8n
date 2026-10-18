@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { mkdir } from 'node:fs/promises';
 import { clienteServico } from './seguranca';
 import { ServicoSeo } from './seo';

@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';

@@ -1,3 +1,5 @@
+import process from 'node:process';
+import { setInterval, clearInterval } from 'node:timers';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EstadoSeo } from '../../src/features/seo/contratos';
 import { estadoInicialSeo } from '../../src/features/seo/catalogo';

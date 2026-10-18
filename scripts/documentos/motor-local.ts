@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import * as jsdom from 'jsdom';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
