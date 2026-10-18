@@ -905,6 +905,7 @@ export type Database = {
           post_type: string | null
           post_url: string
           posted_at: string | null
+          project_id: string | null
           shortcode: string | null
           thumbnail_url: string | null
           updated_at: string | null
@@ -930,6 +931,7 @@ export type Database = {
           post_type?: string | null
           post_url: string
           posted_at?: string | null
+          project_id?: string | null
           shortcode?: string | null
           thumbnail_url?: string | null
           updated_at?: string | null
@@ -955,6 +957,7 @@ export type Database = {
           post_type?: string | null
           post_url?: string
           posted_at?: string | null
+          project_id?: string | null
           shortcode?: string | null
           thumbnail_url?: string | null
           updated_at?: string | null
@@ -962,7 +965,15 @@ export type Database = {
           video_duration?: number | null
           views_count?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "instagram_analytics_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       instagram_profiles: {
         Row: {
@@ -983,6 +994,7 @@ export type Database = {
           posts_count: number | null
           profile_pic_url: string | null
           profile_pic_url_hd: string | null
+          project_id: string | null
           scraped_at: string | null
           scraped_date: string | null
           updated_at: string | null
@@ -1007,6 +1019,7 @@ export type Database = {
           posts_count?: number | null
           profile_pic_url?: string | null
           profile_pic_url_hd?: string | null
+          project_id?: string | null
           scraped_at?: string | null
           scraped_date?: string | null
           updated_at?: string | null
@@ -1031,13 +1044,22 @@ export type Database = {
           posts_count?: number | null
           profile_pic_url?: string | null
           profile_pic_url_hd?: string | null
+          project_id?: string | null
           scraped_at?: string | null
           scraped_date?: string | null
           updated_at?: string | null
           user_id?: string
           username?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "instagram_profiles_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       linkedin_mention_cache: {
         Row: {
@@ -4650,6 +4672,7 @@ export type Database = {
           origin_mode: string | null
           performance_classification: string | null
           post_type: string | null
+          project_id: string | null
           publish_metadata: Json | null
           publish_targets: Json | null
           published_at: string | null
@@ -4708,6 +4731,7 @@ export type Database = {
           origin_mode?: string | null
           performance_classification?: string | null
           post_type?: string | null
+          project_id?: string | null
           publish_metadata?: Json | null
           publish_targets?: Json | null
           published_at?: string | null
@@ -4766,6 +4790,7 @@ export type Database = {
           origin_mode?: string | null
           performance_classification?: string | null
           post_type?: string | null
+          project_id?: string | null
           publish_metadata?: Json | null
           publish_targets?: Json | null
           published_at?: string | null
@@ -4791,7 +4816,15 @@ export type Database = {
           utm_preset?: string | null
           workflow_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       posts_drafts: {
         Row: {
