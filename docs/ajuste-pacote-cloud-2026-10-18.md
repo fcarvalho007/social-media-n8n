@@ -7,3 +7,13 @@ A correção remove dos dois pacotes o asset estático PDFium de4,65MB e a respe
 SHA-256 esperado:5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa. O script de build mantém esta assinatura derivada da versão npm instalada. Licenças preservadas. O ensaio local Deno descarregou o binário real, verificou a assinatura e extraiu uma página de um PDF real sem transmitir o documento. Testes do carregador, PDFium e adaptador HTTP aprovados; Deno check das duas funções aprovado. O sucesso do novo deploy ainda é verificado separadamente no Cloud.
 
 As adaptações Cloud anteriores estão preservadas na branch da entrega: migrações0062/0063 compatíveis com o alojamento, sem reaplicar0060/0061; as regras de leitura/escrita e o cron inativo mantêm-se. A ligação da interface ao novo backend só é ativada depois de ambos os deploys passarem.
+
+## Arranque ESM e auditoria
+
+O segundo deploy passou, mas o alojamento devolveu500 antes da autorização: o `createRequire(import.meta.url)('jsdom')` dependia da resolução Node do checkout. O parser passou a usar importação ESM, resolvida pelo mapa npm já versionado nas funções. Nenhuma regra de extração foi alterada.
+
+`npm run check:hub-cloud` copia o runtime e o mapa para uma pasta temporária fora do projeto. Deno importa-os sem `node_modules` local, sem rede e sem credenciais reais: API anónima401, worker anónimo401 e origem estranha403. Este ensaio passou; o sucesso do arranque no Cloud deve ser confirmado depois de instalar a versão corrigida.
+
+A auditoria npm motivou as atualizações jsPDF4.2.1 e Swiper12.1.2. Vitest mantém a mesma versão e passa a dependência de desenvolvimento: só é importado pelos testes. Não se executou uma atualização geral de versões maiores. A auditoria completa ainda contém dívida de dependências antigas; os alertas críticos restantes identificados pertencem à cadeia de testes Vitest/tinypool. Não equivale a declarar a aplicação sem vulnerabilidades.
+
+Após a correção:1004 testes aprovados e1 ignorado preexistente, tipos da aplicação e do backend aprovados, build Vite aprovado. O build ainda avisa de alguns bundles acima de500kB; permanece trabalho futuro de divisão de módulos. A execução paga dos fornecedores, a migração dos37PDFs e a ativação do agendamento são verificações independentes, não comprovadas por estes testes.

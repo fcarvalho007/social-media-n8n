@@ -1926,7 +1926,7 @@ import { z as z9 } from "zod";
 
 // scripts/documentos/motor-local.ts
 init_descoberta();
-import { createRequire } from "module";
+import * as jsdom from "jsdom";
 import { createHash as createHash3, randomUUID as randomUUID2 } from "crypto";
 import { mkdir as mkdir2, readFile as readFile2, readdir, rename as rename2, writeFile } from "fs/promises";
 import path2 from "path";
@@ -1951,7 +1951,7 @@ function downloadConhecido(bruto) {
 }
 
 // scripts/documentos/motor-local.ts
-var { JSDOM, VirtualConsole } = createRequire(import.meta.url)("jsdom");
+var { JSDOM, VirtualConsole } = jsdom;
 var robots = new Robots();
 function fonteUtilizavel(f) {
   try {

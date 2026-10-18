@@ -1,4 +1,4 @@
-import { createRequire } from 'node:module';
+import * as jsdom from 'jsdom';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -9,7 +9,7 @@ import { obterPublico, validarDestino } from './obter';
 import { ErroRobots, Robots } from './robots';
 import { downloadConhecido } from './adaptadores';
 
-const { JSDOM, VirtualConsole } = createRequire(import.meta.url)('jsdom') as { VirtualConsole: new () => unknown; JSDOM: new (s: string, o?: { contentType?: string; virtualConsole?: unknown }) => { window: { document: MarkupDocumento; close(): void } } };
+const { JSDOM, VirtualConsole } = jsdom as { VirtualConsole: new () => unknown; JSDOM: new (s: string, o?: { contentType?: string; virtualConsole?: unknown }) => { window: { document: MarkupDocumento; close(): void } } };
 const robots = new Robots();
 export function fonteUtilizavel(f: FonteDocumento): boolean {
   try { const u = validarDestino(f.url); return !/\.(?:supabase\.co|lovable\.dev)$/i.test(u.hostname); } catch { return false; }
