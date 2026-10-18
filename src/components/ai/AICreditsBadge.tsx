@@ -7,7 +7,7 @@ import { useAICredits } from '@/hooks/useAICredits';
 import { cn } from '@/lib/utils';
 
 export function AICreditsBadge() {
-  const { credits, loading } = useAICredits();
+  const { credits, loading, error } = useAICredits();
   const allowance = Math.max(credits.credits_monthly_allowance, 0);
   const remaining = Math.max(credits.credits_remaining, 0);
   const progress = allowance > 0 ? Math.min(100, Math.round((remaining / allowance) * 100)) : 0;
@@ -25,7 +25,7 @@ export function AICreditsBadge() {
             )}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            <span>{loading ? '—' : remaining}</span>
+            <span>{loading || error ? '—' : remaining}</span>
           </Badge>
         </Link>
       </TooltipTrigger>
@@ -33,7 +33,7 @@ export function AICreditsBadge() {
         <div className="space-y-1">
           <p className="text-sm font-semibold">Créditos de IA</p>
           <p className="text-xs text-muted-foreground">
-            {remaining} de {allowance} créditos disponíveis este mês.
+            {error ? 'Não foi possível consultar os créditos. Abre as preferências de IA para tentar novamente.' : loading ? 'A consultar os créditos…' : `${remaining} de ${allowance} créditos disponíveis este mês.`}
           </p>
         </div>
         <Progress value={progress} className="h-2" />

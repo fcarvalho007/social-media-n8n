@@ -44,6 +44,20 @@
 @tailwind utilities;
 
 @layer components {
+  /* MainLayout owns the gutter; content pages share one inner rhythm. */
+  .hub-page {
+    @apply mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-6;
+  }
+
+  .hub-navigation {
+    --sidebar-background: var(--card);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-border: var(--border);
+    --sidebar-accent: var(--muted);
+    --sidebar-accent-foreground: var(--foreground);
+    --sidebar-ring: var(--ring);
+  }
+
   .manual-touch-target {
     @apply min-h-11 min-w-11;
   }
@@ -78,7 +92,7 @@ All colors MUST be HSL.
     --popover-foreground: 222 47% 11%;
 
     /* Primary - Indigo vibrante */
-    --primary: 239 84% 67%; /* #6366F1 */
+    --primary: 239 84% 66%; /* white text contrast >= 4.5:1 */
     --primary-hover: 239 84% 57%; /* #4F46E5 */
     --primary-foreground: 0 0% 100%;
     --primary-light: 226 100% 94%; /* #E0E7FF */
@@ -96,10 +110,10 @@ All colors MUST be HSL.
 
     /* Muted elements */
     --muted: 210 16% 93%;
-    --muted-foreground: 215 16% 47%; /* #6B7280 */
+    --muted-foreground: 215 16% 42%; /* Contraste AA também no fundo secundário */
 
     /* Accent colors */
-    --accent: 239 84% 67%;
+    --accent: 239 84% 66%;
     --accent-foreground: 0 0% 100%;
     --accent-purple: 239 84% 67%;
     --accent-mint: 160 84% 39%;

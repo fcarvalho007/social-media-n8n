@@ -1,0 +1,318 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-18T17:57:53.092314Z",
+  "title": "Design System: Hub de conteúdo",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "displayName": "Indigo da aplicação",
+        "canonical": "hsl(239 84% 66%)",
+        "tonalRamp": [
+          "oklch(15.00% 0.20997 276.82)",
+          "oklch(26.43% 0.20997 276.82)",
+          "oklch(37.86% 0.20997 276.82)",
+          "oklch(49.29% 0.20997 276.82)",
+          "oklch(60.71% 0.20997 276.82)",
+          "oklch(72.14% 0.20997 276.82)",
+          "oklch(83.57% 0.20997 276.82)",
+          "oklch(95.00% 0.20997 276.82)"
+        ],
+        "role": "primary"
+      },
+      "primary-foreground": {
+        "displayName": "Texto da ação principal",
+        "canonical": "hsl(0 0% 100%)",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ],
+        "role": "neutral"
+      },
+      "background": {
+        "displayName": "Fundo claro",
+        "canonical": "hsl(210 20% 98%)",
+        "tonalRamp": [
+          "oklch(15.00% 0.00174 247.84)",
+          "oklch(26.43% 0.00174 247.84)",
+          "oklch(37.86% 0.00174 247.84)",
+          "oklch(49.29% 0.00174 247.84)",
+          "oklch(60.71% 0.00174 247.84)",
+          "oklch(72.14% 0.00174 247.84)",
+          "oklch(83.57% 0.00174 247.84)",
+          "oklch(95.00% 0.00174 247.84)"
+        ],
+        "role": "neutral"
+      },
+      "foreground": {
+        "displayName": "Texto principal",
+        "canonical": "hsl(222 47% 11%)",
+        "tonalRamp": [
+          "oklch(15.00% 0.03882 265.55)",
+          "oklch(26.43% 0.03882 265.55)",
+          "oklch(37.86% 0.03882 265.55)",
+          "oklch(49.29% 0.03882 265.55)",
+          "oklch(60.71% 0.03882 265.55)",
+          "oklch(72.14% 0.03882 265.55)",
+          "oklch(83.57% 0.03882 265.55)",
+          "oklch(95.00% 0.03882 265.55)"
+        ],
+        "role": "neutral"
+      },
+      "card": {
+        "displayName": "Cartão branco",
+        "canonical": "hsl(0 0% 100%)",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ],
+        "role": "neutral"
+      },
+      "muted": {
+        "displayName": "Fundo secundário",
+        "canonical": "hsl(210 16% 93%)",
+        "tonalRamp": [
+          "oklch(15.00% 0.00492 247.88)",
+          "oklch(26.43% 0.00492 247.88)",
+          "oklch(37.86% 0.00492 247.88)",
+          "oklch(49.29% 0.00492 247.88)",
+          "oklch(60.71% 0.00492 247.88)",
+          "oklch(72.14% 0.00492 247.88)",
+          "oklch(83.57% 0.00492 247.88)",
+          "oklch(95.00% 0.00492 247.88)"
+        ],
+        "role": "neutral"
+      },
+      "muted-foreground": {
+        "displayName": "Texto secundário",
+        "canonical": "hsl(215 16% 42%)",
+        "tonalRamp": [
+          "oklch(15.00% 0.03628 256.82)",
+          "oklch(26.43% 0.03628 256.82)",
+          "oklch(37.86% 0.03628 256.82)",
+          "oklch(49.29% 0.03628 256.82)",
+          "oklch(60.71% 0.03628 256.82)",
+          "oklch(72.14% 0.03628 256.82)",
+          "oklch(83.57% 0.03628 256.82)",
+          "oklch(95.00% 0.03628 256.82)"
+        ],
+        "role": "neutral"
+      },
+      "border": {
+        "displayName": "Contorno",
+        "canonical": "hsl(214 18% 86%)",
+        "tonalRamp": [
+          "oklch(15.00% 0.01168 255.02)",
+          "oklch(26.43% 0.01168 255.02)",
+          "oklch(37.86% 0.01168 255.02)",
+          "oklch(49.29% 0.01168 255.02)",
+          "oklch(60.71% 0.01168 255.02)",
+          "oklch(72.14% 0.01168 255.02)",
+          "oklch(83.57% 0.01168 255.02)",
+          "oklch(95.00% 0.01168 255.02)"
+        ],
+        "role": "neutral"
+      },
+      "success": {
+        "displayName": "Sucesso",
+        "canonical": "hsl(160 84% 39%)",
+        "tonalRamp": [
+          "oklch(15.00% 0.14806 162.37)",
+          "oklch(26.43% 0.14806 162.37)",
+          "oklch(37.86% 0.14806 162.37)",
+          "oklch(49.29% 0.14806 162.37)",
+          "oklch(60.71% 0.14806 162.37)",
+          "oklch(72.14% 0.14806 162.37)",
+          "oklch(83.57% 0.14806 162.37)",
+          "oklch(95.00% 0.14806 162.37)"
+        ]
+      },
+      "destructive": {
+        "displayName": "Erro",
+        "canonical": "hsl(0 84% 60%)",
+        "tonalRamp": [
+          "oklch(15.00% 0.20820 25.38)",
+          "oklch(26.43% 0.20820 25.38)",
+          "oklch(37.86% 0.20820 25.38)",
+          "oklch(49.29% 0.20820 25.38)",
+          "oklch(60.71% 0.20820 25.38)",
+          "oklch(72.14% 0.20820 25.38)",
+          "oklch(83.57% 0.20820 25.38)",
+          "oklch(95.00% 0.20820 25.38)"
+        ]
+      },
+      "warning": {
+        "displayName": "Aviso",
+        "canonical": "hsl(38 92% 50%)",
+        "tonalRamp": [
+          "oklch(15.00% 0.16452 70.61)",
+          "oklch(26.43% 0.16452 70.61)",
+          "oklch(37.86% 0.16452 70.61)",
+          "oklch(49.29% 0.16452 70.61)",
+          "oklch(60.71% 0.16452 70.61)",
+          "oklch(72.14% 0.16452 70.61)",
+          "oklch(83.57% 0.16452 70.61)",
+          "oklch(95.00% 0.16452 70.61)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "body": {
+        "displayName": "Texto da interface",
+        "purpose": "Controlos, descrições e texto auxiliar conforme a escala existente."
+      },
+      "display": {
+        "displayName": "Títulos da interface",
+        "purpose": "Títulos de página e de secção; preservar a escala dos editores."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-sm",
+        "value": "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+        "purpose": "Sombra discreta do cartão partilhado."
+      },
+      {
+        "name": "shadow-md",
+        "value": "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+        "purpose": "Elevação intermédia já definida no sistema."
+      },
+      {
+        "name": "shadow-lg",
+        "value": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+        "purpose": "Superfícies sobrepostas conforme o componente existente."
+      }
+    ],
+    "motion": [
+      {
+        "name": "duration-fast",
+        "value": "150ms",
+        "purpose": "Transições rápidas de estado existentes."
+      },
+      {
+        "name": "duration-normal",
+        "value": "250ms",
+        "purpose": "Duração normal já definida no sistema."
+      },
+      {
+        "name": "duration-slow",
+        "value": "400ms",
+        "purpose": "Duração longa já definida no sistema."
+      },
+      {
+        "name": "ease-in-out",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Curva partilhada para mudanças de estado."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botão principal",
+      "kind": "button",
+      "description": "Primitivo partilhado por omissão (40px); os percursos revistos aplicam altura mínima de 44px.",
+      "html": "<button class=\"ds-button-primary\">Guardar alterações</button>",
+      "css": ".ds-button-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;height:40px;padding:8px 16px;border:0;border-radius:calc(var(--radius,1rem) - 2px);font-family:Inter, Montserrat, system-ui, sans-serif;font-size:14px;line-height:20px;font-weight:500;text-decoration:none;cursor:pointer;transition:color 150ms cubic-bezier(.4,0,.2,1),background-color 150ms cubic-bezier(.4,0,.2,1),border-color 150ms cubic-bezier(.4,0,.2,1);background:hsl(var(--primary,239 84% 66%));color:hsl(var(--primary-foreground,0 0% 100%));}.ds-button-primary:hover{background:hsl(var(--primary-hover,239 84% 57%));}.ds-button-primary:focus-visible{box-shadow:0 0 0 2px hsl(var(--background,210 20% 98%)),0 0 0 4px hsl(var(--ring,239 84% 67%));outline:none;}.ds-button-primary:disabled{pointer-events:none;opacity:.5;}",
+      "refersTo": "button-primary"
+    },
+    {
+      "name": "Botão com contorno",
+      "kind": "button",
+      "description": "Ação secundária do primitivo Button; mantém a altura por omissão de 40px.",
+      "html": "<button class=\"ds-button-outline\">Verificar ligação</button>",
+      "css": ".ds-button-outline{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;height:40px;padding:8px 16px;border:0;border-radius:calc(var(--radius,1rem) - 2px);font-family:Inter, Montserrat, system-ui, sans-serif;font-size:14px;line-height:20px;font-weight:500;text-decoration:none;cursor:pointer;transition:color 150ms cubic-bezier(.4,0,.2,1),background-color 150ms cubic-bezier(.4,0,.2,1),border-color 150ms cubic-bezier(.4,0,.2,1);border:1px solid hsl(var(--input,214 18% 86%));background:hsl(var(--background,210 20% 98%));color:hsl(var(--foreground,222 47% 11%));}.ds-button-outline:hover{background:hsl(var(--accent,239 84% 66%));color:hsl(var(--accent-foreground,0 0% 100%));}.ds-button-outline:focus-visible{box-shadow:0 0 0 2px hsl(var(--background,210 20% 98%)),0 0 0 4px hsl(var(--ring,239 84% 67%));outline:none;}.ds-button-outline:disabled{pointer-events:none;opacity:.5;}"
+    },
+    {
+      "name": "Botão secundário",
+      "kind": "button",
+      "description": "Variante secundária existente, usada na seleção de páginas.",
+      "html": "<button class=\"ds-button-secondary\">Selecionar início</button>",
+      "css": ".ds-button-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;height:40px;padding:8px 16px;border:0;border-radius:calc(var(--radius,1rem) - 2px);font-family:Inter, Montserrat, system-ui, sans-serif;font-size:14px;line-height:20px;font-weight:500;text-decoration:none;cursor:pointer;transition:color 150ms cubic-bezier(.4,0,.2,1),background-color 150ms cubic-bezier(.4,0,.2,1),border-color 150ms cubic-bezier(.4,0,.2,1);background:hsl(var(--secondary,210 16% 93%));color:hsl(var(--secondary-foreground,222 47% 11%));}.ds-button-secondary:hover{background:hsl(var(--secondary,210 16% 93%) / .8);}.ds-button-secondary:focus-visible{box-shadow:0 0 0 2px hsl(var(--background,210 20% 98%)),0 0 0 4px hsl(var(--ring,239 84% 67%));outline:none;}.ds-button-secondary:disabled{pointer-events:none;opacity:.5;}"
+    },
+    {
+      "name": "Botão discreto",
+      "kind": "button",
+      "description": "Ação de apoio do primitivo Button, sem superfície em repouso.",
+      "html": "<button class=\"ds-button-ghost\">Cancelar</button>",
+      "css": ".ds-button-ghost{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;height:40px;padding:8px 16px;border:0;border-radius:calc(var(--radius,1rem) - 2px);font-family:Inter, Montserrat, system-ui, sans-serif;font-size:14px;line-height:20px;font-weight:500;text-decoration:none;cursor:pointer;transition:color 150ms cubic-bezier(.4,0,.2,1),background-color 150ms cubic-bezier(.4,0,.2,1),border-color 150ms cubic-bezier(.4,0,.2,1);background:transparent;color:hsl(var(--foreground,222 47% 11%));}.ds-button-ghost:hover{background:hsl(var(--accent,239 84% 66%));color:hsl(var(--accent-foreground,0 0% 100%));}.ds-button-ghost:focus-visible{box-shadow:0 0 0 2px hsl(var(--background,210 20% 98%)),0 0 0 4px hsl(var(--ring,239 84% 67%));outline:none;}.ds-button-ghost:disabled{pointer-events:none;opacity:.5;}"
+    },
+    {
+      "name": "Botão com aparência de ligação",
+      "kind": "button",
+      "description": "Recuperação como ação de botão; as ligações de navegação mantêm elementos a.",
+      "html": "<button class=\"ds-button-link\">Tentar novamente</button>",
+      "css": ".ds-button-link{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;height:40px;padding:8px 16px;border:0;border-radius:calc(var(--radius,1rem) - 2px);font-family:Inter, Montserrat, system-ui, sans-serif;font-size:14px;line-height:20px;font-weight:500;text-decoration:none;cursor:pointer;transition:color 150ms cubic-bezier(.4,0,.2,1),background-color 150ms cubic-bezier(.4,0,.2,1),border-color 150ms cubic-bezier(.4,0,.2,1);background:transparent;color:hsl(var(--primary,239 84% 66%));text-underline-offset:4px;}.ds-button-link:hover{text-decoration:underline;}.ds-button-link:focus-visible{box-shadow:0 0 0 2px hsl(var(--background,210 20% 98%)),0 0 0 4px hsl(var(--ring,239 84% 67%));outline:none;}.ds-button-link:disabled{pointer-events:none;opacity:.5;}"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "description": "Input partilhado por omissão (40px); os campos revistos podem aplicar mínimo de 44px.",
+      "html": "<input class=\"ds-input\" aria-label=\"Título do documento\" placeholder=\"Título do documento\" />",
+      "css": ".ds-input{display:flex;width:100%;height:40px;border:1px solid hsl(var(--input,214 18% 86%));border-radius:calc(var(--radius,1rem) - 2px);padding:8px 12px;background:hsl(var(--background,210 20% 98%));color:hsl(var(--foreground,222 47% 11%));font-family:Inter, Montserrat, system-ui, sans-serif;font-size:16px;line-height:24px;}.ds-input::placeholder{color:hsl(var(--muted-foreground,215 16% 42%));}.ds-input:focus-visible{box-shadow:0 0 0 2px hsl(var(--background,210 20% 98%)),0 0 0 4px hsl(var(--ring,239 84% 67%));outline:none;}.ds-input:disabled{cursor:not-allowed;opacity:.5;}@media(min-width:768px){.ds-input{font-size:14px;line-height:20px;}}"
+    },
+    {
+      "name": "Navegação do Hub",
+      "kind": "nav",
+      "description": "Ligação ativa do menu local, com altura mínima de 44px e estado aria-current.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Menu principal\"><a class=\"ds-nav-link\" href=\"/documentos\" aria-current=\"page\">Documentos e relatórios</a></nav>",
+      "css": ".ds-nav{background:hsl(var(--card,0 0% 100%));font-family:Inter, Montserrat, system-ui, sans-serif;}.ds-nav-link{display:flex;align-items:center;gap:12px;min-height:44px;padding:8px 12px;border-radius:calc(var(--radius,1rem) - 2px);font-size:14px;line-height:20px;color:hsl(var(--foreground,222 47% 11%));text-decoration:none;transition:width 150ms cubic-bezier(.4,0,.2,1),height 150ms cubic-bezier(.4,0,.2,1),padding 150ms cubic-bezier(.4,0,.2,1);}.ds-nav-link:hover,.ds-nav-link:active{background:hsl(var(--muted,210 16% 93%));color:hsl(var(--foreground,222 47% 11%));}.ds-nav-link[aria-current=\"page\"]{background:hsl(var(--primary,239 84% 66%) / .1);color:hsl(var(--primary,239 84% 66%));font-weight:600;}.ds-nav-link:focus-visible{outline:2px solid hsl(var(--ring,239 84% 67%));outline-offset:0;}"
+    },
+    {
+      "name": "Etiqueta secundária",
+      "kind": "chip",
+      "description": "Badge informativo existente; comunica estado em conjunto com texto.",
+      "html": "<span class=\"ds-badge-secondary\">Por ler</span>",
+      "css": ".ds-badge-secondary{display:inline-flex;align-items:center;padding:2px 10px;border:1px solid transparent;border-radius:9999px;background:hsl(var(--secondary,210 16% 93%));color:hsl(var(--secondary-foreground,222 47% 11%));font-family:Inter, Montserrat, system-ui, sans-serif;font-size:12px;line-height:16px;font-weight:600;transition:color 150ms cubic-bezier(.4,0,.2,1),background-color 150ms cubic-bezier(.4,0,.2,1);}.ds-badge-secondary:hover{background:hsl(var(--secondary,210 16% 93%) / .8);}.ds-badge-secondary:focus-visible{box-shadow:0 0 0 2px hsl(var(--background,210 20% 98%)),0 0 0 4px hsl(var(--ring,239 84% 67%));outline:none;}"
+    },
+    {
+      "name": "Cartão",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Card partilhado com preenchimento de 24px, contorno e sombra discreta.",
+      "html": "<section class=\"ds-card\"><h3 class=\"ds-card-title\">Documento guardado</h3><p class=\"ds-card-description\">O texto original está disponível por página.</p></section>",
+      "css": ".ds-card{border:1px solid hsl(var(--border,214 18% 86%));border-radius:var(--radius,1rem);padding:24px;background:hsl(var(--card,0 0% 100%));color:hsl(var(--card-foreground,222 47% 11%));box-shadow:0 1px 2px 0 rgb(0 0 0 / .05);font-family:Inter, Montserrat, system-ui, sans-serif;}.ds-card-title{margin:0;font-size:24px;line-height:1;letter-spacing:-.025em;font-weight:600;}.ds-card-description{margin:6px 0 0;color:hsl(var(--muted-foreground,215 16% 42%));font-size:14px;line-height:20px;}"
+    }
+  ],
+  "narrative": {
+    "overview": "Este documento descreve o sistema existente em `src/index.css`, `tailwind.config.ts` e nos componentes partilhados. Não estabelece uma identidade nova. A aplicação é uma área de trabalho editorial: navegação estável, texto legível, ações claras e indicação explícita do que foi guardado, falhou ou ainda está a carregar.\n\nA interface do Hub e as peças gráficas produzidas pelo Hub têm sistemas distintos. O indigo da aplicação não substitui as cores editoriais dos carrosséis, Stories ou newsletters. As preferências visuais guardadas em cada documento continuam a determinar a sua apresentação.",
+    "keyCharacteristics": [],
+    "rules": [],
+    "dos": [
+      "**Do** reutilizar tokens, componentes e o catálogo de navegação antes de introduzir variantes locais.",
+      "**Do** manter a página atual e uma saída utilizável quando uma área falha ao carregar.",
+      "**Do** distinguir dados fictícios, estimativas e estados confirmados.",
+      "**Do** preservar o trabalho humano ao repetir uma operação ou recuperar de uma falha."
+    ],
+    "donts": [
+      "**Don't** apresentar uma falha de leitura como lista vazia ou sucesso de gravação.",
+      "**Don't** confundir a identidade da interface com a direção visual das peças editoriais.",
+      "**Don't** reintroduzir o retrato nas peças de newsletter sem nova decisão do proprietário.",
+      "**Don't** afirmar conformidade integral de acessibilidade ou de tema escuro sem uma auditoria específica."
+    ]
+  }
+}

@@ -1,81 +1,82 @@
-import { useState, type ReactNode } from 'react';
-import { LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertCircle, ChevronDown, LogOut, Plus, Settings } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Sheet, SheetTrigger, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { usePendingCounts } from '@/hooks/usePendingCounts';
 import { useAuth } from '@/contexts/AuthContext';
-import { DESTINOS_NAVEGACAO, itemNavegacaoAtivo } from '@/lib/navegacao';
+import { DESTINOS_NAVEGACAO, SECOES_NAVEGACAO, itemNavegacaoAtivo } from '@/lib/navegacao';
 import { toast } from 'sonner';
 
-export const GRUPOS_MENU = (['Trabalho', 'Publicação', 'Análise', 'Conta'] as const).map((titulo) => ({
-  titulo, itens: DESTINOS_NAVEGACAO.filter((d) => d.grupo === titulo),
-}));
-export const itemAtivo = itemNavegacaoAtivo;
-
-export function MenuNavegacao({ open, onOpenChange, gatilho }: { open: boolean; onOpenChange: (v: boolean) => void; gatilho: ReactNode }) {
-  const { counts } = usePendingCounts();
+export function AppSidebar() {
+  const { counts, error: erroContagem } = usePendingCounts();
   const { user, signOut } = useAuth();
+  const { setOpenMobile } = useSidebar();
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
   const totalPending = counts.stories + counts.carousels + counts.posts;
-
   const [aSair, setASair] = useState(false);
+  const conta = DESTINOS_NAVEGACAO.filter((d) => d.grupo === 'Conta');
+
+  useEffect(() => { setOpenMobile(false); }, [pathname, search, setOpenMobile]);
+
   const sair = async () => {
     if (aSair) return;
     setASair(true);
-    try { await signOut(); onOpenChange(false); navigate('/auth'); }
+    try { await signOut(); setOpenMobile(false); navigate('/auth'); }
     catch { toast.error('Não foi possível terminar a sessão. Tenta de novo.'); }
     finally { setASair(false); }
   };
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetTrigger asChild>{gatilho}</SheetTrigger>
-      <SheetContent side="left" className="flex w-[min(20rem,88vw)] flex-col gap-0 overflow-y-auto bg-background p-0">
-        <SheetHeader className="border-b px-5 py-4 pr-16 text-left">
-          <SheetTitle className="text-base">Hub de conteúdo</SheetTitle>
-          <SheetDescription className="truncate text-xs">{user?.email ?? 'Menu principal'}</SheetDescription>
-        </SheetHeader>
-        <nav aria-label="Menu principal" className="flex flex-1 flex-col gap-5 px-3 py-4">
-          {GRUPOS_MENU.map((g) => (
-            <div key={g.titulo}>
-              <h2 className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.titulo}</h2>
-              <ul>
-                {g.itens.map((i) => {
-                  const ativo = itemAtivo(pathname, search, i.url);
-                  return (
-                    <li key={i.url}>
-                      <Link
-                        to={i.url}
-                        onClick={() => onOpenChange(false)}
-                        aria-current={ativo ? 'page' : undefined}
-                        className={cn(
-                          'flex min-h-11 items-center gap-3 rounded-md px-2 text-[15px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          ativo ? 'bg-primary/10 font-semibold text-primary' : 'text-foreground hover:bg-muted',
-                        )}
-                      >
-                        <i.icon className="h-5 w-5 shrink-0" aria-hidden />
-                        <span className="flex-1">{i.label}</span>
-                        {i.badge && totalPending > 0 && (
-                          <span className="rounded-full bg-destructive px-2 text-xs font-semibold text-destructive-foreground" aria-label={`${totalPending} por aprovar`}>{totalPending}</span>
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-                {g.titulo === 'Conta' && (
-                  <li>
-                    <button type="button" disabled={aSair} onClick={sair} className="flex min-h-11 w-full items-center gap-3 rounded-md px-2 text-[15px] text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <LogOut className="h-5 w-5" aria-hidden />{aSair ? 'A sair…' : 'Sair'}
-                    </button>
-                  </li>
-                )}
-              </ul>
-            </div>
-          ))}
-        </nav>
-      </SheetContent>
-    </Sheet>
-  );
+  const ligacao = (url: string): JSX.Element => {
+    const item = DESTINOS_NAVEGACAO.find((d) => d.url === url)!;
+    const ativo = itemNavegacaoAtivo(pathname, search, item.url);
+    return <SidebarMenuItem key={url}>
+      <SidebarMenuButton asChild isActive={ativo} className="h-auto min-h-11 gap-3 px-3 py-2 [&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible data-[active=true]:bg-primary/10 data-[active=true]:font-semibold data-[active=true]:text-primary">
+        <Link to={item.url} aria-current={ativo ? 'page' : undefined} onClick={() => setOpenMobile(false)}>
+          <item.icon aria-hidden />
+          <span className="min-w-0 flex-1 leading-5">{item.label}</span>
+          {item.badge && !erroContagem && totalPending > 0 && <span className="rounded-md bg-destructive px-1.5 text-xs font-semibold tabular-nums text-destructive-foreground" aria-label={`${totalPending} por aprovar`}>{totalPending}</span>}
+          {item.badge && erroContagem && <span className="shrink-0 text-muted-foreground" title="Contagem indisponível. Abre a área para tentar novamente."><AlertCircle aria-hidden /><span className="sr-only">Contagem indisponível</span></span>}
+        </Link>
+      </SidebarMenuButton>
+      {DESTINOS_NAVEGACAO.some(d => d.pai === item.url) && <SidebarMenu className="ml-5 mt-1 w-auto border-l pl-2" aria-label={`Dentro de ${item.label}`}>{DESTINOS_NAVEGACAO.filter(d => d.pai === item.url).map(d => ligacao(d.url))}</SidebarMenu>}
+    </SidebarMenuItem>;
+  };
+
+  return <Sidebar collapsible="offcanvas" className="hub-navigation data-[state=open]:duration-200 data-[state=closed]:duration-150 motion-reduce:animate-none" aria-label="Navegação do Hub">
+    <SidebarHeader className="gap-3 border-b px-4 pb-4 pt-3">
+      <Link to="/" onClick={() => setOpenMobile(false)} className="flex min-h-11 items-center rounded-md pr-11 text-base font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Hub de conteúdo</Link>
+      <Button asChild className="min-h-11 w-full justify-start gap-3">
+        <Link to="/pending?tab=create" aria-current={itemNavegacaoAtivo(pathname, search, '/pending?tab=create') ? 'page' : undefined} onClick={() => setOpenMobile(false)}><Plus aria-hidden />Criar publicação social</Link>
+      </Button>
+    </SidebarHeader>
+    <SidebarContent className="gap-3 py-3">
+      <nav aria-label="Menu principal" className="flex flex-col gap-5 px-3">
+        <SidebarMenu>{ligacao('/')}</SidebarMenu>
+        {SECOES_NAVEGACAO.map((secao) => <SidebarGroup key={secao.titulo} className="p-0">
+          <SidebarGroupLabel asChild><h2>{secao.titulo}</h2></SidebarGroupLabel>
+          <SidebarMenu>{secao.urls.filter(url => !DESTINOS_NAVEGACAO.find(d => d.url === url)?.pai).map(ligacao)}</SidebarMenu>
+        </SidebarGroup>)}
+      </nav>
+    </SidebarContent>
+    <SidebarFooter className="border-t p-3">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="min-h-14 w-full justify-start gap-3 px-3" aria-label="Definições e conta">
+            <Settings className="shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1 text-left"><span className="block">Definições e conta</span><span className="block truncate text-xs font-normal text-muted-foreground">{user?.email ?? 'A tua conta'}</span></span>
+            <ChevronDown className="shrink-0" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="start" className="w-64 max-h-[80dvh] overflow-y-auto">
+          <DropdownMenuLabel>Definições e conta</DropdownMenuLabel><DropdownMenuSeparator />
+          {conta.map((item) => <DropdownMenuItem key={item.url} asChild className="min-h-11"><Link to={item.url} onClick={() => setOpenMobile(false)}><item.icon aria-hidden />{item.label}</Link></DropdownMenuItem>)}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled={aSair} onSelect={(e) => { e.preventDefault(); void sair(); }} className="min-h-11"><LogOut aria-hidden />{aSair ? 'A sair…' : 'Sair'}</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SidebarFooter>
+  </Sidebar>;
 }

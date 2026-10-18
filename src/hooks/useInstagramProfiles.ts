@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,7 +37,7 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
   const queryClient = useQueryClient();
   const isPublicMode = options?.publicMode === true;
 
-  const { data: profiles = [], isLoading, error } = useQuery({
+  const { data: profiles = [], isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["instagram-profiles", isPublicMode ? "public" : user?.id],
     queryFn: async () => {
       // Public mode: ALWAYS fetch global dataset (for production app)
@@ -63,10 +64,11 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
       return data as InstagramProfile[];
     },
     enabled: !!user?.id || isPublicMode,
+    retry: 1,
   });
 
   // Get latest profile for each account
-  const latestProfiles = (() => {
+  const latestProfiles = useMemo(() => {
     const profileMap = new Map<string, InstagramProfile>();
     
     profiles.forEach(profile => {
@@ -77,7 +79,7 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
     });
     
     return Array.from(profileMap.values());
-  })();
+  }, [profiles]);
 
   const importMutation = useMutation({
     mutationFn: async (profilesData: any[]) => {
@@ -118,7 +120,7 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
   });
 
   // Calculate stats
-  const stats = (() => {
+  const stats = useMemo(() => {
     if (latestProfiles.length === 0) {
       return {
         totalFollowers: 0,
@@ -149,13 +151,13 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
       verifiedCount: latestProfiles.filter(p => p.is_verified).length,
       businessCount: latestProfiles.filter(p => p.is_business_account).length,
     };
-  })();
+  }, [latestProfiles]);
 
   return {
     profiles,
     latestProfiles,
     stats,
-    isLoading,
+    isLoading, isFetching, refetch,
     error,
     importProfiles: importMutation.mutate,
     isImporting: importMutation.isPending,

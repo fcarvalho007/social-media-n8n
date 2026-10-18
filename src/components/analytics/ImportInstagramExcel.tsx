@@ -12,7 +12,6 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 
@@ -234,6 +233,7 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
 
     try {
       const data = await file.arrayBuffer();
+      const XLSX = await import("xlsx");
       const workbook = XLSX.read(data);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];

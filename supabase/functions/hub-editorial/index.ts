@@ -1,0 +1,4 @@
+// Runtime and PDFium asset are built locally; no AI gateway or native executable.
+import{criarRuntimeEdge}from'./runtime.js';
+const runtime=criarRuntimeEdge({get:(n:string)=>Deno.env.get(n),lerWasm:async()=>{let b:Uint8Array;try{b=await Deno.readFile(new URL('./pdfium.wasm',import.meta.url));}catch{const r=await fetch('https://cdn.jsdelivr.net/npm/@embedpdf/pdfium@2.15.1/dist/pdfium.wasm',{signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error('Motor PDF temporariamente indisponível.');b=new Uint8Array(await r.arrayBuffer());}const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new Uint8Array(b).buffer)),v=>v.toString(16).padStart(2,'0')).join('');if(hash!=='5e4cd023c3dad4a895b3571ca573d3fc51bac6de48360d95283134385b954eaa')throw new Error('Assinatura do motor PDF inválida.');return b;}});
+Deno.serve(req=>runtime.fetch(req));

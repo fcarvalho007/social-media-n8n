@@ -17,8 +17,8 @@ export const Route = createFileRoute("/_authenticated/custos")({
 
 function PaginaCustos() {
   return (
-    <main style={{ background: "#F7F8FA", minHeight: "100%" }}>
+    <section aria-label="Custos da newsletter" style={{ background: "#F7F8FA", minHeight: "100%" }}>
       <PainelCustos />
-    </main>
+    </section>
   );
 }

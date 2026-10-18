@@ -2,13 +2,13 @@
 name: Hub de conteúdo
 description: Sistema visual existente para trabalho editorial, revisão e publicação.
 colors:
-  primary: "hsl(239 84% 67%)"
+  primary: "hsl(239 84% 66%)"
   primary-foreground: "hsl(0 0% 100%)"
   background: "hsl(210 20% 98%)"
   foreground: "hsl(222 47% 11%)"
   card: "hsl(0 0% 100%)"
   muted: "hsl(210 16% 93%)"
-  muted-foreground: "hsl(215 16% 47%)"
+  muted-foreground: "hsl(215 16% 42%)"
   border: "hsl(214 18% 86%)"
   success: "hsl(160 84% 39%)"
   destructive: "hsl(0 84% 60%)"
@@ -54,7 +54,7 @@ A interface do Hub e as peças gráficas produzidas pelo Hub têm sistemas disti
 
 O indigo identifica ações e foco. Os fundos claros, cartões brancos e texto escuro sustentam a leitura de listas, filtros e formulários. Texto secundário usa o token próprio; estados de erro, aviso e sucesso têm cores semânticas acompanhadas por texto.
 
-Usar os tokens de `src/index.css` através das classes semânticas, mantendo as variantes existentes de tema escuro. Os valores do frontmatter representam o tema claro; não devem ser copiados como cores literais para os componentes. Os tokens de sidebar de grafite e verde continuam disponíveis para superfícies legadas, mas a navegação principal atual abre num painel a partir do cabeçalho.
+Usar os tokens de `src/index.css` através das classes semânticas. Os valores do frontmatter representam o tema claro; não devem ser copiados como cores literais para os componentes. Os tokens de sidebar de grafite e verde continuam disponíveis para superfícies legadas. Na proposta local de navegação, o menu lateral partilha a superfície clara e a cor de ação da aplicação. O tema escuro fica fora do âmbito desta ronda, por decisão do proprietário.
 
 ## Typography
 
@@ -67,6 +67,8 @@ Preservar a escala existente dos editores. A tipografia de uma peça gráfica pe
 O cabeçalho partilhado tem altura mínima de 64px. O conteúdo normal fica numa área central com largura máxima de 90rem e espaçamento progressivo nos breakpoints existentes. Compositores isolados conservam a sua área integral de edição.
 
 A navegação, os títulos e as migalhas usam o catálogo único em `src/lib/navegacao.ts`. O painel inicial é `/`; a divulgação da newsletter tem a sua entrada própria. No telemóvel, o cabeçalho reduz as migalhas sem esconder a página atual. Grelhas de texto usam colunas com mínimo zero para permitir quebra de conteúdo e impedir que o formulário empurre a página para fora do ecrã.
+
+A proposta da branch local `codex/hub-navegacao-simples-local` apresenta o menu lateral aberto inicialmente a partir de 1024px. Pode ser recolhido; abaixo de 768px abre num painel com fecho explícito. As tarefas estão agrupadas em Recolher conteúdo, Criar conteúdo, Rever e publicar nas redes, Organizar e Resultados e custos. Documentos e relatórios é filho visível de Curadoria; Divulgação da newsletter é filha visível de Newsletter, sem novos acordeões. Criar publicação social tem acesso direto; Definições e conta fica num menu separado no rodapé. A pesquisa mostra texto no computador e conserva o atalho de teclado. Esta proposta está em revisão local e ainda não foi publicada.
 
 O ritmo habitual é de 8, 16, 24 e 32px. Os controlos de navegação, pesquisa, fecho e notificação revistos nesta ronda têm área de interação de pelo menos 44px. Os primitivos legados incluem ainda tamanhos de 36 e 40px; esta documentação não declara que toda a aplicação já foi adaptada a 44px.
 
@@ -110,3 +112,7 @@ O padrão aprovado continua sem retrato. Notícias e opinião são identificadas
 - **Don't** confundir a identidade da interface com a direção visual das peças editoriais.
 - **Don't** reintroduzir o retrato nas peças de newsletter sem nova decisão do proprietário.
 - **Don't** afirmar conformidade integral de acessibilidade ou de tema escuro sem uma auditoria específica.
+
+## Contraste dos controlos partilhados · 18/10/2026
+
+A revisão de Documentos mediu 4,41:1 no botão principal. A luminosidade do indigo partilhado passou de 67% para 66%, mantendo a mesma família de cor e garantindo pelo menos 4,5:1 com texto branco. O hover do botão principal usa o token existente `--primary-hover`, mais escuro, em vez de reduzir a opacidade e clarear o fundo. O ajuste aplica-se ao componente comum, para não criar uma paleta própria em Documentos.

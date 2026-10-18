@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,7 +51,7 @@ export function useInstagramAnalytics(options?: UseInstagramAnalyticsOptions) {
   const queryClient = useQueryClient();
   const isPublicMode = options?.publicMode === true;
 
-  const { data: analytics = [], isLoading, error } = useQuery({
+  const { data: analytics = [], isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["instagram-analytics", isPublicMode ? "public" : user?.id],
     queryFn: async () => {
       // Public mode: ALWAYS fetch all data without user filter (even if authenticated)
@@ -77,6 +78,7 @@ export function useInstagramAnalytics(options?: UseInstagramAnalyticsOptions) {
       return data as InstagramAnalyticsItem[];
     },
     enabled: isPublicMode || !!user?.id,
+    retry: 1,
   });
 
   const importMutation = useMutation({
@@ -123,7 +125,7 @@ export function useInstagramAnalytics(options?: UseInstagramAnalyticsOptions) {
   });
 
   // Calculate comprehensive stats
-  const stats: AnalyticsStats = (() => {
+  const stats: AnalyticsStats = useMemo(() => {
     if (analytics.length === 0) {
       return {
         totalPosts: 0,
@@ -226,12 +228,12 @@ export function useInstagramAnalytics(options?: UseInstagramAnalyticsOptions) {
       contentTypeBreakdown,
       engagementOverTime,
     };
-  })();
+  }, [analytics]);
 
   return {
     analytics,
     stats,
-    isLoading,
+    isLoading, isFetching, refetch,
     error,
     importPosts: importMutation.mutate,
     isImporting: importMutation.isPending,

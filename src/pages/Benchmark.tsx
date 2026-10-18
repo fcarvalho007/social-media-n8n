@@ -1,3 +1,4 @@
+import { AvisoResultados } from '@/components/analytics/AvisoResultados';
 import { useState, useMemo } from "react";
 import { BarChart3, Users, Trophy, TrendingUp, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -16,8 +17,8 @@ import { BenchmarkMetricCards } from "@/components/benchmark/BenchmarkMetricCard
 
 export default function Benchmark() {
   const navigate = useNavigate();
-  const { analytics, isLoading } = useInstagramAnalytics({ publicMode: true });
-  const { latestProfiles } = useInstagramProfiles({ publicMode: true });
+  const { analytics, isLoading, isFetching:aAtualizarAnalytics, error:erroAnalytics, refetch:recarregarAnalytics } = useInstagramAnalytics({ publicMode: true });
+  const { latestProfiles, isLoading:perfisACarregar, isFetching:aAtualizarPerfis, error:erroPerfis, refetch:recarregarPerfis } = useInstagramProfiles({ publicMode: true });
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
   // Get unique accounts
@@ -106,9 +107,11 @@ export default function Benchmark() {
     });
   };
 
-  if (isLoading) {
+  if (erroAnalytics || erroPerfis) return <AvisoResultados titulo="Comparar contas" ocupado={aAtualizarAnalytics || aAtualizarPerfis} repetir={() => {void Promise.all([recarregarAnalytics(),recarregarPerfis()]);}} />;
+  if (isLoading || perfisACarregar) {
     return (
-      <div className="container mx-auto p-4 sm:p-6 space-y-6">
+      <div className="hub-page" role="status" aria-label="A carregar resultados">
+        <h1 className="sr-only">Comparar contas</h1>
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-[400px]" />
       </div>
@@ -116,7 +119,7 @@ export default function Benchmark() {
   }
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 space-y-6">
+    <div className="hub-page">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/analytics")}>
@@ -127,7 +130,7 @@ export default function Benchmark() {
             <Trophy className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold">Benchmark de Contas</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Comparar contas</h1>
             <p className="text-sm text-muted-foreground">
               Compare até 5 contas lado a lado
             </p>

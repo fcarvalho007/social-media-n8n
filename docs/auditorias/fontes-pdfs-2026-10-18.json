@@ -1,0 +1,1251 @@
+{
+  "id": "6fdf096c-4e3d-4f1d-ae3e-8152552f74ba",
+  "ambito": "auditoria-tecnica-local",
+  "modo": "diagnostico",
+  "estado": "concluida",
+  "iniciadaEm": "2026-10-18T11:43:01.760Z",
+  "atual": "Consulta concluída. Revê os resultados e as fontes com limitações.",
+  "total": 99,
+  "fontes": [
+    {
+      "fonteId": 1,
+      "nome": "McKinsey & Company",
+      "url": "https://www.mckinsey.com/capabilities/quantumblack/our-insights",
+      "estado": "erro",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "HTTP 403: https://www.mckinsey.com/capabilities/quantumblack/our-insights"
+      ]
+    },
+    {
+      "fonteId": 2,
+      "nome": "PwC",
+      "url": "https://www.pwc.com/gx/en/issues/artificial-intelligence.html",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 2,
+      "novidades": 33,
+      "detalhes": [],
+      "finalUrl": "https://www.pwc.com/gx/en/1/services/ai.html?ref=typito.com"
+    },
+    {
+      "fonteId": 3,
+      "nome": "OECD",
+      "url": "https://www.oecd.org/en/publications.html",
+      "estado": "erro",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "HTTP 403: https://www.oecd.org/en/publications.html"
+      ]
+    },
+    {
+      "fonteId": 4,
+      "nome": "World Bank",
+      "url": "https://www.worldbank.org/en/research",
+      "estado": "limitada",
+      "paginas": 4,
+      "pdfs": 24,
+      "novidades": 20,
+      "detalhes": [
+        "Redirecionamento para openknowledge.worldbank.org; identidade editorial por confirmar."
+      ],
+      "finalUrl": "https://www.worldbank.org/ext/en/research-publications"
+    },
+    {
+      "fonteId": 5,
+      "nome": "Stanford HAI",
+      "url": "https://hai.stanford.edu/ai-index",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 2,
+      "novidades": 34,
+      "detalhes": [],
+      "finalUrl": "https://hai.stanford.edu/ai-index"
+    },
+    {
+      "fonteId": 6,
+      "nome": "OpenAI",
+      "url": "https://openai.com/research",
+      "estado": "erro",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "HTTP 403: https://openai.com/research"
+      ]
+    },
+    {
+      "fonteId": 7,
+      "nome": "Anthropic",
+      "url": "https://www.anthropic.com/research",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 3,
+      "novidades": 21,
+      "detalhes": [],
+      "finalUrl": "https://www.anthropic.com/research"
+    },
+    {
+      "fonteId": 8,
+      "nome": "Microsoft Research",
+      "url": "https://www.microsoft.com/research",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 49,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.microsoft.com/en-us/research/"
+    },
+    {
+      "fonteId": 9,
+      "nome": "Adobe",
+      "url": "https://business.adobe.com",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 9,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://business.adobe.com/"
+    },
+    {
+      "fonteId": 10,
+      "nome": "Search Engine Journal",
+      "url": "https://www.searchenginejournal.com",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 33,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.searchenginejournal.com/"
+    },
+    {
+      "fonteId": 11,
+      "nome": "BCG (Boston Consulting Group)",
+      "url": "https://www.bcg.com/publications",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 47,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.bcg.com/publications"
+    },
+    {
+      "fonteId": 12,
+      "nome": "Bain & Company",
+      "url": "https://www.bain.com/insights/topics/artificial-intelligence/",
+      "estado": "limitada",
+      "paginas": 3,
+      "pdfs": 1,
+      "novidades": 67,
+      "detalhes": [
+        "HTTP 404: https://www.bain.com/insights/topics/artificial-intelligence/"
+      ],
+      "finalUrl": "https://www.bain.com/"
+    },
+    {
+      "fonteId": 13,
+      "nome": "Deloitte Insights",
+      "url": "https://www2.deloitte.com/insights/us/en.html",
+      "estado": "erro",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "O site excedeu o limite de redirecionamentos. · https://www2.deloitte.com/insights/us/en.html"
+      ]
+    },
+    {
+      "fonteId": 14,
+      "nome": "Accenture Research",
+      "url": "https://www.accenture.com/us-en/insights/artificial-intelligence-summary-index",
+      "estado": "limitada",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 36,
+      "detalhes": [
+        "Redirecionamento para newsroom.accenture.com; identidade editorial por confirmar.",
+        "Redirecionamento para newsroom.accenture.com; identidade editorial por confirmar."
+      ],
+      "finalUrl": "https://www.accenture.com/en/services/ai-data?country=PT"
+    },
+    {
+      "fonteId": 15,
+      "nome": "Gartner",
+      "url": "https://www.gartner.com/en/documents",
+      "estado": "erro",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "HTTP 403: https://www.gartner.com/en/documents"
+      ]
+    },
+    {
+      "fonteId": 16,
+      "nome": "Forrester",
+      "url": "https://www.forrester.com/research/artificial-intelligence/",
+      "estado": "erro",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "HTTP 404: https://www.forrester.com/research/artificial-intelligence/",
+        "Só são permitidos sites públicos por HTTPS, sem credenciais ou portas. · https://www.forrester.com/"
+      ]
+    },
+    {
+      "fonteId": 17,
+      "nome": "Capgemini Research",
+      "url": "https://www.capgemini.com/insights",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 42,
+      "detalhes": [],
+      "finalUrl": "https://www.capgemini.com/insights/"
+    },
+    {
+      "fonteId": 18,
+      "nome": "Google DeepMind",
+      "url": "https://deepmind.google/research/publications/",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 3,
+      "novidades": 36,
+      "detalhes": [],
+      "finalUrl": "https://deepmind.google/research/publications/"
+    },
+    {
+      "fonteId": 19,
+      "nome": "Meta AI Research",
+      "url": "https://ai.meta.com/research",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 8,
+      "detalhes": [],
+      "finalUrl": "https://ai.meta.com/research/"
+    },
+    {
+      "fonteId": 20,
+      "nome": "Google AI Blog",
+      "url": "https://ai.google/research",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 5,
+      "novidades": 3,
+      "detalhes": [],
+      "finalUrl": "https://ai.google/research/"
+    },
+    {
+      "fonteId": 21,
+      "nome": "Hugging Face Blog",
+      "url": "https://huggingface.co/blog",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 274,
+      "detalhes": [],
+      "finalUrl": "https://huggingface.co/blog"
+    },
+    {
+      "fonteId": 22,
+      "nome": "AI Now Institute",
+      "url": "https://ainowinstitute.org",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 16,
+      "detalhes": [],
+      "finalUrl": "https://ainowinstitute.org/"
+    },
+    {
+      "fonteId": 23,
+      "nome": "Center for AI Safety",
+      "url": "https://safe.ai",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 12,
+      "detalhes": [],
+      "finalUrl": "https://safe.ai/"
+    },
+    {
+      "fonteId": 24,
+      "nome": "Future of Life Institute",
+      "url": "https://futureoflife.org",
+      "estado": "limitada",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 20,
+      "detalhes": [
+        "Redirecionamento para newsletter.futureoflife.org; identidade editorial por confirmar.",
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://futureoflife.org/"
+    },
+    {
+      "fonteId": 25,
+      "nome": "MIT Technology Review AI",
+      "url": "https://www.technologyreview.com/ai",
+      "estado": "limitada",
+      "paginas": 3,
+      "pdfs": 1,
+      "novidades": 17,
+      "detalhes": [
+        "HTTP 404: https://www.technologyreview.com/ai"
+      ],
+      "finalUrl": "https://www.technologyreview.com/"
+    },
+    {
+      "fonteId": 26,
+      "nome": "HubSpot Research",
+      "url": "https://www.hubspot.com/resources/marketing/pdf",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 2,
+      "novidades": 13,
+      "detalhes": [],
+      "finalUrl": "https://www.hubspot.com/resources/marketing/pdf"
+    },
+    {
+      "fonteId": 27,
+      "nome": "Semrush",
+      "url": "https://www.semrush.com/blog",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 68,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.semrush.com/blog/"
+    },
+    {
+      "fonteId": 28,
+      "nome": "Ahrefs",
+      "url": "https://ahrefs.com/blog",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 51,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://ahrefs.com/blog/"
+    },
+    {
+      "fonteId": 29,
+      "nome": "Moz",
+      "url": "https://moz.com/blog",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 22,
+      "detalhes": [],
+      "finalUrl": "https://moz.com/blog"
+    },
+    {
+      "fonteId": 30,
+      "nome": "Content Marketing Institute",
+      "url": "https://contentmarketinginstitute.com",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 15,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://contentmarketinginstitute.com/"
+    },
+    {
+      "fonteId": 31,
+      "nome": "Sprout Social",
+      "url": "https://sproutsocial.com/insights",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 92,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://sproutsocial.com/insights/"
+    },
+    {
+      "fonteId": 32,
+      "nome": "Hootsuite",
+      "url": "https://www.hootsuite.com/research",
+      "estado": "limitada",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 6,
+      "detalhes": [
+        "Redirecionamento para blog.hootsuite.com; identidade editorial por confirmar."
+      ],
+      "finalUrl": "https://www.hootsuite.com/research/social-trends"
+    },
+    {
+      "fonteId": 33,
+      "nome": "We Are Social",
+      "url": "https://wearesocial.com",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 13,
+      "detalhes": [],
+      "finalUrl": "https://wearesocial.com/uk/"
+    },
+    {
+      "fonteId": 34,
+      "nome": "Statista",
+      "url": "https://www.statista.com",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 85,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.statista.com/"
+    },
+    {
+      "fonteId": 35,
+      "nome": "IMF (Fundo Monetário)",
+      "url": "https://www.imf.org/en/Publications/WP",
+      "estado": "limitada",
+      "paginas": 2,
+      "pdfs": 0,
+      "novidades": 38,
+      "detalhes": [
+        "HTTP 403: https://www.imf.org/en/publications/sprolls/technical-assistance-country-reports",
+        "HTTP 403: https://www.imf.org/en/publications/high-level-summary-technical-assistance-reports",
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.imf.org/en/publications/wp"
+    },
+    {
+      "fonteId": 36,
+      "nome": "BIS (Bank for International Settlements)",
+      "url": "https://www.bis.org/publ/work.htm",
+      "estado": "limitada",
+      "paginas": 3,
+      "pdfs": 0,
+      "novidades": 52,
+      "detalhes": [
+        "HTTP 404: https://www.bis.org/publ/work.htm",
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.bis.org/"
+    },
+    {
+      "fonteId": 37,
+      "nome": "European Commission Digital",
+      "url": "https://digital-strategy.ec.europa.eu",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 3,
+      "novidades": 16,
+      "detalhes": [],
+      "finalUrl": "https://digital-strategy.ec.europa.eu/en"
+    },
+    {
+      "fonteId": 38,
+      "nome": "Brookings Institution",
+      "url": "https://www.brookings.edu/research",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 40,
+      "detalhes": [],
+      "finalUrl": "https://www.brookings.edu/programs/foreign-policy/research-and-commentary/"
+    },
+    {
+      "fonteId": 39,
+      "nome": "CIGI (Centre for International Governance)",
+      "url": "https://www.cigionline.org",
+      "estado": "erro",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "HTTP 403: https://www.cigionline.org"
+      ]
+    },
+    {
+      "fonteId": 40,
+      "nome": "WEF (World Economic Forum)",
+      "url": "https://www.weforum.org/publications",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 41,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.weforum.org/publications"
+    },
+    {
+      "fonteId": 41,
+      "nome": "UNCTAD",
+      "url": "https://unctad.org/publications",
+      "estado": "bloqueada",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "Não foi possível confirmar o robots.txt (HTTP 403). · https://unctad.org/publications"
+      ]
+    },
+    {
+      "fonteId": 42,
+      "nome": "AWS Research",
+      "url": "https://aws.amazon.com/blogs/machine-learning",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 45,
+      "detalhes": [],
+      "finalUrl": "https://aws.amazon.com/blogs/machine-learning/"
+    },
+    {
+      "fonteId": 43,
+      "nome": "Google Cloud Blog",
+      "url": "https://cloud.google.com/blog",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 59,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://cloud.google.com/blog"
+    },
+    {
+      "fonteId": 44,
+      "nome": "Azure AI Blog",
+      "url": "https://azure.microsoft.com/blog",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 108,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://azure.microsoft.com/en-us/blog/"
+    },
+    {
+      "fonteId": 45,
+      "nome": "NVIDIA Blog",
+      "url": "https://blogs.nvidia.com",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 87,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://blogs.nvidia.com/"
+    },
+    {
+      "fonteId": 46,
+      "nome": "a16z (Andreessen Horowitz)",
+      "url": "https://a16z.com/content",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 4,
+      "novidades": 21,
+      "detalhes": [],
+      "finalUrl": "https://a16z.com/news-content/"
+    },
+    {
+      "fonteId": 47,
+      "nome": "Sequoia Capital",
+      "url": "https://www.sequoiacap.com/articles",
+      "estado": "limitada",
+      "paginas": 3,
+      "pdfs": 0,
+      "novidades": 8,
+      "detalhes": [
+        "HTTP 404: https://www.sequoiacap.com/articles",
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://sequoiacap.com/"
+    },
+    {
+      "fonteId": 48,
+      "nome": "Y Combinator Blog",
+      "url": "https://www.ycombinator.com/blog",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 33,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.ycombinator.com/blog"
+    },
+    {
+      "fonteId": 49,
+      "nome": "Notion Blog",
+      "url": "https://www.notion.so/blog",
+      "estado": "limitada",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 8,
+      "detalhes": [
+        "Redirecionamento para www.notion.com; identidade editorial por confirmar.",
+        "Redirecionamento para www.notion.com; identidade editorial por confirmar.",
+        "Redirecionamento para www.notion.com; identidade editorial por confirmar.",
+        "Redirecionamento para www.notion.com; identidade editorial por confirmar.",
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.notion.com/blog"
+    },
+    {
+      "fonteId": 50,
+      "nome": "Atlassian Research",
+      "url": "https://www.atlassian.com/blog",
+      "estado": "limitada",
+      "paginas": 3,
+      "pdfs": 1,
+      "novidades": 73,
+      "detalhes": [
+        "Só são permitidos sites públicos por HTTPS, sem credenciais ou portas. · https://www.atlassian.com/blog/feed"
+      ],
+      "finalUrl": "https://www.atlassian.com/blog"
+    },
+    {
+      "fonteId": 51,
+      "nome": "Slack Research",
+      "url": "https://slack.com/blog",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 61,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://slack.com/blog"
+    },
+    {
+      "fonteId": 52,
+      "nome": "Microsoft Work Trend Index",
+      "url": "https://www.microsoft.com/worklab",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 5,
+      "novidades": 10,
+      "detalhes": [],
+      "finalUrl": "https://www.microsoft.com/en-us/worklab"
+    },
+    {
+      "fonteId": 53,
+      "nome": "Gallup Workplace",
+      "url": "https://www.gallup.com/workplace",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 10,
+      "novidades": 26,
+      "detalhes": [],
+      "finalUrl": "https://www.gallup.com/workplace/"
+    },
+    {
+      "fonteId": 54,
+      "nome": "LinkedIn Economic Graph",
+      "url": "https://economicgraph.linkedin.com/research",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 2,
+      "novidades": 26,
+      "detalhes": [],
+      "finalUrl": "https://economicgraph.linkedin.com/research"
+    },
+    {
+      "fonteId": 55,
+      "nome": "Banco de Portugal",
+      "url": "https://www.bportugal.pt/publicacoes",
+      "estado": "erro",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "HTTP 403: https://www.bportugal.pt/publicacoes"
+      ]
+    },
+    {
+      "fonteId": 57,
+      "nome": "ACEPI",
+      "url": "https://www.acepi.pt",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 17,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.acepi.pt/"
+    },
+    {
+      "fonteId": 58,
+      "nome": "IDC Portugal",
+      "url": "https://www.idc.com/pt",
+      "estado": "erro",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "HTTP 403: https://www.idc.com/pt"
+      ]
+    },
+    {
+      "fonteId": 59,
+      "nome": "Eurostat",
+      "url": "https://ec.europa.eu/eurostat",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 42,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://ec.europa.eu/eurostat"
+    },
+    {
+      "fonteId": 60,
+      "nome": "ENISA",
+      "url": "https://www.enisa.europa.eu",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 3,
+      "novidades": 37,
+      "detalhes": [],
+      "finalUrl": "https://www.enisa.europa.eu/"
+    },
+    {
+      "fonteId": 61,
+      "nome": "CB Insights",
+      "url": "https://www.cbinsights.com",
+      "estado": "limitada",
+      "paginas": 3,
+      "pdfs": 0,
+      "novidades": 9,
+      "detalhes": [
+        "O robots.txt devolveu uma página HTML; recolha suspensa nesta fonte. · https://www.cbinsights.com/feed/",
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.cbinsights.com/"
+    },
+    {
+      "fonteId": 62,
+      "nome": "The Information",
+      "url": "https://www.theinformation.com",
+      "estado": "bloqueada",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "Não foi possível confirmar o robots.txt (HTTP 403). · https://www.theinformation.com"
+      ]
+    },
+    {
+      "fonteId": 63,
+      "nome": "Benedict Evans Newsletter",
+      "url": "https://www.ben-evans.com",
+      "estado": "limitada",
+      "paginas": 3,
+      "pdfs": 0,
+      "novidades": 2,
+      "detalhes": [
+        "HTTP 401: https://www.ben-evans.com/newsletter-archive",
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.ben-evans.com/"
+    },
+    {
+      "fonteId": 64,
+      "nome": "Stratechery",
+      "url": "https://stratechery.com",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 16,
+      "detalhes": [],
+      "finalUrl": "https://stratechery.com/"
+    },
+    {
+      "fonteId": 65,
+      "nome": "TLDR Newsletter",
+      "url": "https://tldr.tech",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 9,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://tldr.tech/"
+    },
+    {
+      "fonteId": 66,
+      "nome": "The Rundown AI",
+      "url": "https://www.therundown.ai",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 23,
+      "detalhes": [],
+      "finalUrl": "https://www.therundown.ai/"
+    },
+    {
+      "fonteId": 67,
+      "nome": "Import AI",
+      "url": "https://importai.substack.com",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 22,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://importai.substack.com/"
+    },
+    {
+      "fonteId": 72,
+      "nome": "arXiv CS.AI",
+      "url": "https://arxiv.org/list/cs.AI/recent",
+      "estado": "limitada",
+      "paginas": 4,
+      "pdfs": 98,
+      "novidades": 32,
+      "detalhes": [
+        "Redirecionamento para info.arxiv.org; identidade editorial por confirmar.",
+        "Redirecionamento para info.arxiv.org; identidade editorial por confirmar.",
+        "Redirecionamento para info.arxiv.org; identidade editorial por confirmar."
+      ],
+      "finalUrl": "https://arxiv.org/list/cs.AI/recent"
+    },
+    {
+      "fonteId": 73,
+      "nome": "SSRN AI Papers",
+      "url": "https://papers.ssrn.com",
+      "estado": "erro",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "HTTP 403: https://papers.ssrn.com"
+      ]
+    },
+    {
+      "fonteId": 74,
+      "nome": "Adobe Digital Reports",
+      "url": "https://business.adobe.com/resources/reports",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 10,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://business.adobe.com/resources/reports.html"
+    },
+    {
+      "fonteId": 75,
+      "nome": "Marktest",
+      "url": "https://www.marktest.com",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 66,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.marktest.com/wap/"
+    },
+    {
+      "fonteId": 76,
+      "nome": "GfK Portugal",
+      "url": "https://www.gfk.com/pt",
+      "estado": "limitada",
+      "paginas": 4,
+      "pdfs": 1,
+      "novidades": 47,
+      "detalhes": [
+        "Redirecionamento para nielseniq.com; identidade editorial por confirmar.",
+        "Redirecionamento para nielseniq.com; identidade editorial por confirmar.",
+        "Redirecionamento para nielseniq.com; identidade editorial por confirmar.",
+        "Redirecionamento para nielseniq.com; identidade editorial por confirmar."
+      ],
+      "finalUrl": "https://nielseniq.com/global/en/"
+    },
+    {
+      "fonteId": 77,
+      "nome": "Nielsen Portugal",
+      "url": "https://www.nielsen.com/pt",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 13,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.nielsen.com/pt/?redirected=1"
+    },
+    {
+      "fonteId": 78,
+      "nome": "INE",
+      "url": "https://www.ine.pt/xportal/xmain?xpgid=ine_publicacoes",
+      "estado": "bloqueada",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "Não foi possível consultar o robots.txt; tenta novamente mais tarde. · https://www.ine.pt/xportal/xmain?xpgid=ine_publicacoes"
+      ]
+    },
+    {
+      "fonteId": 79,
+      "nome": "PORDATA",
+      "url": "https://www.pordata.pt",
+      "estado": "concluida",
+      "paginas": 1,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.pordata.pt/"
+    },
+    {
+      "fonteId": 80,
+      "nome": "GEE",
+      "url": "https://www.gee.gov.pt/pt/lista-publicacoes",
+      "estado": "bloqueada",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "Não foi possível consultar o robots.txt; tenta novamente mais tarde. · https://www.gee.gov.pt/pt/lista-publicacoes"
+      ]
+    },
+    {
+      "fonteId": 81,
+      "nome": "CMVM",
+      "url": "https://www.cmvm.pt",
+      "estado": "concluida",
+      "paginas": 1,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.cmvm.pt/"
+    },
+    {
+      "fonteId": 82,
+      "nome": "ANACOM",
+      "url": "https://www.anacom.pt/render.jsp?categoryId=337754",
+      "estado": "bloqueada",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "O robots.txt desta fonte não permite esta recolha. · https://www.anacom.pt/render.jsp?categoryId=337754"
+      ]
+    },
+    {
+      "fonteId": 83,
+      "nome": "Portugal Digital",
+      "url": "https://portugaldigital.gov.pt",
+      "estado": "bloqueada",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "O robots.txt devolveu uma página HTML; recolha suspensa nesta fonte. · https://portugaldigital.gov.pt"
+      ]
+    },
+    {
+      "fonteId": 84,
+      "nome": "Deloitte Portugal",
+      "url": "https://www2.deloitte.com/pt/pt/pages/about-deloitte/topics/estudos-e-publicacoes.html",
+      "estado": "limitada",
+      "paginas": 3,
+      "pdfs": 1,
+      "novidades": 13,
+      "detalhes": [
+        "HTTP 404: https://www2.deloitte.com/pt/pt/pages/about-deloitte/topics/estudos-e-publicacoes.html",
+        "Redirecionamento para www.deloitte.com; identidade editorial por confirmar.",
+        "Redirecionamento para www.deloitte.com; identidade editorial por confirmar.",
+        "Redirecionamento para www.deloitte.com; identidade editorial por confirmar."
+      ],
+      "finalUrl": "https://www.deloitte.com/pt/pt.html"
+    },
+    {
+      "fonteId": 85,
+      "nome": "PwC Portugal",
+      "url": "https://www.pwc.pt/pt/estudos.html",
+      "estado": "limitada",
+      "paginas": 3,
+      "pdfs": 0,
+      "novidades": 13,
+      "detalhes": [
+        "HTTP 404: https://www.pwc.pt/pt/estudos.html",
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.pwc.pt/"
+    },
+    {
+      "fonteId": 86,
+      "nome": "EY Portugal",
+      "url": "https://www.ey.com/pt_pt/insights",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 8,
+      "novidades": 64,
+      "detalhes": [],
+      "finalUrl": "https://www.ey.com/pt_pt/insights"
+    },
+    {
+      "fonteId": 87,
+      "nome": "KPMG Portugal",
+      "url": "https://kpmg.com/pt/pt/home/insights.html",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 28,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://kpmg.com/pt/pt/insights.html"
+    },
+    {
+      "fonteId": 88,
+      "nome": "IAPMEI",
+      "url": "https://www.iapmei.pt",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 8,
+      "novidades": 23,
+      "detalhes": [],
+      "finalUrl": "https://www.iapmei.pt/"
+    },
+    {
+      "fonteId": 89,
+      "nome": "AICEP",
+      "url": "https://www.portugalglobal.pt",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 11,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.portugalglobal.pt/"
+    },
+    {
+      "fonteId": 90,
+      "nome": "Turismo de Portugal",
+      "url": "https://www.turismodeportugal.pt",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 2,
+      "novidades": 18,
+      "detalhes": [],
+      "finalUrl": "https://www.turismodeportugal.pt/pt/Paginas/homepage.aspx"
+    },
+    {
+      "fonteId": 91,
+      "nome": "DECO Proteste",
+      "url": "https://www.deco.proteste.pt",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 45,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.deco.proteste.pt/"
+    },
+    {
+      "fonteId": 92,
+      "nome": "ERC",
+      "url": "https://www.erc.pt",
+      "estado": "bloqueada",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "O robots.txt devolveu uma página HTML; recolha suspensa nesta fonte. · https://www.erc.pt"
+      ]
+    },
+    {
+      "fonteId": 93,
+      "nome": "AdC",
+      "url": "https://www.concorrencia.pt",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 30,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.concorrencia.pt/"
+    },
+    {
+      "fonteId": 94,
+      "nome": "Nova SBE",
+      "url": "https://www.novasbe.unl.pt/en/research/knowledge-production",
+      "estado": "limitada",
+      "paginas": 3,
+      "pdfs": 0,
+      "novidades": 40,
+      "detalhes": [
+        "HTTP 404: https://www.novasbe.unl.pt/en/faculty-research/research-unit/overview/%7B%7Bitem.Url%7D%7D",
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.novasbe.unl.pt/en/faculty-research/research-unit/overview/knowledge-production"
+    },
+    {
+      "fonteId": 95,
+      "nome": "Católica Lisbon",
+      "url": "https://www.clsbe.lisboa.ucp.pt/research/knowledge-centers",
+      "estado": "concluida",
+      "paginas": 1,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.clsbe.lisboa.ucp.pt/research/centers-excellence"
+    },
+    {
+      "fonteId": 96,
+      "nome": "ISCTE",
+      "url": "https://www.iscte-iul.pt",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 29,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.iscte-iul.pt/"
+    },
+    {
+      "fonteId": 97,
+      "nome": "Fundação Francisco Manuel dos Santos",
+      "url": "https://ffms.pt/pt-pt/estudos",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 4,
+      "novidades": 11,
+      "detalhes": [],
+      "finalUrl": "https://ffms.pt/pt-pt/estudos"
+    },
+    {
+      "fonteId": 98,
+      "nome": "APDC",
+      "url": "https://comunicacoes.apdc.pt",
+      "estado": "limitada",
+      "paginas": 1,
+      "pdfs": 0,
+      "novidades": 90,
+      "detalhes": [
+        "HTTP 202: https://comunicacoes.apdc.pt/comunicacoes-255-antonio-gameiro-marques-europa-numa-encruzilhada-digital-e-agora/70890068",
+        "HTTP 202: https://comunicacoes.apdc.pt/comunicacoes-252-margarida-balseiro-lopes-mais-digital-para-simplificar/69628608",
+        "HTTP 202: https://comunicacoes.apdc.pt/comunicacoes-250-arlindo-oliveira-presidente-do-33-digital-business-congress-da-consciencia-humana-a-artificial-um-potencial-gigante/68703704",
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://comunicacoes.apdc.pt/"
+    },
+    {
+      "fonteId": 99,
+      "nome": "APAN",
+      "url": "https://apan.pt/conhecimento/estudosquestionarios/",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 2,
+      "novidades": 24,
+      "detalhes": [],
+      "finalUrl": "https://apan.pt/conhecimento/estudosquestionarios/"
+    },
+    {
+      "fonteId": 100,
+      "nome": "AEP",
+      "url": "https://www.aeportugal.pt/pt/publicacoes",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 2,
+      "novidades": 12,
+      "detalhes": [],
+      "finalUrl": "https://www.aeportugal.pt/pt/publicacoes"
+    },
+    {
+      "fonteId": 101,
+      "nome": "CIP",
+      "url": "https://www.cip.org.pt",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 16,
+      "novidades": 8,
+      "detalhes": [],
+      "finalUrl": "https://cip.org.pt/"
+    },
+    {
+      "fonteId": 102,
+      "nome": "AHRESP",
+      "url": "https://www.ahresp.com",
+      "estado": "bloqueada",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "Não foi possível consultar o robots.txt; tenta novamente mais tarde. · https://www.ahresp.com"
+      ]
+    },
+    {
+      "fonteId": 103,
+      "nome": "APCCA",
+      "url": "https://www.apcontactcenters.pt",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 50,
+      "novidades": 77,
+      "detalhes": [],
+      "finalUrl": "https://www.apcontactcenters.pt/"
+    },
+    {
+      "fonteId": 104,
+      "nome": "SoCX",
+      "url": "[REDACTED_INTERNAL_URL]",
+      "estado": "bloqueada",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "Endereço interno, redigido ou inválido. Precisa de uma fonte pública correta."
+      ]
+    }
+  ],
+  "descobertas": [],
+  "pdfs": [],
+  "erros": [],
+  "terminadaEm": "2026-10-18T11:44:17.620Z",
+  "resumo": {
+    "pdfsCandidatos": 276,
+    "referencias": 2775
+  }
+}

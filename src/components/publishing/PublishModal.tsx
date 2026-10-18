@@ -35,35 +35,26 @@ export function PublishModal({
     (target) => progress[target]?.status === 'done' || progress[target]?.status === 'error'
   );
 
-  const copyTechnicalDetails = (platform: PublishTarget) => {
+  const copyTechnicalDetails = async (platform: PublishTarget) => {
     const details = progress[platform];
-
-    const stage = (details.technicalDetails as any)?.stage || 'unknown';
-    const code = (details.technicalDetails as any)?.code ?? 'unknown';
-    const meta = (details.technicalDetails as any)?.meta || {};
-
+    if (!details) { toast.error('Os detalhes ainda não estão disponíveis.'); return; }
+    const objeto = (v: unknown): Record<string,unknown> => v !== null && typeof v === 'object' ? v as Record<string,unknown> : {};
+    const technical = objeto(details.technicalDetails);
+    const meta = objeto(technical.meta);
+    const detailItems = technical.details;
     const payload = {
-      platform,
-      status: details.status,
-      stage,
-      code,
-      message: details.message || details.error || 'N/A',
-      postId: meta.postId || 'N/A',
-      idempotencyKey: meta.idempotencyKey || 'N/A',
-      baseUrl: meta.baseUrl || 'N/A',
-      edge: meta.edge || (details.technicalDetails as any)?.edge || 'N/A',
-      startedAt: details.startedAt || 'N/A',
-      publishedAt: details.publishedAt || 'N/A',
-      postUrl: details.postUrl || 'N/A',
-      // Only include first 2 detail items to keep it readable
-      details: Array.isArray((details.technicalDetails as any)?.details)
-        ? ((details.technicalDetails as any)?.details).slice(0, 2)
-        : undefined,
-      timestamp: new Date().toISOString(),
+      platform, status:details.status, stage:technical.stage || 'unknown', code:technical.code ?? 'unknown',
+      message:details.message || details.error || 'N/A', postId:meta.postId || 'N/A',
+      idempotencyKey:meta.idempotencyKey || 'N/A', baseUrl:meta.baseUrl || 'N/A',
+      edge:meta.edge || technical.edge || 'N/A', startedAt:details.startedAt || 'N/A',
+      publishedAt:details.publishedAt || 'N/A', postUrl:details.postUrl || 'N/A',
+      details:Array.isArray(detailItems) ? detailItems.slice(0,2) : undefined,
+      timestamp:new Date().toISOString(),
     };
-
-    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-    toast.success('Detalhes técnicos copiados (sanitizados)');
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(payload,null,2));
+      toast.success('Detalhes técnicos copiados');
+    } catch { toast.error('Não foi possível copiar os detalhes. Verifica a permissão do navegador e tenta novamente.'); }
   };
 
   const getIcon = (platform: PublishTarget) => {

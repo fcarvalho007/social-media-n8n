@@ -142,7 +142,7 @@ function ArquivoPage() {
 
   return (
     <div className="min-h-screen font-sans" style={{ background: "#F7F8FA", color: "#101828" }}>
-      <main className="px-4 md:px-8 py-6 max-w-[1200px] mx-auto">
+      <section aria-label="Arquivo da newsletter" className="px-4 md:px-8 py-6 max-w-[1200px] mx-auto">
         {tab === "edicoes" && (
           <div className="mb-4 rounded-2xl overflow-hidden" style={{ background: "#14142B", border: "1px solid rgba(255,255,255,0.08)" }}>
             <PesquisaGlobal
@@ -199,7 +199,7 @@ function ArquivoPage() {
         {tab === "edicoes" && <PainelEdicoes q={qEdicoes} />}
         {tab === "cronicas" && <PainelCronicas q={qCronicas} />}
         {tab === "noticias" && <PainelNoticias q={qNoticias} sub={sub} setSub={setSub} nUtilizadas={nUtilizadas} nRejeitadas={nRejeitadas} />}
-      </main>
+      </section>
     </div>
   );
 }

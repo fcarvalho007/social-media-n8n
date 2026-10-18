@@ -1,3 +1,4 @@
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useState } from 'react';
 import { useTemplates, ProjectTemplate } from '@/hooks/useTemplates';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -9,9 +10,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export const TemplateManager = () => {
-  const { templates, isLoading, deleteTemplate } = useTemplates();
+  const { templates, isLoading, isFetching, error, refetch, deleteTemplate } = useTemplates();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewTemplate, setViewTemplate] = useState<ProjectTemplate | null>(null);
+
+  if (error) return <Alert variant="destructive" className="text-aviso-texto"><AlertTitle>Não foi possível carregar os modelos</AlertTitle><AlertDescription><p>A lista está indisponível. Tenta carregar novamente.</p><Button variant="outline" className="mt-3 min-h-11 text-foreground" disabled={isFetching} onClick={() => void refetch()}>Tentar novamente</Button></AlertDescription></Alert>;
 
   if (isLoading) {
     return (

@@ -1,4 +1,6 @@
 import { roteirosLocal } from "./scripts/roteiros/local-plugin";
+import { documentosLocal } from "./scripts/documentos/local-plugin";
+import { seoLocal } from "./scripts/seo/local-plugin";
 import { defineConfig, type ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -12,12 +14,13 @@ export default defineConfig(({ mode, command }) => {
   server: {
     host: "::",
     port: 8080,
+    fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/.seo-local/**', '**/.documentos-local/**'] },
     ...(hubLocal ? { headers: {
       // Defense in depth for direct fetch callers outside the Supabase adapter.
       "Content-Security-Policy": "connect-src 'self' ws://127.0.0.1:* ws://localhost:*; form-action 'self'; frame-src 'none'",
     } } : {}),
   },
-  plugins: [react(), ...(mode === "roteiros" ? [roteirosLocal()] : []), ...((mode === "offline" || mode === "divulgacao" || hubLocal) ? [{
+  plugins: [react(), ...(hubLocal ? [documentosLocal(), seoLocal()] : []), ...(mode === "roteiros" ? [roteirosLocal()] : []), ...((mode === "offline" || mode === "divulgacao" || hubLocal) ? [{
     name: "offline-preview-entry",
     configureServer(server: ViteDevServer) {
       server.middlewares.use((req, _res, next) => {

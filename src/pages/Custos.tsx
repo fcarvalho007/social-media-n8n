@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { listarCustos, type Fornecedor, type RegistoCusto } from "@/services/custos";
 import { dataPt, eur, filtrar, FORNECEDORES, PERIODOS, rotuloPeriodo, serie, totais, rotuloAcao, type Area, type Periodo } from "@/features/custos/agregar";
 
+import { SEO_DISPONIVEL } from "@/features/seo/local";
+import { ResumoCustosEditorial } from "@/features/seo/ResumoCustosEditorial";
+
 const COR: Record<Fornecedor, string> = { deepseek: "hsl(var(--custo-deepseek))", kie: "hsl(var(--custo-kie))", fal: "hsl(var(--custo-fal))", outros: "hsl(var(--custo-outros))" };
 const ORIGEM: Record<string, string> = { confirmado: "Confirmado", calculado: "Calculado", estimado: "Estimado", desconhecido: "Sem custo conhecido" };
 const NOME = Object.fromEntries(FORNECEDORES.map((f) => [f.id, f.nome])) as Record<Fornecedor, string>;
@@ -47,7 +50,7 @@ export default function Custos() {
   const porFornecedor = (k: Fornecedor) => r.filter((x) => x.fornecedor === k);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+    <div className="hub-page">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Custos</h1>
@@ -58,6 +61,7 @@ export default function Custos() {
         </ToggleGroup>
       </header>
 
+      {SEO_DISPONIVEL && <ResumoCustosEditorial />}
       <div className="flex flex-col gap-2 sm:flex-row">
         <Select value={fornecedor} onValueChange={(v) => definir("f", v === "todos" ? "" : v)}>
           <SelectTrigger className="h-10 sm:w-52" aria-label="Fornecedor"><SelectValue /></SelectTrigger>

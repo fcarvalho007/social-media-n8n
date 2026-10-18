@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getAccountColorChart, MY_ACCOUNT_COLOR_CHART } from "@/lib/analytics/colors";
+import { chavePeriodoTimeline } from "@/lib/analytics/periodoTimeline";
 import { InsightBox } from "./InsightBox";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
@@ -68,26 +69,7 @@ export function MultiAccountTimeline({
     return latestFirst <= earliestLast ? { start: latestFirst, end: earliestLast } : null;
   }, [accountDateRanges]);
 
-  // Get date key based on granularity
-  const getDateKey = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    
-    switch (granularity) {
-      case "daily":
-        return `${year}-${month}-${day}`;
-      case "weekly":
-        // Get ISO week number
-        const firstDayOfYear = new Date(year, 0, 1);
-        const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-        const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-        return `${year}-W${String(weekNumber).padStart(2, "0")}`;
-      case "monthly":
-      default:
-        return `${year}-${month}`;
-    }
-  };
+  const getDateKey = (date: Date) => chavePeriodoTimeline(date,granularity);
 
   // Group data by period and account
   const timelineData = useMemo(() => {

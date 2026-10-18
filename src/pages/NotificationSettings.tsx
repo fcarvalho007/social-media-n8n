@@ -135,7 +135,7 @@ export default function NotificationSettings() {
   };
 
   return (
-    <main className="min-h-screen bg-background px-4 py-6 sm:px-6 lg:px-8">
+    <section className="hub-page">
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
         <header className="space-y-2">
           <Badge variant="secondary" className="w-fit gap-2"><Bell className="h-3.5 w-3.5" /> Lembretes</Badge>
@@ -220,6 +220,6 @@ export default function NotificationSettings() {
           <Button type="button" className="min-h-11" onClick={save} disabled={bloqueado}>{saving ? 'A guardar...' : 'Guardar preferências'}</Button>
         </div>
       </div>
-    </main>
+    </section>
   );
 }

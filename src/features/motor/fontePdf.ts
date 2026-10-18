@@ -1,14 +1,12 @@
 // PDF intake in the browser (entry phase only). Uses the official pdfjs-dist with its bundled worker (no CDN).
 // Text is extracted per page; pages without a text layer are reported (with image evidence), never OCR'd or guessed.
-import * as pdfjs from "pdfjs-dist";
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import type { PDFDocumentProxy } from "pdfjs-dist";
+import { carregarPdfJs } from '@/lib/carregarPdfJs';
 import { LIMITES_PDF, type EstadoPagina, type MetaPdf, type PaginaPdf } from "../../../supabase/functions/_shared/motor/fontes";
 import { normalizarFonte } from "../../../supabase/functions/_shared/motor/proposta";
 
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-
 export interface PaginaLida { n: number; estado: EstadoPagina; texto: string; paragrafos: string[] }
-export interface PdfLido { ficheiro: string; hash: string; bytes: number; paginas: PaginaLida[] }
+export interface PdfLido { ficheiro: string; hash: string; bytes: number; paginas: PaginaLida[]; titulo?: string }
 
 export class ErroPdf extends Error {}
 
@@ -36,15 +34,16 @@ export function textoDaPagina(items: ItemTexto[]): string {
   return out.replace(/-\n(?=\p{Ll})/gu, "").replace(/(?<!\n)\n(?!\n)/g, " ").trim();
 }
 
-const OPS_IMAGEM = () => new Set([pdfjs.OPS.paintImageXObject, pdfjs.OPS.paintInlineImageXObject, pdfjs.OPS.paintImageMaskXObject]);
-
-export async function lerPdf(ficheiro: File): Promise<PdfLido> {
-  if (ficheiro.size > LIMITES_PDF.maxBytes) throw new ErroPdf(`O ficheiro tem ${(ficheiro.size / 1048576).toFixed(1).replace(".", ",")} MB; o limite é 15 MB.`);
+export interface OpcoesLeituraPdf { limites?: { maxBytes: number; maxPaginas: number }; progresso?: (pagina: number, total: number) => void }
+export async function lerPdf(ficheiro: File, opcoes: OpcoesLeituraPdf = {}): Promise<PdfLido> {
+  const limites = opcoes.limites ?? LIMITES_PDF;
+  if (ficheiro.size > limites.maxBytes) throw new ErroPdf(`O ficheiro tem ${(ficheiro.size / 1048576).toFixed(1).replace(".", ",")} MB; o limite é ${Math.round(limites.maxBytes / 1048576)} MB.`);
   const buf = await ficheiro.arrayBuffer();
   const cab = new TextDecoder().decode(new Uint8Array(buf.slice(0, 1024)));
   if (!cab.includes("%PDF-")) throw new ErroPdf("O ficheiro não é um PDF.");
   const hash = await sha256(buf);
-  let doc: pdfjs.PDFDocumentProxy;
+  const pdfjs = await carregarPdfJs();
+  let doc: PDFDocumentProxy;
   try {
     doc = await pdfjs.getDocument({ data: new Uint8Array(buf), isEvalSupported: false, disableFontFace: true, useSystemFonts: false }).promise;
   } catch (e) {
@@ -54,10 +53,11 @@ export async function lerPdf(ficheiro: File): Promise<PdfLido> {
     throw new ErroPdf("Não foi possível abrir o PDF. Cola o texto em alternativa.");
   }
   try {
-    if (doc.numPages > LIMITES_PDF.maxPaginas) throw new ErroPdf(`O PDF tem ${doc.numPages} páginas; o limite é ${LIMITES_PDF.maxPaginas}. Divide-o ou cola só a parte que interessa.`);
-    const imgOps = OPS_IMAGEM();
+    if (doc.numPages > limites.maxPaginas) throw new ErroPdf(`O PDF tem ${doc.numPages} páginas; o limite é ${limites.maxPaginas}. Divide-o ou cola só a parte que interessa.`);
+    const imgOps = new Set([pdfjs.OPS.paintImageXObject, pdfjs.OPS.paintInlineImageXObject, pdfjs.OPS.paintImageMaskXObject]);
     const paginas: PaginaLida[] = [];
     for (let n = 1; n <= doc.numPages; n++) {
+      opcoes.progresso?.(n,doc.numPages);
       try {
         const pg = await doc.getPage(n);
         const tc = await pg.getTextContent();
@@ -74,7 +74,9 @@ export async function lerPdf(ficheiro: File): Promise<PdfLido> {
         paginas.push({ n, estado: "erro", texto: "", paragrafos: [] });
       }
     }
-    return { ficheiro: ficheiro.name.slice(0, 200), hash, bytes: ficheiro.size, paginas };
+    let titulo: string | undefined;
+    try { const info=(await doc.getMetadata()).info as {Title?:unknown}; if(typeof info?.Title==='string'){const t=info.Title.replace(/\s+/g,' ').trim();if(t&&!/untitled|microsoft word|powerpoint|presentation\d/i.test(t))titulo=t.slice(0,250);} } catch { /* Metadata is optional, not evidence of a new publication. */ }
+    return { ficheiro: ficheiro.name.slice(0, 200), hash, bytes: ficheiro.size, paginas, ...(titulo?{titulo}:{}) };
   } finally {
     await doc.destroy();
   }

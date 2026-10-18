@@ -58,8 +58,8 @@ export default function Estudio() {
   };
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6 px-4 py-4 xs:px-3 sm:px-0 sm:py-0">
-      <h1 className="sr-only">Painel</h1>
+    <div className="hub-page">
+      <h1 className="sr-only">Início</h1>
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <section className="min-w-0 flex-1 space-y-2" aria-labelledby="para-quem">
         <Label id="para-quem" htmlFor="sel-projeto" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Para quem?</Label>

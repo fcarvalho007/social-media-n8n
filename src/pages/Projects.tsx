@@ -52,7 +52,7 @@ export default function Projects() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="hub-page">
         <div className="flex justify-between items-center">
           <div className="space-y-2">
             <Skeleton className="h-8 w-48" />
@@ -71,7 +71,7 @@ export default function Projects() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="hub-page">
         <h1 className="text-3xl font-bold">Projetos</h1>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" aria-hidden />
@@ -86,7 +86,7 @@ export default function Projects() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="hub-page">
       {/* Skip to main content for accessibility */}
       <a href="#main-content" className="skip-to-content">
         Ir para o conteúdo principal

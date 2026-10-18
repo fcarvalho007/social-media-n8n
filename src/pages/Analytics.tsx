@@ -1,3 +1,4 @@
+import { AvisoResultados } from '@/components/analytics/AvisoResultados';
 import { useState, useMemo, useCallback } from "react";
 import { BarChart3, Trash2, Users, UserCircle, Download, Clock, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -68,7 +69,7 @@ export default function Analytics() {
   const {
     analytics,
     stats,
-    isLoading,
+    isLoading, isFetching: aAtualizarAnalytics, error: erroAnalytics, refetch: recarregarAnalytics,
     importPosts,
     isImporting,
     deleteAnalytics,
@@ -82,7 +83,7 @@ export default function Analytics() {
   const {
     profiles: allProfiles,
     latestProfiles,
-    isLoading: isLoadingProfiles,
+    isLoading: isLoadingProfiles, isFetching: aAtualizarPerfis, error: erroPerfis, refetch: recarregarPerfis,
   } = useInstagramProfiles({ publicMode: true });
 
   // Filters state
@@ -391,9 +392,11 @@ export default function Analytics() {
     link.click();
   };
 
-  if (isLoading) {
+  if (erroAnalytics || erroPerfis) return <AvisoResultados titulo="Resultados do Instagram" ocupado={aAtualizarAnalytics || aAtualizarPerfis} repetir={() => {void Promise.all([recarregarAnalytics(),recarregarPerfis()]);}} />;
+  if (isLoading || isLoadingProfiles) {
     return (
-      <div className="container mx-auto p-4 sm:p-6 space-y-6">
+      <div className="hub-page" role="status" aria-label="A carregar resultados">
+        <h1 className="sr-only">Resultados do Instagram</h1>
         <div className="flex justify-between items-center">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
@@ -416,7 +419,7 @@ export default function Analytics() {
       <AnalyticsSidebar />
 
       {/* Main content */}
-      <div className="flex-1 container mx-auto p-4 sm:p-6 space-y-5">
+      <div className="hub-page flex-1">
         {/* 1. HEADER DO DASHBOARD */}
         <div id="dashboard-header" className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -425,7 +428,7 @@ export default function Analytics() {
                 <BarChart3 className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold">Analytics Instagram</h1>
+                <h1 className="text-xl sm:text-2xl font-bold">Resultados do Instagram</h1>
                 <p className="text-sm text-muted-foreground">
                   {isEmpty
                     ? "Importe os dados das suas publicações"

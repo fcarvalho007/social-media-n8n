@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { comLimite } from '../../supabase/functions/entrar-email/logica';
+import { comLimite } from '@/lib/comLimite';
 
 /** Client-side ceiling, above the server's per-call limit, so the button never stays disabled for minutes. */
 export const LIMITE_ENTRADA_MS = 20_000;
@@ -27,21 +27,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let vivo = true;
+    let eventoRecebido = false;
+    const controlo = new AbortController();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        if (!vivo) return;
+        eventoRecebido = true;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    comLimite(supabase.auth.getSession(), LIMITE_ENTRADA_MS, controlo.signal).then(({ data: { session } }) => {
+      // A late bootstrap response must never restore a session after sign-out or a new sign-in.
+      if (!vivo || eventoRecebido) return;
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-    });
+    }).catch(() => { if (vivo && !eventoRecebido) setLoading(false); });
 
-    return () => subscription.unsubscribe();
+    return () => { vivo = false; controlo.abort(); subscription.unsubscribe(); };
   }, []);
 
   const signInWithEmail = async (email: string): Promise<AuthResult> => {

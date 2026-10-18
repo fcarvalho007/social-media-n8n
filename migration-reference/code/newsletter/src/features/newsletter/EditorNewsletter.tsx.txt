@@ -2475,7 +2475,7 @@ export default function EditorNewsletter({ selo }: { selo?: React.ReactNode } = 
         )}
       </div>
 
-      <main className="px-4 md:px-8 py-4 md:py-6 grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_470px] max-w-[1460px] mx-auto">
+      <section aria-label="Editor da newsletter" className="px-4 md:px-8 py-4 md:py-6 grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_470px] max-w-[1460px] mx-auto">
         <div className={`${tab === "preview" ? "hidden lg:block" : ""} space-y-8 md:space-y-10`}>
           {/* ① Validar notícias novas — sempre visível para dar contexto */}
           <PhaseDivider
@@ -3474,7 +3474,7 @@ export default function EditorNewsletter({ selo }: { selo?: React.ReactNode } = 
           </div>
         </div>
 
-      </main>
+      </section>
 
       {/* Modais */}
       {/* (removido) modal aviso-checklist externo — passou a Fase 1 do modal "enviar". */}
