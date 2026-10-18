@@ -23,7 +23,7 @@ import { HistoricoDocumentos, EntradaDocumento } from '@/features/documentos/Per
 import { pedidoLocal } from '@/features/documentos/apiLocal';
 import { gerarCapaPdf } from '@/features/documentos/capaPdf';
 import { lerEstadoBiblioteca } from '@/features/documentos/interface';
-import { LIMITES_ACERVO, type PdfRecolhido } from '@/features/documentos/contratos';
+import { MAX_BYTES_PDF_NUVEM, LIMITES_ACERVO, type PdfRecolhido } from '@/features/documentos/contratos';
 import { ambitoAcervo, descobrirCandidatos, DOCUMENTOS_LOCAL, excertoReferenciado, nomeDoFicheiro, temAssinaturaPdf, tituloDoDocumento, urlPublica, type CandidatoPdf, type DocumentoAcervo, type Recolha } from '@/features/documentos/modelo';
 import { prepararArtigoAcervo, prepararFonte } from '@/features/documentos/transferencia';
 
@@ -60,6 +60,7 @@ function Acervo({ ambito, userId, projetoId, navegar }: { ambito: string; userId
   function abrir(d:DocumentoAcervo){setPaginas(new Set());mudar({documento:d.id});}
   async function executar(nome:string,fn:()=>Promise<unknown>):Promise<boolean>{if(emCurso.current)return false;emCurso.current=true;setOcupado(nome);setErro(null);let ok=true;try{await fn();}catch(e){ok=false;if(vivo.current)setErro((e as Error).message);}finally{emCurso.current=false;if(vivo.current){setOcupado(null);await recarregar().catch(e=>setErro((e as Error).message));}}return ok;}
   async function guardar(f: File, origem: string | null, titulo?: string, registo?: Recolha, metadados?: PdfRecolhido) {
+    if (BACKEND_NUVEM && f.size > MAX_BYTES_PDF_NUVEM) throw new Error('O processamento na nuvem aceita PDFs até 32 MB. Escolhe um ficheiro mais pequeno.');
     const r: Recolha = registo ?? { id: crypto.randomUUID(), ambito, url: origem ?? f.name, em: new Date().toISOString(), estado: 'descarregado', detalhe: `${f.size} bytes recebidos; leitura do PDF por confirmar.` };
     await guardarRecolha(r);
     try {
@@ -129,7 +130,7 @@ function Acervo({ ambito, userId, projetoId, navegar }: { ambito: string; userId
         {!carregando&&!erroCarga&&<ImportarPdfTracker docs={docs} ocupado={!!ocupado} onGuardar={importarRecolhido}/>}
       </TabsContent>
       <TabsContent value="fontes" forceMount hidden={estado.tab!=='fontes'} className={estado.tab!=='fontes'?'hidden':''}><FontesDocumentos ambito={ambito} ocupado={!!ocupado} onGuardar={importarRecolhido} onConcluido={()=>void recarregar().catch(e=>setErro((e as Error).message))} onAbrir={id=>{const d=docs.find(x=>x.id===id);if(d){setPaginas(new Set());mudar({documento:id,separador:'acervo'});}else setErro(BACKEND_NUVEM?'O documento ainda não está disponível no acervo. Atualiza os resultados antes de repetir a recolha.':'O ficheiro está no disco, mas ainda não neste navegador. Usa «Reimportar do disco» na recolha.');}} onPrepararArtigo={f=>navegar('/artigos',{state:{fonteArtigo:prepararArtigoAcervo(f,userId,projetoId)}})}/></TabsContent>
-      <TabsContent value="recolher"><EntradaDocumento url={url} onUrl={setUrl} ocupado={!!ocupado} candidatos={candidatos} resultado={resultado} onConsultar={()=>{setCandidatos([]);setResultado(null);void executar('A consultar o endereço…',()=>obter(url));}} onGuardar={c=>void executar('A descarregar e verificar o PDF…',()=>obter(c.url,true,c.titulo))}/></TabsContent>
+      <TabsContent value="recolher"><EntradaDocumento maxMegabytes={BACKEND_NUVEM?32:50} url={url} onUrl={setUrl} ocupado={!!ocupado} candidatos={candidatos} resultado={resultado} onConsultar={()=>{setCandidatos([]);setResultado(null);void executar('A consultar o endereço…',()=>obter(url));}} onGuardar={c=>void executar('A descarregar e verificar o PDF…',()=>obter(c.url,true,c.titulo))}/></TabsContent>
       <TabsContent value="historico"><HistoricoDocumentos recolhas={recolhas} docs={docs} onAbrir={id=>{const d=docs.find(x=>x.id===id);if(d){setPaginas(new Set());mudar({documento:id,separador:'acervo'});}}}/></TabsContent>
     </div>
   </Tabs>;

@@ -21,7 +21,7 @@ export default function Curadoria() {
   const [params, setParams] = useSearchParams();
   const separador = ['emails','fontes'].includes(params.get('separador') ?? '') ? params.get('separador')! : 'noticias';
   const setSeparador = (valor: string) => setParams(p => { const n = new URLSearchParams(p); if(valor === 'noticias') n.delete('separador'); else n.set('separador',valor); return n; });
-  // Remounting the list after a batch resets it to «Por rever» with fresh data.
+  // Refresh batch results without losing the URL-backed editorial filters.
   const [versaoLista, setVersaoLista] = useState(0);
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -37,7 +37,7 @@ export default function Curadoria() {
       <div className="flex min-w-0 flex-col gap-2">
         <h1 className="text-3xl font-semibold tracking-tight">Curadoria</h1>
         <p className="max-w-prose text-sm text-muted-foreground">Reúne notícias, emails e documentos. Escolhe o que vale a pena transformar em conteúdo.</p>
-        {fontes.data && <span className="text-sm text-muted-foreground">{ativas} de {fontes.data.length} fontes ativas</span>}
+        {fontes.data && <span className="text-sm text-muted-foreground">{ativas} de {fontes.data.length} fontes de notícias ativas</span>}
         {fontes.isError && <span className="text-sm text-destructive">Não foi possível consultar as fontes.</span>}
       </div>
       <Button variant="outline" className="min-h-11" title="RSS, sites e newsletters de onde vêm as notícias" onClick={() => setSeparador("fontes")}>Gerir fontes</Button>
@@ -53,7 +53,7 @@ export default function Curadoria() {
           toast.success(r.noticias > 0 ? `${r.noticias} ${r.noticias === 1 ? "notícia nova" : "notícias novas"} em «Por rever».` : "Processamento concluído, sem notícias novas.");
         }} />
         {params.get('noticia') && <NoticiaEncontrada id={params.get('noticia')!} fechar={() => setParams(p => { const n = new URLSearchParams(p); n.delete('noticia'); return n; })} />}
-        <CuradoriaNoticias key={versaoLista} />
+        <CuradoriaNoticias key={versaoLista} persistirFiltros />
         {colarAberto && <AdicionarNoticias
           edicaoId={edicao.data?.id ?? null}
           isAdmin={isAdmin}

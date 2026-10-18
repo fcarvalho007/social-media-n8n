@@ -14,7 +14,12 @@ export function CuradoriaNavegacao() {
     { id:'fontes', nome:'Fontes de notícias', to:'/curadoria?separador=fontes' },
   ];
   return <nav aria-label="Áreas da curadoria" className="flex flex-wrap gap-1 border-b pb-3">
-    {destinos.map(d => <Link key={d.id} to={d.to} aria-current={atual === d.id ? 'page' : undefined} className={cn('inline-flex min-h-11 items-center rounded-md px-4 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', atual === d.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}>{d.nome}</Link>)}
+    {destinos.map(d => {
+      const params = new URLSearchParams(documentos || d.id === 'documentos' ? '' : search);
+      params.delete('noticia');
+      if (d.id === 'emails' || d.id === 'fontes') params.set('separador', d.id); else params.delete('separador');
+      const to = d.id === 'documentos' ? d.to : `/curadoria${params.size ? `?${params}` : ''}`;
+      return <Link key={d.id} to={to} aria-current={atual === d.id ? 'page' : undefined} className={cn('inline-flex min-h-11 items-center rounded-md px-4 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', atual === d.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}>{d.nome}</Link>; })}
   </nav>;
 }
 

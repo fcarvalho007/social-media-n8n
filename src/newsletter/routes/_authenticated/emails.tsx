@@ -1,7 +1,9 @@
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { createFileRoute } from "@/newsletter/shim/router";
 import { useServerFn } from "@/newsletter/shim/start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { zodValidator, fallback } from "@/newsletter/shim/zod-adapter";
 import { z } from "zod";
 import {
@@ -641,7 +643,7 @@ function BotaoActivarFonte({ emailId, fonteId, nome }: { emailId: string; fonteI
   );
 }
 
-function PainelNoticiasExtraidas({ email }: { email: EmailRecebido }) {
+export function PainelNoticiasExtraidas({ email }: { email: EmailRecebido }) {
 
   const listar = useServerFn(listarNoticiasDoEmail);
   const q = useQuery({
@@ -651,6 +653,7 @@ function PainelNoticiasExtraidas({ email }: { email: EmailRecebido }) {
   });
 
   const [aberto, setAberto] = useState(false);
+  const painelId = useId();
 
   const rotuloEstado: Record<string, { label: string; cor: string; bg: string }> = {
     pendente: { label: "Pendente", cor: T.warn, bg: `${T.warn}18` },
@@ -669,20 +672,21 @@ function PainelNoticiasExtraidas({ email }: { email: EmailRecebido }) {
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 p-3 text-left"
+        aria-expanded={aberto} aria-controls={painelId}
+        className="min-h-11 w-full flex items-center justify-between gap-2 p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
       >
         <span className="text-[13px] font-semibold flex items-center gap-1.5" style={{ color: T.ink }}>
           {aberto ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
           <Mail size={13} /> Notícias extraídas
           <span className="text-[11.5px] font-normal ml-1" style={{ color: T.faint }}>
-            · {q.isLoading ? "…" : `${total} ${total === 1 ? "item" : "itens"}`}
+            · {q.isLoading ? "A carregar…" : q.isError ? "Indisponível" : `${total} ${total === 1 ? "item" : "itens"}`}
           </span>
         </span>
         {q.isLoading && <Loader2 size={12} className="animate-spin" style={{ color: T.faint }} />}
       </button>
 
-      {aberto && (
-        <div className="px-3 pb-3">
+      {q.isError && <Alert variant="destructive" className="m-3 w-auto"><AlertTitle>Não foi possível carregar as notícias extraídas</AlertTitle><AlertDescription><p>O email original foi preservado. Tenta consultar novamente.</p><Button variant="outline" className="mt-3 min-h-11" disabled={q.isFetching} onClick={() => void q.refetch()}>Tentar consultar notícias novamente</Button></AlertDescription></Alert>}
+      <div id={painelId} hidden={!aberto || q.isError} className="px-3 pb-3">
           {q.data && total === 0 && (
             <div className="text-[12.5px] flex flex-col gap-2" style={{ color: T.muted }}>
               <div>{explicarSemResultado(q.data, email)}</div>
@@ -697,7 +701,7 @@ function PainelNoticiasExtraidas({ email }: { email: EmailRecebido }) {
             <ul className="flex flex-col gap-1.5">
               {q.data.noticias.map((n) => {
                 const est = n.estado ? rotuloEstado[n.estado] : null;
-                const destino = `/?destacar=${n.id}`;
+                const destino = `/curadoria?noticia=${encodeURIComponent(n.id)}`;
                 return (
                   <li
                     key={n.id}
@@ -722,9 +726,9 @@ function PainelNoticiasExtraidas({ email }: { email: EmailRecebido }) {
                     </div>
                     <a
                       href={destino}
-                      className="inline-flex items-center gap-1 text-[11.5px] font-semibold h-7 px-2 rounded shrink-0"
+                      className="inline-flex items-center gap-1 text-[11.5px] font-semibold min-h-11 px-3 rounded shrink-0"
                       style={{ color: T.primary, border: `1px solid ${T.line}` }}
-                      title="Abrir no editor"
+                      title="Ver notícia na Curadoria"
                     >
                       <ExternalLink size={11} /> Abrir
                     </a>
@@ -734,12 +738,11 @@ function PainelNoticiasExtraidas({ email }: { email: EmailRecebido }) {
             </ul>
           )}
         </div>
-      )}
     </section>
   );
 }
 
-function PainelFerramentasExtraidas({ email }: { email: EmailRecebido }) {
+export function PainelFerramentasExtraidas({ email }: { email: EmailRecebido }) {
   const listar = useServerFn(listarFerramentasDoEmail);
   const q = useQuery({
     queryKey: ["ferramentas-do-email", email.id],
@@ -747,9 +750,10 @@ function PainelFerramentasExtraidas({ email }: { email: EmailRecebido }) {
     staleTime: 15_000,
   });
   const [aberto, setAberto] = useState(false);
+  const painelId = useId();
   const ferramentas: FerramentaSugerida[] = q.data ?? [];
   const total = ferramentas.length;
-  if (!q.isLoading && total === 0) return null;
+  if (!q.isLoading && !q.isError && total === 0) return null;
 
   return (
     <section
@@ -759,26 +763,27 @@ function PainelFerramentasExtraidas({ email }: { email: EmailRecebido }) {
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 p-3 text-left"
+        aria-expanded={aberto} aria-controls={painelId}
+        className="min-h-11 w-full flex items-center justify-between gap-2 p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
       >
         <span className="text-[13px] font-semibold flex items-center gap-1.5" style={{ color: T.ink }}>
           {aberto ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
           <Wrench size={13} /> Ferramentas sugeridas
           <span className="text-[11.5px] font-normal ml-1" style={{ color: T.faint }}>
-            · {q.isLoading ? "…" : `${total} ${total === 1 ? "item" : "itens"}`}
+            · {q.isLoading ? "A carregar…" : q.isError ? "Indisponível" : `${total} ${total === 1 ? "item" : "itens"}`}
           </span>
         </span>
+      </button>
         <a
-          href="/ferramentas"
-          className="text-[11.5px] font-semibold hover:underline"
+          href="/newsletter/ferramentas"
+          className="mx-3 mb-2 inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-4"
           style={{ color: T.primary }}
           onClick={(e) => e.stopPropagation()}
         >
           Ver diretório →
         </a>
-      </button>
-      {aberto && total > 0 && (
-        <ul className="flex flex-col gap-1.5 px-3 pb-3">
+      {q.isError && <Alert variant="destructive" className="m-3 w-auto"><AlertTitle>Não foi possível carregar as ferramentas extraídas</AlertTitle><AlertDescription><Button variant="outline" className="min-h-11" disabled={q.isFetching} onClick={() => void q.refetch()}>Tentar consultar ferramentas novamente</Button></AlertDescription></Alert>}
+        <ul id={painelId} hidden={!aberto || q.isError} className="flex flex-col gap-1.5 px-3 pb-3">
           {ferramentas.map((f) => (
             <li key={f.id} className="rounded-[10px] p-2.5 flex items-start gap-2"
               style={{ background: T.card, border: `1px solid ${T.line}` }}>
@@ -793,14 +798,13 @@ function PainelFerramentasExtraidas({ email }: { email: EmailRecebido }) {
                 </div>
               </div>
               <a href={f.url} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[11.5px] font-semibold h-7 px-2 rounded shrink-0"
+                className="inline-flex items-center gap-1 text-[11.5px] font-semibold min-h-11 px-3 rounded shrink-0"
                 style={{ color: T.primary, border: `1px solid ${T.line}` }}>
                 <ExternalLink size={11} /> Abrir
               </a>
             </li>
           ))}
         </ul>
-      )}
     </section>
   );
 }

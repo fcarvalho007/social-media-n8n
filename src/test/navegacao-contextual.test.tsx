@@ -35,3 +35,10 @@ describe('percursos da curadoria',()=>{
   expect(within(nav).queryByRole('link',{name:'Início'})).not.toBeInTheDocument();
  });
 });
+
+it('conserva os filtros de notícias entre separadores sem levar esses filtros para a biblioteca de PDFs',()=>{
+ render(<MemoryRouter initialEntries={['/curadoria?noticias_q=formacao&noticias_estado=aprovada&noticia=n']}><Contexto/></MemoryRouter>);
+ fireEvent.click(screen.getByRole('link',{name:'Emails'}));expect(screen.getByLabelText('Localização')).toHaveTextContent('noticias_q=formacao');
+ fireEvent.click(screen.getByRole('link',{name:'Notícias'}));expect(screen.getByLabelText('Localização')).toHaveTextContent('noticias_estado=aprovada');expect(screen.getByLabelText('Localização')).not.toHaveTextContent('noticia=n');
+ expect(screen.getByRole('link',{name:'Documentos e relatórios'})).toHaveAttribute('href','/curadoria/documentos');
+});

@@ -77,9 +77,9 @@ Controlador partilhado em `scripts/seo/campanhas.ts`, contratos em `src/features
 - Ensaio local no navegador: criar campanha com cinco propostas; criar e abrir a pauta; criar Story e carrossel; editar, guardar e reabrir uma composição mantendo o título e a chamada à ação.
 - Capturas desktop e telemóvel em `.impeccable/review/campanhas/`. O conteúdo de demonstração é sintético e identificado.
 
-No ensaio, a versão inicial usava uma confirmação nativa que ficou presa no navegador integrado. O código foi substituído por diálogo do Hub e tem teste específico que proíbe a confirmação nativa. A repetição final da recriação e a captura do novo fecho ficam por confirmar enquanto a janela antiga bloquear a interação; não se declara esse passo concluído apenas com base nos testes automatizados.
+No primeiro ensaio, uma confirmação nativa ficou presa no navegador integrado. O código foi substituído por diálogo do Hub e ganhou um teste específico que proíbe a confirmação nativa. Na ronda de instalação, o navegador voltou a responder e o percurso foi repetido: cancelar conserva a composição; confirmar recria; reabrir apresenta o novo fecho de subscrição. A saída com alterações foi cancelada nos dois tamanhos de ecrã, conservando o texto. Sair com cópia local e restaurar ao reabrir também repôs o título exato editado. O ensaio usou apenas a campanha sintética local.
 
-A revisão visual independente devolveu **recapture**: pede o novo fecho do carrossel em desktop e telemóvel, o cancelamento/confirmação da recriação e o cancelamento/saída com recuperação de alterações. Considerou válidas as nove capturas primárias já entregues. O contrato e o relatório de revisão local conservam esta pendência; não se declara aprovação visual final.
+A primeira revisão independente pediu **recapture**. As dez capturas em falta foram obtidas e verificadas em desktop e telemóvel, incluindo o fecho completo no preview móvel. Uma nova revisão integral devolveu **ship**, sem correções materiais, no âmbito da implementação e ensaio locais. Os relatórios em `.impeccable/review/campanhas/` conservam a sequência histórica. Esta aprovação não certifica a instalação Cloud.
 
 ## Limites e instalação posterior
 
@@ -87,6 +87,6 @@ A revisão visual independente devolveu **recapture**: pede o novo fecho do carr
 2. Não há orquestrador novo de publicação entre canais, reagendamento em cadeia ou recolha de resultados agregados por campanha. As datas sugeridas não criam tarefas.
 3. A descoberta é um retrato da fonte no momento da criação; alterações posteriores não são importadas automaticamente.
 4. Não se afirma volume de pesquisa, posição SEO ou retorno comercial a partir da notícia. A pesquisa e produção do artigo continuam nos fluxos existentes, com os seus próprios controlos de custo.
-5. A ronda não instalou código no Lovable, não enviou newsletters e não publicou em sites ou redes. Consumo de créditos Lovable e chamadas pagas: **zero**.
+5. A ronda de desenvolvimento local não instalou código no Lovable, não enviou newsletters e não publicou em sites ou redes. Consumo de créditos Lovable e chamadas pagas nessa ronda: **zero**. A instalação posterior foi autorizada separadamente e tem contabilidade própria.
 6. Para instalação futura, publicar o serviço editorial que aceita o novo estado antes de disponibilizar a interface que cria campanhas; instalar os bundles e a interface da mesma revisão. Não são necessárias novas dependências ou migrações SQL para este campo.
 7. As verificações de projeto usam testes locais do controlador autenticado. O isolamento e as operações precisam também de ensaio com contas e dados autorizados no backend real antes de se declarar validação em produção.

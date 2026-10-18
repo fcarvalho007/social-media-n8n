@@ -1,6 +1,9 @@
 import { SEO_DISPONIVEL } from '@/features/seo/local';
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { FILTROS_CURADORIA, guardarFiltrosCuradoria, lerFiltrosCuradoria, type FiltrosCuradoria } from "./filtros";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,15 +27,19 @@ export function canalCuradoria(n: Pick<NoticiaCurada, "fonte_tipo" | "origem">) 
 }
 
 export const API_CURADORIA = { listar: listarCuradoria, ler: lerFonteCuradoria, decidir: decidirCuradoria, selecionarEdicao: selecionarNaEdicao, ocultarEdicao: ocultarNaEdicao, reporEdicao: reporNaEdicao };
-interface Props { api?: typeof API_CURADORIA; selecionar?: (f: FonteCuradoria) => void; noticiaInicial?: string; paraEdicao?: { id: string; onSelecionada: () => void }; }
+interface Props { persistirFiltros?: boolean; api?: typeof API_CURADORIA; selecionar?: (f: FonteCuradoria) => void; noticiaInicial?: string; paraEdicao?: { id: string; onSelecionada: () => void }; }
 const ESTADOS: Array<{ id: DecisaoEditorial; nome: string }> = [{ id: "pendente", nome: "Por rever" }, { id: "aprovada", nome: "Aprovadas" }, { id: "rejeitada", nome: "Rejeitadas" }];
-export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api = API_CURADORIA }: Props) {
-  const [estado, setEstado] = useState<DecisaoEditorial>(selecionar || paraEdicao ? "aprovada" : "pendente");
-  const [query, setQuery] = useState("");
-  const [procura, setProcura] = useState("");
-  const [categoria, setCategoria] = useState("todas");
-  const [dias, setDias] = useState("7");
-  const [pagina, setPagina] = useState(0);
+export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, persistirFiltros = false, api = API_CURADORIA }: Props) {
+  const [params, setParams] = useSearchParams();
+  const [locais, setLocais] = useState<FiltrosCuradoria>({ ...FILTROS_CURADORIA, estado: selecionar || paraEdicao ? 'aprovada' : 'pendente' });
+  const filtros = persistirFiltros ? lerFiltrosCuradoria(params) : locais;
+  const { estado, query, categoria, dias, pagina } = filtros;
+  const [procura, setProcura] = useState(query);
+  function mudarFiltros(alteracoes: Partial<FiltrosCuradoria>, substituir = false) {
+    if (persistirFiltros) setParams(p => guardarFiltrosCuradoria(p, { ...lerFiltrosCuradoria(p), ...alteracoes }), { replace: substituir });
+    else setLocais(p => ({ ...p, ...alteracoes }));
+  }
+  const setPagina = (valor: number | ((p: number) => number)) => mudarFiltros({ pagina: typeof valor === 'function' ? valor(pagina) : valor });
   type Dados = { total: number; itens: NoticiaCurada[] };
   const [resposta, setResposta] = useState<{ chave: string; dados: Dados | null; erro: string | null } | null>(null);
   const [tentativa, setTentativa] = useState(0);
@@ -52,7 +59,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
   const setDados = (alterar: (atual: Dados | null) => Dados | null) => setResposta((atual) =>
     atual?.chave === chaveConsulta ? { ...atual, dados: alterar(atual.dados) } : atual);
 
-  useEffect(() => { const t = setTimeout(() => { setProcura(query); setPagina(0); }, 300); return () => clearTimeout(t); }, [query]);
+  useEffect(() => { const t = setTimeout(() => { setProcura(query); }, 300); return () => clearTimeout(t); }, [query]);
   useEffect(() => {
     let vivo = true;
     setResposta({ chave: chaveConsulta, dados: null, erro: null });
@@ -62,6 +69,10 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
     return () => { vivo = false; };
   }, [api, chaveConsulta, estado, procura, categoria, dias, pagina, paraEdicao?.id]);
   useEffect(() => { setSelecionados(new Set()); setErroEscolha(null); }, [chaveConsulta]);
+  useEffect(() => {
+    if (dados && pagina > 0 && pagina * 24 >= dados.total) setPagina(Math.max(0, Math.ceil(dados.total / 24) - 1));
+  }, [dados?.total, pagina]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!noticiaInicial || !selecionar) return;
     let vivo = true;
@@ -84,7 +95,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
       await api.decidir(id, decisao);
       setDados((atual) => atual ? { ...atual, total: Math.max(0, atual.total - 1), itens: atual.itens.filter((item) => item.id !== id) } : atual);
       setSelecionados((atual) => { const seguinte = new Set(atual); seguinte.delete(id); return seguinte; });
-      toast.success(decisao === "aprovada" ? "Aprovada e disponível para a newsletter" : "Movida para Rejeitadas");
+      toast.success(decisao === "aprovada" ? "Aprovada e disponível para criar conteúdo" : "Movida para Rejeitadas");
     }
     catch (e) { toast.error((e as Error).message); } finally { setOcupado(null); }
   };
@@ -119,19 +130,20 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
   };
   return <section className="flex min-w-0 flex-col gap-4" aria-label="Notícias da curadoria">
     {selecionar && <p className="text-sm text-muted-foreground">Escolhe uma notícia aprovada. Fica guardada uma cópia da fonte neste conteúdo; escolher não gera nem publica nada.</p>}
-    {!selecionar && !paraEdicao && <ToggleGroup type="single" value={estado} onValueChange={(v) => { if (v) { setEstado(v as DecisaoEditorial); setPagina(0); } }} className="justify-start" aria-label="Decisão editorial">
+    {!selecionar && !paraEdicao && <ToggleGroup type="single" value={estado} onValueChange={(v) => { if (v) { mudarFiltros({ estado: v as DecisaoEditorial, pagina: 0 }); } }} className="justify-start" aria-label="Decisão editorial">
       {ESTADOS.map((e) => <ToggleGroupItem disabled={emAcao} className="min-h-11" key={e.id} value={e.id}>{e.nome}</ToggleGroupItem>)}
     </ToggleGroup>}
     <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3 shadow-sm">
-      <div className="min-w-48 flex-1"><Label htmlFor="curadoria-procura">Pesquisar notícias</Label><Input id="curadoria-procura" className="mt-1 min-h-11" disabled={emAcao} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Título ou tema" maxLength={200} /></div>
-      <div><Label htmlFor="curadoria-periodo">Período</Label><Select disabled={emAcao} value={dias} onValueChange={(v) => { setDias(v); setPagina(0); }}><SelectTrigger id="curadoria-periodo" className="mt-1 min-h-11 w-44"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="3">Últimos 3 dias</SelectItem><SelectItem value="7">Últimos 7 dias</SelectItem><SelectItem value="30">Últimos 30 dias</SelectItem></SelectGroup></SelectContent></Select></div>
-      <div><Label htmlFor="curadoria-categoria">Tema</Label><Select disabled={emAcao} value={categoria} onValueChange={(v) => { setCategoria(v); setPagina(0); }}><SelectTrigger id="curadoria-categoria" className="mt-1 min-h-11 w-44"><SelectValue /></SelectTrigger><SelectContent><SelectGroup>{[["todas","Todos os temas"],["ia","Inteligência artificial"],["google","Google"],["youtube","YouTube"],["meta","Meta"],["linkedin","LinkedIn"],["tiktok","TikTok"],["x","X"],["media","Media"]].map(([id,nome]) => <SelectItem key={id} value={id}>{nome}</SelectItem>)}</SelectGroup></SelectContent></Select></div>
+      <div className="min-w-0 basis-full flex-1 sm:basis-48"><Label htmlFor="curadoria-procura">Pesquisar notícias</Label><Input id="curadoria-procura" className="mt-1 min-h-11" disabled={emAcao} value={query} onChange={(e) => mudarFiltros({ query: e.target.value, pagina: 0 }, true)} placeholder="Título ou tema" maxLength={200} /></div>
+      <div className="min-w-0 flex-1 sm:flex-none"><Label htmlFor="curadoria-periodo">Período</Label><Select disabled={emAcao} value={dias} onValueChange={(v) => { mudarFiltros({ dias: v, pagina: 0 }); }}><SelectTrigger id="curadoria-periodo" className="mt-1 min-h-11 w-full sm:w-44"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectItem value="3">Últimos 3 dias</SelectItem><SelectItem value="7">Últimos 7 dias</SelectItem><SelectItem value="30">Últimos 30 dias</SelectItem><SelectItem value="todos">Todo o histórico</SelectItem></SelectGroup></SelectContent></Select></div>
+      <div className="min-w-0 flex-1 sm:flex-none"><Label htmlFor="curadoria-categoria">Tema</Label><Select disabled={emAcao} value={categoria} onValueChange={(v) => { mudarFiltros({ categoria: v, pagina: 0 }); }}><SelectTrigger id="curadoria-categoria" className="mt-1 min-h-11 w-full sm:w-44"><SelectValue /></SelectTrigger><SelectContent><SelectGroup>{[["todas","Todos os temas"],["ia","Inteligência artificial"],["google","Google"],["youtube","YouTube"],["meta","Meta"],["linkedin","LinkedIn"],["tiktok","TikTok"],["x","X"],["media","Media"]].map(([id,nome]) => <SelectItem key={id} value={id}>{nome}</SelectItem>)}</SelectGroup></SelectContent></Select></div>
       <Button variant="outline" className="min-h-11" disabled={emAcao || aCarregar} onClick={() => setTentativa((n) => n + 1)}>Atualizar</Button>
     </div>
     {erro && <Alert variant="destructive"><AlertTitle>Não foi possível carregar a curadoria</AlertTitle><AlertDescription>{erro} <Button variant="outline" onClick={() => setTentativa((n) => n + 1)}>Tentar de novo</Button></AlertDescription></Alert>}
     {erroEscolha && <Alert variant="destructive"><AlertTitle>Não foi possível usar esta notícia</AlertTitle><AlertDescription>{erroEscolha}</AlertDescription></Alert>}
     {aCarregar && <div role="status" aria-label="A carregar notícias"><Skeleton className="h-24 w-full" /></div>}
     {dados && <>
+      {!selecionar && !paraEdicao && <p className="text-sm text-muted-foreground">{estado === 'pendente' ? 'Lê a fonte e decide o que vale a pena desenvolver. Aprovar disponibiliza a notícia para criação; não publica.' : estado === 'aprovada' ? 'Escolhe uma campanha completa ou uma peça. A notícia continua disponível para reutilizar noutros formatos.' : 'As notícias rejeitadas continuam guardadas. Podes aprová-las novamente.'}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-medium" role="status">{dados.total} {dados.total === 1 ? "notícia" : "notícias"} · página {pagina + 1}</p>
         {estado === "pendente" && dados.itens.length > 0 && <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-muted-foreground"><Checkbox disabled={emAcao} aria-label="Selecionar notícias visíveis" checked={todasVisíveis} onCheckedChange={(checked) => setSelecionados(checked ? new Set(idsVisíveis) : new Set())} />Selecionar visíveis</label>}
@@ -153,14 +165,16 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
               {estado !== "aprovada" && <Button className="min-h-11" disabled={emAcao} onClick={() => decidir(n.id, "aprovada")}>Aprovar</Button>}
               {estado !== "rejeitada" && <Button variant="outline" className="min-h-11" disabled={emAcao} onClick={() => decidir(n.id, "rejeitada")}>Rejeitar</Button>}
               {estado === "aprovada" && SEO_DISPONIVEL && <Button className="min-h-11" asChild><Link to={`/campanhas/nova?noticia=${encodeURIComponent(n.id)}`}>Criar campanha</Link></Button>}
-              {estado === "aprovada" && <Button variant="outline" className="min-h-11" asChild><Link to={`/estudio/roteiros/novo?noticia=${n.id}`}>Criar roteiro</Link></Button>}
-              {estado === "aprovada" && ["carrossel", "post", "story"].map((f) => <Button key={f} variant="outline" className="min-h-11" asChild><Link to={`/estudio/carrosseis/novo?formato=${f}&noticia=${n.id}`}>Criar {f}</Link></Button>)}
+              {estado === "aprovada" && <DropdownMenu><DropdownMenuTrigger asChild><Button variant={SEO_DISPONIVEL ? "outline" : "default"} className="min-h-11" aria-label={`Criar peça a partir de ${n.titulo}`} disabled={emAcao}>Criar peça<ChevronDown data-icon="inline-end" aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuGroup>
+                <DropdownMenuItem className="min-h-11" asChild><Link to={`/estudio/roteiros/novo?noticia=${encodeURIComponent(n.id)}`}>Criar roteiro</Link></DropdownMenuItem>
+                {["carrossel", "post", "story"].map(f => <DropdownMenuItem key={f} className="min-h-11" asChild><Link to={`/estudio/carrosseis/novo?formato=${f}&noticia=${encodeURIComponent(n.id)}`}>Criar {f === 'story' ? 'Story' : f}</Link></DropdownMenuItem>)}
+              </DropdownMenuGroup></DropdownMenuContent></DropdownMenu>}
             </>}
             {paraEdicao && !n.edicoes?.includes(paraEdicao.id) && <Button variant="ghost" className="min-h-11 text-muted-foreground" disabled={emAcao} onClick={() => retirarDaEdicao(n)}>Retirar desta edição</Button>}
           </div></div>
         </li>)}
       </ul>
-      <nav className="flex items-center justify-between gap-3" aria-label="Páginas da curadoria"><Button variant="outline" disabled={emAcao || pagina === 0} onClick={() => setPagina((p) => p - 1)}>Anterior</Button><Button variant="outline" disabled={emAcao || (pagina + 1) * 24 >= dados.total} onClick={() => setPagina((p) => p + 1)}>Seguinte</Button></nav>
+      <nav className="flex items-center justify-between gap-3" aria-label="Páginas da curadoria"><Button className="min-h-11" variant="outline" disabled={emAcao || pagina === 0} onClick={() => setPagina((p) => p - 1)}>Anterior</Button><Button className="min-h-11" variant="outline" disabled={emAcao || (pagina + 1) * 24 >= dados.total} onClick={() => setPagina((p) => p + 1)}>Seguinte</Button></nav>
     </>}
     {estado === "pendente" && dados && selecionados.size > 0 && <div className="fixed inset-x-4 bottom-5 z-40 mx-auto flex max-w-lg flex-wrap items-center justify-between gap-3 rounded-lg border bg-foreground p-3 text-background shadow-xl" role="region" aria-label="Ações para notícias selecionadas">
       <p className="text-sm font-medium">{selecionados.size} {selecionados.size === 1 ? "notícia selecionada" : "notícias selecionadas"}</p>

@@ -19,6 +19,8 @@ export interface TarefaDocumentos {
 export interface MarkupNo { textContent: string | null; getAttribute(nome: string): string | null; querySelector(s: string): MarkupNo | null; querySelectorAll(s: string): Iterable<MarkupNo>; closest?(s:string):MarkupNo|null; remove?():void }
 export type MarkupDocumento = Pick<MarkupNo, 'querySelector' | 'querySelectorAll'>;
 
+export const MAX_FONTES_POR_RECOLHA = 12;
+export const MAX_BYTES_PDF_NUVEM = 32 * 1024 * 1024;
 export const LIMITES_ACERVO = { maxBytes: 50 * 1024 * 1024, maxPaginas: 600 } as const;
 export const LIMITES_RECOLHA = { paginasPorFonte: 4, pdfsPorFonte: 3, tentativasPdfPorFonte: 8, pdfsPorTarefa: 12, bytesPorTarefa: 150 * 1024 * 1024, timeoutFonte: 65000 } as const;
 export const CATEGORIAS_DOCUMENTOS:Record<string,string>={ consultoras:'Consultoras',economia_financas:'Economia e finanças',labs_ia:'Investigação em IA',marketing_digital:'Marketing digital',economia_digital:'Economia digital',organizacoes_internacionais:'Organizações internacionais',estatisticas_oficiais:'Estatísticas oficiais',universidades:'Universidades',associacoes:'Associações',linkedin:'Do LinkedIn' };

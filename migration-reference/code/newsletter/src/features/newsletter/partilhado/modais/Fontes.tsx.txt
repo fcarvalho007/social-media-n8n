@@ -1,4 +1,4 @@
-// Modal «Fontes de curadoria IA» — extraído do Editor Clássico sem alterar
+// Modal «Fontes de notícias» — extraído do Editor Clássico sem alterar
 // comportamento. Montado pelos dois editores; a curadoria é comum aos dois
 // formatos (mesma tabela, mesmas queries, mesmas acções).
 
@@ -244,7 +244,7 @@ export function Fontes({ isAdmin, nomeExibicao, notify, onFechar }: FontesProps)
                   <Rss size={16} color="#fff" />
                 </div>
                 <div>
-                  <h2 className="text-[20px] font-bold" style={{ color: T.ink, fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>Fontes de curadoria IA</h2>
+                  <h2 className="text-[20px] font-bold" style={{ color: T.ink, fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>Fontes de notícias</h2>
                   <p className="text-[13px] mt-1 flex items-center gap-1.5 flex-wrap" style={{ color: T.muted }}>
                     <span className="inline-flex items-center gap-1.5 font-semibold" style={{ color: T.ok }}>
                       <span className="w-1.5 h-1.5 rounded-full" style={{ background: T.ok, boxShadow: `0 0 0 3px ${T.okSoft}` }} />

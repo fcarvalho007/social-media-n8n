@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CuradoriaNoticias, nomeFonteCuradoria, canalCuradoria, type API_CURADORIA } from '@/features/curadoria/CuradoriaNoticias';
 import type { NoticiaCurada, FonteCuradoria } from '@/services/curadoria';
@@ -101,8 +101,9 @@ describe('curadoria: decisão partilhada e escolha sem geração', () => {
  });
  it('prepara ligações para os três formatos com a mesma notícia', async () => {
   const a=api();render(<MemoryRouter><CuradoriaNoticias api={a}/></MemoryRouter>);await screen.findByRole('heading',{name:n.titulo});fireEvent.click(screen.getByRole('radio',{name:'Aprovadas'}));await waitFor(()=>expect(a.listar).toHaveBeenLastCalledWith(expect.objectContaining({estado:'aprovada'})));
-  expect(await screen.findByRole('link',{name:'Criar roteiro'})).toHaveAttribute('href','/estudio/roteiros/novo?noticia=news');
-  for(const formato of ['carrossel','post','story'])expect(await screen.findByRole('link',{name:`Criar ${formato}`})).toHaveAttribute('href',`/estudio/carrosseis/novo?formato=${formato}&noticia=news`);
+  fireEvent.keyDown(await screen.findByRole('button',{name:`Criar peça a partir de ${n.titulo}`}),{key:'Enter'});
+  expect(await screen.findByRole('menuitem',{name:'Criar roteiro'})).toHaveAttribute('href','/estudio/roteiros/novo?noticia=news');
+  for(const formato of ['carrossel','post','story'])expect(await screen.findByRole('menuitem',{name:`Criar ${formato==='story'?'Story':formato}`})).toHaveAttribute('href',`/estudio/carrosseis/novo?formato=${formato}&noticia=news`);
  });
 });
 
@@ -113,4 +114,17 @@ it('identifica a fonte, o site ou a ausência de origem sem mostrar códigos té
  expect(nomeFonteCuradoria({url:'javascript:alert(1)'})).toBe('Não identificada no registo original');
  expect(canalCuradoria({fonte_tipo:'rss',origem:'curadoria_ia'})).toBe('Feed RSS');
  expect(canalCuradoria({origem:'email_newsletter'})).toBe('Newsletter por email');
+});
+
+function FiltrosNaRota({a}:{a:typeof API_CURADORIA}) { const l=useLocation(),nav=useNavigate();return <><output aria-label="Rota de teste">{l.pathname+l.search}</output><button onClick={()=>nav(-1)}>Voltar no navegador</button><CuradoriaNoticias api={a} persistirFiltros/></>; }
+it('abre um favorito com filtros e repõe a decisão anterior pelo botão voltar sem reiniciar a pesquisa',async()=>{
+ const a=api();render(<MemoryRouter initialEntries={['/curadoria?noticias_estado=aprovada&noticias_q=formacao&noticias_periodo=todos&separador=noticias']}><FiltrosNaRota a={a}/></MemoryRouter>);
+ await screen.findByRole('heading',{name:n.titulo});expect(a.listar).toHaveBeenCalledWith(expect.objectContaining({estado:'aprovada',query:'formacao',desde:null}));expect(screen.getByLabelText('Pesquisar notícias')).toHaveValue('formacao');
+ fireEvent.click(screen.getByRole('radio',{name:'Rejeitadas'}));await waitFor(()=>expect(a.listar).toHaveBeenLastCalledWith(expect.objectContaining({estado:'rejeitada',query:'formacao'})));
+ fireEvent.click(screen.getByRole('button',{name:'Voltar no navegador'}));await waitFor(()=>expect(a.listar).toHaveBeenLastCalledWith(expect.objectContaining({estado:'aprovada',query:'formacao',desde:null})));expect(screen.getByLabelText('Pesquisar notícias')).toHaveValue('formacao');
+});
+it('regressa à página disponível ao decidir a última notícia da página final',async()=>{
+ const a=api();vi.mocked(a.listar).mockResolvedValueOnce({total:25,itens:[n]}).mockResolvedValueOnce({total:24,itens:[{...n,id:'restante',titulo:'Resultado da primeira página'}]});
+ render(<MemoryRouter initialEntries={['/curadoria?noticias_pagina=2']}><CuradoriaNoticias api={a} persistirFiltros/></MemoryRouter>);
+ fireEvent.click(await screen.findByRole('button',{name:'Aprovar'}));await screen.findByRole('heading',{name:'Resultado da primeira página'});expect(a.listar).toHaveBeenLastCalledWith(expect.objectContaining({pagina:0}));
 });

@@ -36,10 +36,11 @@ export async function procurarDuplicadosUrl(
   const LOTE = 100;
   for (let i = 0; i < chaves.length; i += LOTE) {
     const fatia = chaves.slice(i, i + LOTE);
-    const { data } = await admin
+    const { data, error } = await admin
       .from("nl_noticias")
-      .select("id, titulo, estado, url, url_norm, edicao:nl_edicoes(numero)")
+      .select("id, titulo, estado, url, url_norm, edicao:nl_edicoes!edicao_id(numero)")
       .in("url_norm", fatia);
+    if (error) throw new Error("Não foi possível verificar notícias já existentes. A importação não continuou para evitar duplicados.");
     for (const r of data ?? []) {
       const k = r.url_norm ?? (r.url ? normalizarUrl(r.url) : null);
       if (!k || mapa.has(k)) continue;

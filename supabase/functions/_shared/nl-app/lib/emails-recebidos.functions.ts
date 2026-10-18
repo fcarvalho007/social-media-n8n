@@ -228,7 +228,7 @@ export const listarNoticiasDoEmail = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<NoticiasDoEmail> => {
     const { data: rows, error } = await context.supabase
       .from("nl_noticias")
-      .select("id, titulo, descricao, url, categoria, estado, destaque, edicao_id, created_at, edicoes:nl_edicoes(numero)")
+      .select("id, titulo, descricao, url, categoria, estado, destaque, edicao_id, created_at, edicoes:nl_edicoes!edicao_id(numero)")
       .eq("email_recebido_id", data.emailId)
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
