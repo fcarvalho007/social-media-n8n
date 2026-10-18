@@ -1,5 +1,13 @@
 # Roadmap
 
+## Instalação autorizada campanhas e isolamento 18/10/2026
+- [x] Confirmar HEAD e árvore autorizados
+- [ ] Auditar dependências e aplicar apenas pré-requisitos/0064/0065 em falta
+- [ ] Instalar duas funções Hub e dez funções sociais autorizadas
+- [ ] Verificar HTTP, isolamento real e leituras sociais sem publicação
+- [ ] Verificar entradas autenticadas e persistência apenas em contexto sintético apropriado
+- [ ] Executar testes pertinentes e reportar compilação, segurança e cron/worker
+
 ## Instalação consolidada Hub 18/10/2026
 - [x] Confirmar commit/árvore e auditar compatibilidade Cloud
 - [x] Aplicar 0062/0063 compatíveis, bucket privado e cron desligado
