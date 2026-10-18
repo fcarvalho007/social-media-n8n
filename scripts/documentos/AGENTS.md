@@ -1,0 +1,1 @@
+- The existing jsdom parser uses the minimal declaration in src/types/jsdom.d.ts, included by app/tooling/backend typechecks; avoids adding dependencies for its typed surface.
