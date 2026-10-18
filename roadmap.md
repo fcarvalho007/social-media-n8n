@@ -4,8 +4,8 @@
 - [x] Confirmar commit/árvore e auditar compatibilidade Cloud
 - [x] Aplicar 0062/0063 compatíveis, bucket privado e cron desligado
 - [x] Publicar as duas funções Hub da correção cd47a11, sem regenerar código
-- [x] Configurar URL pública em .env.production após ambos os deploys
-- [ ] Auditar acesso anónimo e RLS/bucket/cron; configuração do worker permanece sem ativação
+- [ ] Ativar URL pública e validar acesso anónimo — bloqueado: ambas as funções devolvem 500 no arranque (Cannot find module 'jsdom'); .env.production retirado
+- [x] Auditar RLS/bucket/cron: privado, sem escrita de clientes, cron inativo, zero jobs/configurações ativas
 - [x] Executar 26 testes isolados; auditar RLS, bucket privado, cron inativo e ausência de jobs
 - [x] Relatar publicação manual e limitação de importação privada
 
