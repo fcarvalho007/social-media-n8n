@@ -1,10 +1,15 @@
 // Editorial launch kit. No AI, network, scheduler or social publication side effects.
 import { linkDivulgacao, dividirTexto, slidesDosDestaques, slideFinalNewsletter, validarCarrossel, verificarLeiturasLiterais, type Carrossel, type FonteCronica } from "./carrossel.ts";
+import type { PacoteProva } from "../documento-grafico/nucleo.ts";
+
+export type PecaDivulgacao = "story" | "carrossel";
+export interface ComposicaoDivulgacao { pacote: PacoteProva; base_assinatura: string; guardado_em: string }
 
 export interface StoryEdicao { titulo: string; texto: string; cta: string; url: string }
 export interface DivulgacaoEdicao {
   schema: 1; fonte_hash: string; teste: boolean; confirmado_em: string | null;
   story: StoryEdicao; estado: "rascunho" | "revisto";
+  composicoes?: Partial<Record<PecaDivulgacao, ComposicaoDivulgacao>>;
 }
 export const LIMITES_STORY = { titulo: 140, texto: 260, cta: 40 } as const;
 
@@ -37,9 +42,9 @@ export function prepararDivulgacaoBase(fonte: FonteCronica, confirmadoEm: string
 export function carrosselDivulgacao(fonte: FonteCronica): Carrossel | null {
   if (!fonte.destaques?.length) return null; // Keep old chronicle-only editions supported.
   const c = validarCarrossel({
-    slides: [{ titulo: `${fonte.destaques.length} destaques para ler com outra perspetiva`, texto: `Da edição #${fonte.numero} da DIGITALSPRINT: os factos, as fontes e a leitura de Frederico Carvalho. Desliza para explorar.`, fontes: [] },
+    slides: [{ titulo: `${fonte.destaques.length} notícias para ler com outra perspetiva`, texto: `Os factos, as fontes e a minha leitura. DIGITALSPRINT #${fonte.numero}.`, fontes: [] },
       ...slidesDosDestaques(fonte), slideFinalNewsletter(fonte)],
-    legenda: `Os destaques da DIGITALSPRINT #${fonte.numero}, com as fontes originais e a minha leitura.\n\nGuarda para ler com tempo. A edição completa reúne a crónica e as restantes novidades.`,
+    legenda: `Os destaques da DIGITALSPRINT #${fonte.numero}, com a minha leitura.\n\nRecebe a próxima edição: subscreve gratuitamente a DIGITALSPRINT.\n\nConheces alguém a quem esta leitura seria útil? Partilha o carrossel.`,
   }, fonte);
   verificarLeiturasLiterais(c, fonte);
   return c;

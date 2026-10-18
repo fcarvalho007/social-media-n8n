@@ -2,4 +2,5 @@
 // Edge entrypoints are separately checked by the real Deno/npm resolver.
 declare module "npm:@supabase/supabase-js@2.57.4" {
   export type SupabaseClient = import("@supabase/supabase-js").SupabaseClient;
+  export const createClient: typeof import("@supabase/supabase-js").createClient;
 }

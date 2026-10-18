@@ -339,9 +339,13 @@ export interface PropsEditorGrafico {
   /** Real work: inline library + Kie in the Imagens rail. */
   projectId?: string;
   medidorSistema?: Medidor;
+  /** A hand-composed document may already own its direction without an mc style preset. */
+  direcaoPersonalizada?: string;
+  alturaDisponivel?: number;
+  compactarPaginaUnica?: boolean;
 }
 
-export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo, pedirImagem, projectId, medidorSistema }: PropsEditorGrafico) {
+export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo, pedirImagem, projectId, medidorSistema, direcaoPersonalizada, alturaDisponivel, compactarPaginaUnica }: PropsEditorGrafico) {
   const { user } = useAuth();
   const [compacto, setCompacto] = useState(() => typeof window !== "undefined" && window.innerWidth < 1180);
   const [estado, despachar] = useReducer(reduzir, pacoteInicial, estadoInicial);
@@ -383,8 +387,8 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const [comparando, setComparando] = useState(false);
   const [comparacao, setComparacao] = useState<Comparacao | null>(null);
   const [erroComparacao, setErroComparacao] = useState<string | null>(null);
-  const [painelMovel, setPainelMovel] = useState<"pagina" | "camada" | AbaInserir>(() => (sistemaDoPacote(pacoteInicial) ? "pagina" : "estilos"));
-  const semDirecao = !sistemaDoPacote(pacoteInicial);
+  const [painelMovel, setPainelMovel] = useState<"pagina" | "camada" | AbaInserir>(() => (sistemaDoPacote(pacoteInicial) || direcaoPersonalizada ? "pagina" : "estilos"));
+  const semDirecao = !sistemaDoPacote(pacoteInicial) && !direcaoPersonalizada;
   const [aba, setAba] = useState<AbaInserir | null>(semDirecao ? "estilos" : "texto");
   const [encaixe, setEncaixe] = useState(true);
   const [editando, setEditando] = useState<string | null>(null);
@@ -394,7 +398,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const inicioExterior = useRef<{ x: number; y: number } | null>(null);
   const [aLargar, setALargar] = useState(false);
   const paginaRef = useRef<HTMLDivElement>(null);
-  const [painelAberto, setPainelAberto] = useState(() => !sistemaDoPacote(pacoteInicial));
+  const [painelAberto, setPainelAberto] = useState(() => !sistemaDoPacote(pacoteInicial) && !direcaoPersonalizada);
   const [alturaVisual, setAlturaVisual] = useState<number | null>(null);
   const areaRef = useRef<HTMLDivElement>(null);
   const ficheiroRef = useRef<HTMLInputElement>(null);
@@ -477,7 +481,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   // Opening always with a visual direction and with texts already framed (no font reduction, ever).
   const preparado = useRef(false);
   useEffect(() => {
-    if (preparado.current || !mSis || rascunho) return;
+    if (preparado.current || !mSis || rascunho || direcaoPersonalizada) return;
     preparado.current = true;
     const preparar = (pref: DirecaoPreferida | null) => {
       let p = pacote;
@@ -770,7 +774,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const seletorVariante = (
     <div className="flex min-w-0 items-center gap-1.5 text-sm">
       <span className="truncate text-muted-foreground" title="Direção visual">
-        {sisMostrado ? `${ESTILOS.find((e) => e.id === sisMostrado.estilo)?.nome ?? ""} · ${nomeVariante(sisMostrado.estilo, sisMostrado.variante)} · ${obterPaleta(sisMostrado.paleta).nome}${rascunho ? " (por aplicar)" : ""}` : "A preparar a direção visual…"}
+        {sisMostrado ? `${ESTILOS.find((e) => e.id === sisMostrado.estilo)?.nome ?? ""} · ${nomeVariante(sisMostrado.estilo, sisMostrado.variante)} · ${obterPaleta(sisMostrado.paleta).nome}${rascunho ? " (por aplicar)" : ""}` : direcaoPersonalizada ?? "A preparar a direção visual…"}
       </span>
       <Button variant="link" size="sm" className="h-11 px-1 lg:h-9" onClick={abrirDirecao}>Alterar</Button>
       <MapaCustos projectId={projectId} />
@@ -945,7 +949,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       {selecoes.length > 1 && <><span className="px-2 text-sm font-medium">{selecoes.length} elementos selecionados</span><Button variant="ghost" size="icon" className={`${bt} text-destructive hover:text-destructive`} aria-label="Apagar seleção" onClick={() => { despachar({ tipo: "apagarCamadas", ids: selecoes }); setSelecoes([]); }}><Trash2 className="h-4 w-4" /></Button>{sep}</>}
       {!camada && paginaAtual && (<>
         <Button variant={encaixe ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={encaixe} onClick={() => setEncaixe((v) => !v)}><Magnet className="mr-1.5 h-4 w-4" />Encaixar</Button>
-        <span className="ml-1 min-w-0 text-sm text-muted-foreground">Clica num texto para o selecionar; clica outra vez (ou Enter) para escrever.</span>
+        <span className="ml-1 min-w-0 text-sm text-muted-foreground">{compacto ? "Toca num elemento para o editar." : "Clica num texto para o selecionar; clica outra vez (ou Enter) para escrever."}</span>
       </>)}
       {camada?.tipo === "texto" && (<>
         <div role="group" aria-label="Letra" className="flex flex-wrap items-center gap-1">
@@ -1035,7 +1039,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const intencao = (compPagina as { visual_intent?: string }).visual_intent;
   const promptAuto = slideConteudo && papelPagina && sistemaDoc ? construirPromptVisual({ titulo: slideConteudo.titulo, texto: slideConteudo.texto, intencao, papel: papelPagina, estilo: sistemaDoc.estilo, variante: sistemaDoc.variante, paleta: sistemaDoc.paleta, modo: decisaoAtual?.modo ?? "full_bleed", regiao: decisaoAtual?.regiao ?? "bottom" }) : undefined;
   const queryAuto = slideConteudo ? compPagina.visual_query ?? construirQueryVisual(intencao, slideConteudo.titulo) : undefined;
-  const painelPaginaVisual = paginaAtual && (
+  const painelPaginaVisual = paginaAtual && (!direcaoPersonalizada || sistemaDoc) && (
     <div className="space-y-3 border-b border-border pb-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Página {pagina + 1}</h2>
@@ -1149,7 +1153,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   if (compacto) {
     return (
-      <div className="relative flex min-h-0 flex-col overflow-hidden" style={{ height: alturaVisual ? `${alturaVisual}px` : "100dvh" }}>
+      <div className="relative flex min-h-0 flex-col overflow-hidden" style={{ height: alturaDisponivel ?? (alturaVisual ? `${alturaVisual}px` : "100dvh") }}>
         {inputFicheiro}
         {faixaTopo}
         <header className="space-y-2 border-b border-border bg-background px-2 py-2">
@@ -1171,7 +1175,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Página seguinte" disabled={pagina === paginas.length - 1} onClick={() => despachar({ tipo: "pagina", indice: pagina + 1 })}><ArrowDown className="h-4 w-4 -rotate-90" /></Button>
             <Button variant="ghost" size="sm" className="ml-auto h-11" onClick={() => setPainelAberto(false)}>Mostrar páginas</Button>
           </div>
-        ) : <div className="shrink-0 border-b border-border bg-background">{miniaturas(true)}</div>}
+        ) : !(compactarPaginaUnica && paginas.length === 1) && <div className="shrink-0 border-b border-border bg-background">{miniaturas(true)}</div>}
         {barraContexto}
         <div className="flex min-h-[28dvh] flex-1 flex-col">{tela}</div>
         {painelAberto && <section id="painel-propriedades" className="max-h-[42dvh] shrink-0 overflow-y-auto border-t border-border bg-background" aria-label="Painel">
@@ -1200,7 +1204,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   }
 
   return (
-    <div className="flex h-screen min-h-0 flex-col overflow-hidden">
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden" style={alturaDisponivel ? { height: alturaDisponivel } : undefined}>
       {inputFicheiro}
       {dialogoAjustes}
       {faixaTopo}

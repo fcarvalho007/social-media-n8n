@@ -28,7 +28,7 @@ export interface ConteudoResumo {
 }
 export interface EdicaoEnviada { id: string; numero: number; assunto: string | null; enviada_em: string | null }
 export interface ConteudoCompleto {
-  conteudo: { id: string; edicao_id: string; fonte: FonteCronica; fonte_aceite_em: string | null; carrossel: Carrossel | null; divulgacao?: DivulgacaoEdicao | null; divulgacao_versao?: number; versao: number; social_draft_id: string | null; actualizado_em: string };
+  conteudo: { id: string; edicao_id: string; project_id?: string | null; fonte: FonteCronica; fonte_aceite_em: string | null; carrossel: Carrossel | null; divulgacao?: DivulgacaoEdicao | null; divulgacao_versao?: number; versao: number; social_draft_id: string | null; actualizado_em: string };
   versoes: { versao: number; origem: string; criado_em: string }[];
   job: Pick<JobResumo, "id" | "estado" | "erro" | "tentativas" | "max_tentativas" | "proxima_tentativa_em"> | null;
 }
@@ -107,3 +107,6 @@ import type { DivulgacaoEdicao, StoryEdicao } from "../../supabase/functions/_sh
 export const prepararDivulgacao = (conteudo_id: string) => chamar<{ ok: true }>({ acao: "preparar_divulgacao", conteudo_id });
 export const guardarStory = (conteudo_id: string, versao: number, story: StoryEdicao, estado: "rascunho" | "revisto") =>
   chamar<{ divulgacao: DivulgacaoEdicao; divulgacao_versao: number }>({ acao: "guardar_divulgacao", conteudo_id, versao, story, estado });
+
+export const guardarComposicao = (conteudo_id: string, versao: number, peca: "story" | "carrossel", base_assinatura: string, pacote: unknown) =>
+  chamar<{ divulgacao: DivulgacaoEdicao; divulgacao_versao: number }>({ acao: "guardar_composicao", conteudo_id, versao, peca, base_assinatura, pacote });
