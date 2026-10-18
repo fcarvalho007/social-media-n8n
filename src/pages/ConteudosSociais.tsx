@@ -51,7 +51,7 @@ export default function ConteudosSociais() {
         <div>
           <h1 className="text-2xl font-semibold">Divulgação da newsletter</h1>
           <p className="text-sm text-muted-foreground">
-            1080 × 1350 · Instagram e LinkedIn · nada é publicado sem revisão
+            Story e carrossel editáveis · nada é publicado sem revisão
             {ctx.projeto ? ` · projeto ${ctx.projeto.name}` : " · todos os projetos"}
           </p>
         </div>
@@ -66,14 +66,14 @@ export default function ConteudosSociais() {
         </div>
       </header>
       <BibliotecasConteudoTabs ativa="cronica" />
-      <p className="text-xs text-muted-foreground">O processo automático corre de hora a hora. «Processar fila agora» pede propostas à IA para os trabalhos pendentes.</p>
+      <p className="text-sm text-muted-foreground">Após a E-goi confirmar um envio real, o Story e o carrossel ficam em rascunho no compositor, sem usar IA. A verificação automática corre de hora a hora. «Processar fila agora» repete a verificação; trabalhos históricos que pediste podem usar IA.</p>
 
-      {dados && (!dados.credenciais.deepseek || !dados.credenciais.egoi) && (
+      {dados && (!dados.credenciais.egoi || (!dados.credenciais.deepseek && dados.jobs.some((j) => j.estado === "aguarda_credencial"))) && (
         <Alert>
           <AlertTitle>Faltam chaves no servidor</AlertTitle>
           <AlertDescription>
             {!dados.credenciais.egoi && <span>Sem chave da E-goi, a entrega das campanhas não é confirmada. </span>}
-            {!dados.credenciais.deepseek && <span>Sem chave da DeepSeek, as propostas ficam a aguardar. </span>}
+            {!dados.credenciais.deepseek && dados.jobs.some((j) => j.estado === "aguarda_credencial") && <span>Os trabalhos históricos com IA precisam da chave DeepSeek. Os rascunhos gratuitos após envio real continuam disponíveis. </span>}
             <Link to="/estudio/ligacoes" className="underline">Ver ligações</Link>
           </AlertDescription>
         </Alert>

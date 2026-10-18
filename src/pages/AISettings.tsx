@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Sparkles, Save } from 'lucide-react';
+import { useId, useState } from 'react';
+import { Sparkles, Save, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,11 @@ import { AICreditsBadge } from '@/components/ai/AICreditsBadge';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { normalizeHashtag } from '@/lib/hashtags/safety';
 
 export default function AISettings() {
-  const { preferences, loading, savePreferences } = useAiPreferences();
+  const { preferences, loading, error, reload, savePreferences } = useAiPreferences();
   const [saving, setSaving] = useState(false);
   const [brandDraft, setBrandDraft] = useState('');
 
@@ -23,8 +24,10 @@ export default function AISettings() {
     try {
       await savePreferences(patch);
       toast.success('Preferências de IA guardadas');
+      return true;
     } catch {
       toast.error('Não foi possível guardar as preferências de IA');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -33,8 +36,7 @@ export default function AISettings() {
   const addBrandHashtag = async () => {
     const tag = normalizeHashtag(brandDraft);
     if (!tag || preferences.brand_hashtags.includes(tag) || preferences.brand_hashtags.length >= 5) return;
-    setBrandDraft('');
-    await updatePreference({ brand_hashtags: [...preferences.brand_hashtags, tag] });
+    if (await updatePreference({ brand_hashtags: [...preferences.brand_hashtags, tag] })) setBrandDraft('');
   };
 
   return (
@@ -50,6 +52,7 @@ export default function AISettings() {
         <AICreditsBadge />
       </div>
 
+      {error && <Alert variant="destructive"><AlertTitle>Preferências por confirmar</AlertTitle><AlertDescription className="space-y-3"><p>{error}</p><Button type="button" variant="outline" onClick={reload} disabled={loading || saving}><RefreshCw className="mr-2 h-4 w-4" />Recarregar preferências</Button></AlertDescription></Alert>}
       <Card>
         <CardHeader>
           <CardTitle>Preferências de geração</CardTitle>
@@ -58,9 +61,9 @@ export default function AISettings() {
         <CardContent className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Idioma das gerações</Label>
-              <Select value={preferences.preferred_language} disabled={loading || saving} onValueChange={(value) => updatePreference({ preferred_language: value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label htmlFor="ai-idioma">Idioma das gerações</Label>
+              <Select value={preferences.preferred_language} disabled={!!error || loading || saving} onValueChange={(value) => updatePreference({ preferred_language: value })}>
+                <SelectTrigger id="ai-idioma"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pt-PT">Português de Portugal</SelectItem>
                   <SelectItem value="en">Inglês</SelectItem>
@@ -71,9 +74,9 @@ export default function AISettings() {
             </div>
 
             <div className="space-y-2">
-              <Label>Tom por defeito</Label>
-              <Select value={preferences.default_tone} disabled={loading || saving} onValueChange={(value) => updatePreference({ default_tone: value as typeof preferences.default_tone })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label htmlFor="ai-tom">Tom por defeito</Label>
+              <Select value={preferences.default_tone} disabled={!!error || loading || saving} onValueChange={(value) => updatePreference({ default_tone: value as typeof preferences.default_tone })}>
+                <SelectTrigger id="ai-tom"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="neutro">Neutro</SelectItem>
                   <SelectItem value="direto">Direto</SelectItem>
@@ -85,9 +88,9 @@ export default function AISettings() {
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label>Modelo preferido</Label>
-              <Select value={preferences.preferred_model} disabled={loading || saving} onValueChange={(value) => updatePreference({ preferred_model: value as typeof preferences.preferred_model })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label htmlFor="ai-modelo">Modelo preferido</Label>
+              <Select value={preferences.preferred_model} disabled={!!error || loading || saving} onValueChange={(value) => updatePreference({ preferred_model: value as typeof preferences.preferred_model })}>
+                <SelectTrigger id="ai-modelo"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="fast">Rápido — mais económico</SelectItem>
                   <SelectItem value="smart">Melhor qualidade — consome mais créditos</SelectItem>
@@ -100,18 +103,18 @@ export default function AISettings() {
 
           <div className="space-y-3">
             <div>
-              <Label>Hashtags de marca</Label>
+              <Label htmlFor="ai-hashtag">Hashtags de marca</Label>
               <p className="text-sm text-muted-foreground">Até 5 hashtags fixas para sugestões editoriais.</p>
             </div>
             <div className="flex gap-2">
-              <Input value={brandDraft} onChange={(event) => setBrandDraft(event.target.value)} placeholder="#aminhamarca" disabled={loading || saving || preferences.brand_hashtags.length >= 5} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addBrandHashtag(); } }} />
-              <Button type="button" variant="outline" onClick={addBrandHashtag} disabled={loading || saving || preferences.brand_hashtags.length >= 5}>Adicionar</Button>
+              <Input id="ai-hashtag" value={brandDraft} onChange={(event) => setBrandDraft(event.target.value)} placeholder="#aminhamarca" disabled={!!error || loading || saving || preferences.brand_hashtags.length >= 5} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addBrandHashtag(); } }} />
+              <Button type="button" variant="outline" onClick={addBrandHashtag} disabled={!!error || loading || saving || preferences.brand_hashtags.length >= 5}>Adicionar</Button>
             </div>
             <div className="flex flex-wrap gap-2">
               {preferences.brand_hashtags.map((tag) => (
                 <Badge key={tag} variant="secondary" className="gap-1">
                   {tag}
-                  <button type="button" onClick={() => updatePreference({ brand_hashtags: preferences.brand_hashtags.filter(item => item !== tag) })} aria-label={`Remover ${tag}`}>×</button>
+                  <button type="button" disabled={!!error || loading || saving} className="disabled:cursor-wait disabled:opacity-50" onClick={() => updatePreference({ brand_hashtags: preferences.brand_hashtags.filter(item => item !== tag) })} aria-label={`Remover ${tag}`}>×</button>
                 </Badge>
               ))}
             </div>
@@ -124,21 +127,21 @@ export default function AISettings() {
               label="Usar as minhas publicações para gerar insights"
               description="Os insights são calculados apenas para a tua conta. Os dados nunca são partilhados com outros utilizadores nem usados para treinar modelos externos."
               checked={preferences.insights_enabled}
-              disabled={loading || saving}
+              disabled={!!error || loading || saving}
               onCheckedChange={(checked) => updatePreference({ insights_enabled: checked })}
             />
             <PreferenceToggle
               label="Gerar alt text automaticamente"
               description="Prepara texto alternativo para imagens quando uma feature de publicação o pedir."
               checked={preferences.auto_alt_text}
-              disabled={loading || saving}
+              disabled={!!error || loading || saving}
               onCheckedChange={(checked) => updatePreference({ auto_alt_text: checked })}
             />
             <PreferenceToggle
               label="Gerar primeiro comentário automaticamente"
               description="Permite preparar uma sugestão de primeiro comentário em fluxos futuros."
               checked={preferences.auto_first_comment}
-              disabled={loading || saving}
+              disabled={!!error || loading || saving}
               onCheckedChange={(checked) => updatePreference({ auto_first_comment: checked })}
             />
           </div>
@@ -146,7 +149,7 @@ export default function AISettings() {
           <div className="flex justify-end">
             <Button type="button" variant="outline" className="gap-2" disabled>
               <Save className="h-4 w-4" />
-              Guardado automaticamente
+              {loading ? "A carregar preferências…" : saving ? "A guardar…" : error ? "Gravação por confirmar" : "As alterações são guardadas automaticamente"}
             </Button>
           </div>
         </CardContent>
@@ -162,13 +165,14 @@ function PreferenceToggle({ label, description, checked, disabled, onCheckedChan
   disabled?: boolean;
   onCheckedChange: (checked: boolean) => void;
 }) {
+  const id = useId();
   return (
     <div className="flex items-center justify-between gap-4 rounded-md border border-border p-4">
       <div className="space-y-1">
-        <Label className="text-sm font-medium">{label}</Label>
+        <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
-      <Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+      <Switch id={id} checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
     </div>
   );
 }

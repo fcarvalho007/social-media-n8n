@@ -1,52 +1,17 @@
-import { CheckCircle2, PlusCircle, Calendar, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb, Mail, ShieldCheck, Settings, Sparkles, Users, Euro } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { LogOut } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import type { ReactNode } from 'react';
 import { Sheet, SheetTrigger, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { usePendingCounts } from '@/hooks/usePendingCounts';
 import { useAuth } from '@/contexts/AuthContext';
+import { DESTINOS_NAVEGACAO, itemNavegacaoAtivo } from '@/lib/navegacao';
+import { toast } from 'sonner';
 
-interface Item { label: string; icon: LucideIcon; url: string; badge?: boolean }
-interface Grupo { titulo: string; itens: Item[] }
-
-export const GRUPOS_MENU: Grupo[] = [
-  {
-    titulo: 'Trabalho',
-    itens: [
-      { label: 'Painel', icon: LayoutDashboard, url: '/' },
-      { label: 'Criar SM', icon: PlusCircle, url: '/pending?tab=create' },
-      { label: 'Curadoria', icon: CheckCircle2, url: '/curadoria' },
-      { label: 'Newsletter', icon: Mail, url: '/newsletter' },
-      { label: 'Aprovar', icon: CheckCircle2, url: '/pending', badge: true },
-      { label: 'Calendário', icon: Calendar, url: '/calendar' },
-      { label: 'Projetos', icon: FolderKanban, url: '/projects' },
-    ],
-  },
-  { titulo: 'Análise', itens: [
-    { label: 'Analytics', icon: BarChart3, url: '/analytics' },
-    { label: 'Insights', icon: Lightbulb, url: '/insights' },
-    { label: 'Custos', icon: Euro, url: '/custos' },
-  ] },
-  { titulo: 'Recursos', itens: [{ label: 'Biblioteca', icon: Image, url: '/media-library' }] },
-  { titulo: 'Conta', itens: [
-    { label: 'Segurança da conta', icon: ShieldCheck, url: '/definicoes/seguranca' },
-    { label: 'Preferências de IA', icon: Sparkles, url: '/ai-settings' },
-    { label: 'Quotas', icon: Settings, url: '/quota' },
-    { label: 'Utilizadores', icon: Users, url: '/users' },
-  ] },
-];
-
-/** Which menu entry owns the current location (search-aware so Criar SM ≠ Aprovar). */
-export function itemAtivo(pathname: string, search: string, url: string): boolean {
-  const [p, q] = url.split('?');
-  if (p === '/pending') {
-    const criar = new URLSearchParams(search).get('tab') === 'create';
-    return pathname === '/pending' && (q ? criar : !criar);
-  }
-  if (p === '/') return pathname === '/';
-  return pathname === p || pathname.startsWith(`${p}/`);
-}
+export const GRUPOS_MENU = (['Trabalho', 'Publicação', 'Análise', 'Conta'] as const).map((titulo) => ({
+  titulo, itens: DESTINOS_NAVEGACAO.filter((d) => d.grupo === titulo),
+}));
+export const itemAtivo = itemNavegacaoAtivo;
 
 export function MenuNavegacao({ open, onOpenChange, gatilho }: { open: boolean; onOpenChange: (v: boolean) => void; gatilho: ReactNode }) {
   const { counts } = usePendingCounts();
@@ -55,17 +20,24 @@ export function MenuNavegacao({ open, onOpenChange, gatilho }: { open: boolean; 
   const { pathname, search } = useLocation();
   const totalPending = counts.stories + counts.carousels + counts.posts;
 
-  const sair = async () => { onOpenChange(false); await signOut(); navigate('/auth'); };
+  const [aSair, setASair] = useState(false);
+  const sair = async () => {
+    if (aSair) return;
+    setASair(true);
+    try { await signOut(); onOpenChange(false); navigate('/auth'); }
+    catch { toast.error('Não foi possível terminar a sessão. Tenta de novo.'); }
+    finally { setASair(false); }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>{gatilho}</SheetTrigger>
       <SheetContent side="left" className="flex w-[min(20rem,88vw)] flex-col gap-0 overflow-y-auto bg-background p-0">
-        <SheetHeader className="border-b px-5 py-4 text-left">
+        <SheetHeader className="border-b px-5 py-4 pr-16 text-left">
           <SheetTitle className="text-base">Hub de conteúdo</SheetTitle>
           <SheetDescription className="truncate text-xs">{user?.email ?? 'Menu principal'}</SheetDescription>
         </SheetHeader>
-        <nav aria-label="Menu principal" className="flex-1 space-y-4 px-3 py-4">
+        <nav aria-label="Menu principal" className="flex flex-1 flex-col gap-5 px-3 py-4">
           {GRUPOS_MENU.map((g) => (
             <div key={g.titulo}>
               <h2 className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.titulo}</h2>
@@ -94,8 +66,8 @@ export function MenuNavegacao({ open, onOpenChange, gatilho }: { open: boolean; 
                 })}
                 {g.titulo === 'Conta' && (
                   <li>
-                    <button type="button" onClick={sair} className="flex min-h-11 w-full items-center gap-3 rounded-md px-2 text-[15px] text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <LogOut className="h-5 w-5" aria-hidden />Sair
+                    <button type="button" disabled={aSair} onClick={sair} className="flex min-h-11 w-full items-center gap-3 rounded-md px-2 text-[15px] text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <LogOut className="h-5 w-5" aria-hidden />{aSair ? 'A sair…' : 'Sair'}
                     </button>
                   </li>
                 )}

@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect, useState } from 'react';
-import { toast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface Notification {
   id: string;
@@ -17,128 +18,77 @@ export interface Notification {
 
 export const useNotifications = () => {
   const queryClient = useQueryClient();
-  const [userId, setUserId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const queryKey = ['notifications', userId];
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id || null);
-    });
-  }, []);
-
-  // Fetch all notifications
-  const { data: notifications = [], isLoading } = useQuery({
-    queryKey: ['notifications', userId],
+  const { data: notifications = [], isLoading, isFetching, error, refetch } = useQuery({
+    queryKey,
     queryFn: async () => {
       if (!userId) return [];
-      
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50);
-
       if (error) throw error;
       return data as Notification[];
     },
     enabled: !!userId,
   });
 
-  // Get unread count
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const exigirUtilizador = () => {
+    if (!userId) throw new Error('É necessário entrar para alterar notificações.');
+    return userId;
+  };
+  const invalidar = () => queryClient.invalidateQueries({ queryKey });
+  const falhou = () => toast.error('A notificação não foi alterada. Tenta de novo.');
 
-  // Mark as read
   const markAsRead = useMutation({
     mutationFn: async (notificationId: string) => {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('id', notificationId);
-
+      const dono = exigirUtilizador();
+      const { error } = await supabase.from('notifications').update({ read: true }).eq('id', notificationId).eq('user_id', dono);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
+    onSuccess: invalidar,
+    onError: falhou,
   });
-
-  // Mark all as read
   const markAllAsRead = useMutation({
     mutationFn: async () => {
-      if (!userId) return;
-      
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('user_id', userId)
-        .eq('read', false);
-
+      const dono = exigirUtilizador();
+      const { error } = await supabase.from('notifications').update({ read: true }).eq('user_id', dono).eq('read', false);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      toast({
-        title: 'Notificações marcadas como lidas',
-      });
-    },
+    onSuccess: () => { void invalidar(); toast.success('Notificações marcadas como lidas'); },
+    onError: falhou,
   });
-
-  // Delete notification
   const deleteNotification = useMutation({
     mutationFn: async (notificationId: string) => {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId);
-
+      const dono = exigirUtilizador();
+      const { error } = await supabase.from('notifications').delete().eq('id', notificationId).eq('user_id', dono);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
+    onSuccess: invalidar,
+    onError: falhou,
   });
 
-  // Real-time subscription
   useEffect(() => {
     if (!userId) return;
-
     const channel = supabase
-      .channel('notifications-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const newNotification = payload.new as Notification;
-          
-          // Show toast for new notification
-          toast({
-            title: newNotification.title,
-            description: newNotification.message,
-            variant: newNotification.type === 'error' ? 'destructive' : 'default',
-          });
-
-          // Invalidate queries to refresh
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      .channel(`notifications-changes:${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const n = payload.new as Notification;
+          if (n.type === 'error') toast.error(n.title, { description: n.message });
+          else toast(n.title, { description: n.message });
         }
-      )
+        void queryClient.invalidateQueries({ queryKey: ['notifications', userId] });
+      })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { void supabase.removeChannel(channel); };
   }, [userId, queryClient]);
 
-  return {
-    notifications,
-    unreadCount,
-    isLoading,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-  };
+  return { notifications, unreadCount, isLoading, isFetching, error, refetch, markAsRead, markAllAsRead, deleteNotification };
 };

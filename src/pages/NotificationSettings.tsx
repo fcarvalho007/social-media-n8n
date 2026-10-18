@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Bell, CheckCircle2, Clock, Mail, Send, ShieldCheck } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Bell, CheckCircle2, Clock, Mail, Send, ShieldCheck, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const weekdays = [
   { value: 1, label: 'Seg' },
@@ -47,24 +48,37 @@ export default function NotificationSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+  const [tentativa, setTentativa] = useState(0);
+  const gravacaoEmCurso = useRef(false);
+  const testeEmCurso = useRef(false);
+  const userId = user?.id;
+  const bloqueado = !userId || loading || !!loadError || saving;
 
   useEffect(() => {
-    if (!user) return;
     let mounted = true;
+    setLoading(true); setLoadError(null);
     const load = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('user_notification_preferences')
-        .select('reminder_channel, reminder_minutes_before, quiet_hours_start, quiet_hours_end, reminder_weekdays, email_tested_at')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (error) toast.error('Não foi possível carregar as preferências.');
-      if (mounted) setPrefs({ ...defaults, ...(data as Partial<Preferences> | null ?? {}) });
-      if (mounted) setLoading(false);
+      try {
+        if (!userId) throw new Error('Sessão em falta. Volta a entrar.');
+        const { data, error } = await supabase
+          .from('user_notification_preferences')
+          .select('reminder_channel, reminder_minutes_before, quiet_hours_start, quiet_hours_end, reminder_weekdays, email_tested_at')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (error) throw error;
+        if (mounted) { setPrefs({ ...defaults, ...(data as Partial<Preferences> | null ?? {}) }); setSaveError(null); }
+      } catch {
+        if (mounted) setLoadError('Não foi possível ler as preferências guardadas. Recarrega para continuar sem as substituir.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
-    load();
+    void load();
     return () => { mounted = false; };
-  }, [user]);
+  }, [userId, tentativa]);
 
   const channelLabel = useMemo(() => ({
     email: 'Email',
@@ -74,34 +88,41 @@ export default function NotificationSettings() {
   }[prefs.reminder_channel]), [prefs.reminder_channel]);
 
   const save = async () => {
-    if (!user) return;
-    setSaving(true);
-    const { error } = await supabase.from('user_notification_preferences').upsert({
-      user_id: user.id,
-      reminder_channel: prefs.reminder_channel,
-      reminder_minutes_before: prefs.reminder_minutes_before,
-      quiet_hours_start: prefs.quiet_hours_start,
-      quiet_hours_end: prefs.quiet_hours_end,
-      reminder_weekdays: prefs.reminder_weekdays,
-    } as any);
-    setSaving(false);
-    if (error) {
+    if (bloqueado || gravacaoEmCurso.current) return;
+    gravacaoEmCurso.current = true; setSaving(true); setSaveError(null);
+    try {
+      const { error } = await supabase.from('user_notification_preferences').upsert({
+        user_id: userId!,
+        reminder_channel: prefs.reminder_channel,
+        reminder_minutes_before: prefs.reminder_minutes_before,
+        quiet_hours_start: prefs.quiet_hours_start,
+        quiet_hours_end: prefs.quiet_hours_end,
+        reminder_weekdays: prefs.reminder_weekdays,
+      });
+      if (error) throw error;
+      toast.success('Preferências de lembrete guardadas.');
+    } catch {
+      setSaveError('Não foi possível guardar. As tuas escolhas continuam no formulário; tenta de novo.');
       toast.error('Não foi possível guardar as preferências.');
-      return;
+    } finally {
+      gravacaoEmCurso.current = false; setSaving(false);
     }
-    toast.success('Preferências de lembrete guardadas.');
   };
 
   const sendTest = async () => {
-    setTesting(true);
-    const { error } = await supabase.functions.invoke('send_story_reminder', { body: { test: true } });
-    setTesting(false);
-    if (error) {
+    if (bloqueado || testeEmCurso.current) return;
+    testeEmCurso.current = true; setTesting(true); setTestError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('send_story_reminder', { body: { test: true } });
+      if (error || data?.ok !== true || data?.sent !== 1) throw error ?? new Error('Envio não confirmado.');
+      setPrefs((current) => ({ ...current, email_tested_at: new Date().toISOString() }));
+      toast.success('Email de teste enviado.');
+    } catch {
+      setTestError('O envio do email de teste não foi confirmado. Podes tentar novamente.');
       toast.error('Não foi possível enviar o email de teste.');
-      return;
+    } finally {
+      testeEmCurso.current = false; setTesting(false);
     }
-    setPrefs((current) => ({ ...current, email_tested_at: new Date().toISOString() }));
-    toast.success('Email de teste enviado.');
   };
 
   const toggleWeekday = (value: number, checked: boolean) => {
@@ -122,6 +143,7 @@ export default function NotificationSettings() {
           <p className="max-w-2xl text-sm text-muted-foreground">Define como recebes lembretes para publicar Stories com Link e outras ações semi-automáticas.</p>
         </header>
 
+        {loadError && <Alert variant="destructive"><AlertTitle>Preferências indisponíveis</AlertTitle><AlertDescription className="space-y-3"><p>{loadError}</p><Button type="button" variant="outline" onClick={() => setTentativa((n) => n + 1)}><RefreshCw className="mr-2 h-4 w-4" />Recarregar preferências</Button></AlertDescription></Alert>}
         <Card className="manual-card-shell">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl"><Mail className="h-5 w-5 text-primary" /> Canal preferido</CardTitle>
@@ -129,9 +151,9 @@ export default function NotificationSettings() {
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="manual-field-stack">
-              <Label>Canal</Label>
-              <Select value={prefs.reminder_channel} onValueChange={(value) => setPrefs((current) => ({ ...current, reminder_channel: value as ReminderChannel }))} disabled={loading}>
-                <SelectTrigger className="min-h-11"><SelectValue /></SelectTrigger>
+              <Label htmlFor="notificacoes-canal">Canal</Label>
+              <Select value={prefs.reminder_channel} onValueChange={(value) => setPrefs((current) => ({ ...current, reminder_channel: value as ReminderChannel }))} disabled={bloqueado}>
+                <SelectTrigger id="notificacoes-canal" className="min-h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="email">Email</SelectItem>
                   <SelectItem value="whatsapp" disabled>WhatsApp — em breve</SelectItem>
@@ -143,9 +165,10 @@ export default function NotificationSettings() {
             </div>
             <div className="manual-field-stack">
               <Label>Teste de email</Label>
-              <Button type="button" variant="outline" className="min-h-11 justify-start gap-2" onClick={sendTest} disabled={testing || loading}>
+              <Button type="button" variant="outline" className="min-h-11 justify-start gap-2" onClick={sendTest} disabled={testing || bloqueado}>
                 <Send className="h-4 w-4" /> {testing ? 'A enviar...' : 'Enviar email de teste'}
               </Button>
+              {testError && <p role="alert" className="text-sm text-destructive">{testError}</p>}
               {prefs.email_tested_at && <p className="manual-microcopy flex items-center gap-1 text-success"><CheckCircle2 className="h-3.5 w-3.5" /> Testado com sucesso</p>}
             </div>
           </CardContent>
@@ -158,9 +181,9 @@ export default function NotificationSettings() {
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-3">
             <div className="manual-field-stack">
-              <Label>Antecedência</Label>
-              <Select value={String(prefs.reminder_minutes_before)} onValueChange={(value) => setPrefs((current) => ({ ...current, reminder_minutes_before: Number(value) }))} disabled={loading}>
-                <SelectTrigger className="min-h-11"><SelectValue /></SelectTrigger>
+              <Label htmlFor="notificacoes-antecedencia">Antecedência</Label>
+              <Select value={String(prefs.reminder_minutes_before)} onValueChange={(value) => setPrefs((current) => ({ ...current, reminder_minutes_before: Number(value) }))} disabled={bloqueado}>
+                <SelectTrigger id="notificacoes-antecedencia" className="min-h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="5">5 minutos</SelectItem>
                   <SelectItem value="15">15 minutos</SelectItem>
@@ -170,19 +193,19 @@ export default function NotificationSettings() {
               </Select>
             </div>
             <div className="manual-field-stack">
-              <Label>Não incomodar desde</Label>
-              <Input type="time" className="min-h-11" value={prefs.quiet_hours_start} onChange={(e) => setPrefs((current) => ({ ...current, quiet_hours_start: e.target.value }))} disabled={loading} />
+              <Label htmlFor="notificacoes-inicio">Não incomodar desde</Label>
+              <Input id="notificacoes-inicio" type="time" className="min-h-11" value={prefs.quiet_hours_start} onChange={(e) => setPrefs((current) => ({ ...current, quiet_hours_start: e.target.value }))} disabled={bloqueado} />
             </div>
             <div className="manual-field-stack">
-              <Label>Até</Label>
-              <Input type="time" className="min-h-11" value={prefs.quiet_hours_end} onChange={(e) => setPrefs((current) => ({ ...current, quiet_hours_end: e.target.value }))} disabled={loading} />
+              <Label htmlFor="notificacoes-fim">Até</Label>
+              <Input id="notificacoes-fim" type="time" className="min-h-11" value={prefs.quiet_hours_end} onChange={(e) => setPrefs((current) => ({ ...current, quiet_hours_end: e.target.value }))} disabled={bloqueado} />
             </div>
             <div className="manual-field-stack sm:col-span-3">
               <Label>Dias ativos</Label>
               <div className="flex flex-wrap gap-2">
                 {weekdays.map((day) => (
                   <label key={day.value} className="manual-option-button flex min-h-11 cursor-pointer items-center gap-2 px-3 py-2 text-sm">
-                    <Checkbox checked={prefs.reminder_weekdays.includes(day.value)} onCheckedChange={(checked) => toggleWeekday(day.value, checked === true)} disabled={loading} />
+                    <Checkbox checked={prefs.reminder_weekdays.includes(day.value)} onCheckedChange={(checked) => toggleWeekday(day.value, checked === true)} disabled={bloqueado} />
                     {day.label}
                   </label>
                 ))}
@@ -191,9 +214,10 @@ export default function NotificationSettings() {
           </CardContent>
         </Card>
 
+        {saveError && <Alert variant="destructive"><AlertTitle>Preferências por guardar</AlertTitle><AlertDescription>{saveError}</AlertDescription></Alert>}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="flex items-center gap-2 text-sm text-muted-foreground"><ShieldCheck className="h-4 w-4 text-primary" /> Só são guardadas preferências do utilizador autenticado.</p>
-          <Button type="button" className="min-h-11" onClick={save} disabled={saving || loading}>{saving ? 'A guardar...' : 'Guardar preferências'}</Button>
+          <Button type="button" className="min-h-11" onClick={save} disabled={bloqueado}>{saving ? 'A guardar...' : 'Guardar preferências'}</Button>
         </div>
       </div>
     </main>

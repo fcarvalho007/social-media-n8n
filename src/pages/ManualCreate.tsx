@@ -1207,7 +1207,8 @@ export default function ManualCreate() {
       toast.error('Não foi possível silenciar este tipo de insight.');
       return;
     }
-    await saveAiPreferences({ muted_insight_types: muted });
+    try { await saveAiPreferences({ muted_insight_types: muted }); }
+    catch { toast.error('Não foi possível confirmar as preferências. Recarrega as definições de IA antes de tentar de novo.'); return; }
     setInsightDismissedThisSession(true);
     setActiveInsight(null);
     toast.success('Tipo de insight silenciado.');

@@ -1,0 +1,14 @@
+.hub-local-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem 1rem;
+  padding: .7rem 1rem;
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+  font-size: .75rem;
+  line-height: 1.5;
+}
+.hub-local-banner > span { flex: 1 1 28rem; }
+.hub-local-banner a { padding-block: .25rem; color: inherit; text-decoration: underline; text-underline-offset: .2em; }
+.hub-local-banner a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }

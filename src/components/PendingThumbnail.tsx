@@ -106,17 +106,9 @@ export function PendingThumbnail({
   }, [hasPosterPreview, mediaType, thumbnail]);
 
   return (
-    <div
-      onClick={() => onNavigate(route)}
-      className="group cursor-pointer overflow-hidden rounded-lg border border-border bg-card transition-all hover:border-primary/50 hover:shadow-md"
-      role="button"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') onNavigate(route);
-      }}
-      aria-label={`Abrir ${getTypeLabel(type)} ${id}`}
-    >
-      <div className="relative aspect-square overflow-hidden bg-muted">
+    <div className="group relative overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-primary/50">
+      <button type="button" onClick={() => onNavigate(route)} className="absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" aria-label={`Abrir ${getTypeLabel(type)}: ${captionPreview.split('\n')[0]}`} />
+      <div className="pointer-events-none relative aspect-square overflow-hidden bg-muted">
         {showVisualMedia ? (
           mediaType === 'video' && !hasPosterPreview && !generatedPoster ? (
             <video
@@ -151,7 +143,7 @@ export function PendingThumbnail({
             type="button"
             variant="secondary"
             size="icon"
-            className="absolute right-1.5 top-1.5 z-10 h-8 w-8 shadow-sm"
+            className="pointer-events-auto absolute right-1.5 top-1.5 z-10 size-11 shadow-sm"
             aria-label={`Eliminar ${getTypeLabel(type).toLowerCase()}`}
             title={`Eliminar ${getTypeLabel(type).toLowerCase()}`}
             onClick={(event) => {
@@ -180,7 +172,7 @@ export function PendingThumbnail({
         )}
       </div>
 
-      <div className="space-y-1 border-t border-border/60 p-3">
+      <div className="pointer-events-none relative flex flex-col gap-1 border-t border-border/60 p-3">
         <p className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-5 text-foreground">{captionPreview.split('\n')[0]}</p>
         <p className="truncate text-[11px] font-medium text-muted-foreground">{getTypeLabel(type)} · {dateLabel}</p>
       </div>

@@ -1,153 +1,92 @@
-import { Bell, Check, Trash2, CheckCheck } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Bell, Check, Trash2, CheckCheck, Loader2, RefreshCw, AlertCircle, Clock, UserRound, CircleCheck, CircleAlert, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { useNotifications } from '@/hooks/useNotifications';
-import { formatDistanceToNow } from 'date-fns';
+import { useNotifications, type Notification } from '@/hooks/useNotifications';
+import { formatDistanceToNow, isValid } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { destinoNotificacao } from '@/lib/notificacoes';
+import { toast } from 'sonner';
+
+const ICONES = { deadline: Clock, assignment: UserRound, success: CircleCheck, error: CircleAlert, warning: AlertCircle, info: Info };
+const dataRelativa = (s: string) => {
+  const d = new Date(s);
+  return isValid(d) ? formatDistanceToNow(d, { addSuffix: true, locale: pt }) : 'Data indisponível';
+};
 
 export const NotificationBell = () => {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
+  const { notifications, unreadCount, isLoading, isFetching, error, refetch, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [aAbrir, setAAbrir] = useState<string | null>(null);
+  const seq = useRef(0);
+  useEffect(() => { ++seq.current; setAAbrir(null); }, [user?.id]);
+  useEffect(() => () => { ++seq.current; }, []);
+  const ocupado = markAsRead.isPending || markAllAsRead.isPending || deleteNotification.isPending;
+  const mudarAberto = (v: boolean) => { setOpen(v); if (!v) { ++seq.current; setAAbrir(null); } };
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'deadline':
-        return '⏰';
-      case 'assignment':
-        return '👤';
-      case 'success':
-        return '✅';
-      case 'error':
-        return '❌';
-      case 'warning':
-        return '⚠️';
-      default:
-        return 'ℹ️';
-    }
-  };
-
-  const handleNotificationClick = (notification: any) => {
-    markAsRead.mutate(notification.id);
-    
-    if (notification.related_entity_type === 'task' && notification.related_entity_id) {
-      // Navigate to task - would need project context
-    } else if (notification.related_entity_type === 'project' && notification.related_entity_id) {
-      navigate(`/project/${notification.related_entity_id}`);
+  const abrir = async (n: Notification) => {
+    const meu = ++seq.current;
+    setAAbrir(n.id);
+    try {
+      const destino = await destinoNotificacao(n, async (id) => {
+        const { data, error } = await supabase.from('tasks').select('project_id').eq('id', id).maybeSingle();
+        if (error) throw new Error('Não foi possível abrir a tarefa. Tenta de novo.');
+        return data?.project_id ?? null;
+      });
+      if (seq.current !== meu) return;
+      if (!n.read) markAsRead.mutate(n.id);
+      if (destino) { navigate(destino); mudarAberto(false); }
+    } catch (e) {
+      if (seq.current === meu) toast.error((e as Error).message);
+    } finally {
+      if (seq.current === meu) setAAbrir(null);
     }
   };
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={mudarAberto}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </Badge>
-          )}
+        <Button variant="ghost" size="icon" className="relative min-h-10 min-w-10" aria-label={unreadCount ? `Notificações · ${unreadCount} por ler` : 'Notificações'}>
+          <Bell className="h-5 w-5" aria-hidden />
+          {unreadCount > 0 && <Badge variant="destructive" aria-hidden className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center p-0 text-xs">{unreadCount > 9 ? '9+' : unreadCount}</Badge>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold">Notificações</h3>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => markAllAsRead.mutate()}
-              className="h-8"
-            >
-              <CheckCheck className="h-4 w-4 mr-1" />
-              Marcar todas
-            </Button>
+      <PopoverContent className="w-[min(24rem,calc(100vw-2rem))] p-0" align="end" aria-label="Centro de notificações">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b p-4">
+          <h2 className="font-semibold">Notificações</h2>
+          {unreadCount > 0 && <Button variant="ghost" size="sm" onClick={() => markAllAsRead.mutate()} disabled={ocupado} className="min-h-9 gap-1"><CheckCheck className="h-4 w-4" aria-hidden />Marcar todas como lidas</Button>}
+        </div>
+        <div className="max-h-[min(65dvh,28rem)] overflow-y-auto">
+          {isLoading ? <p role="status" className="flex items-center justify-center gap-2 p-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" aria-hidden />A carregar notificações…</p> : error ? (
+            <div role="alert" className="space-y-3 p-4 text-sm"><p>Não foi possível carregar as notificações.</p><Button size="sm" variant="outline" disabled={isFetching} onClick={() => void refetch()}><RefreshCw className="mr-2 h-4 w-4" aria-hidden />Tentar de novo</Button></div>
+          ) : notifications.length === 0 ? (
+            <div role="status" className="flex flex-col items-center justify-center gap-2 p-8 text-center text-muted-foreground"><Bell className="h-8 w-8" aria-hidden /><p className="text-sm">Sem notificações</p></div>
+          ) : (
+            <ul className="divide-y">
+              {notifications.map((n) => {
+                const Icone = ICONES[n.type] ?? Info;
+                return (
+                  <li key={n.id} className={n.read ? '' : 'bg-primary/5'}>
+                    <button type="button" className="flex min-h-12 w-full gap-3 p-4 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-60" onClick={() => void abrir(n)} disabled={!!aAbrir} aria-label={n.related_entity_id && ['task', 'project'].includes(n.related_entity_type ?? '') ? `Abrir ${n.title}` : `Marcar como lida: ${n.title}`}>
+                      {aAbrir === n.id ? <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-primary" aria-hidden /> : <Icone className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />}
+                      <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-2"><span className="break-words text-sm font-medium">{n.title}</span>{!n.read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Por ler" />}</span><span className="mt-1 block break-words text-sm text-muted-foreground">{n.message}</span><span className="mt-2 block text-xs text-muted-foreground">{aAbrir === n.id ? 'A abrir…' : dataRelativa(n.created_at)}</span></span>
+                    </button>
+                    <div className="flex justify-end gap-1 px-3 pb-2">
+                      {!n.read && <Button variant="ghost" size="icon" className="h-9 w-9" disabled={ocupado} aria-label={`Marcar como lida: ${n.title}`} onClick={() => markAsRead.mutate(n.id)}><Check className="h-4 w-4" aria-hidden /></Button>}
+                      <Button variant="ghost" size="icon" className="h-9 w-9" disabled={ocupado} aria-label={`Apagar notificação: ${n.title}`} onClick={() => deleteNotification.mutate(n.id)}><Trash2 className="h-4 w-4" aria-hidden /></Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
-        
-        <ScrollArea className="h-[400px]">
-          {notifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
-              <Bell className="h-12 w-12 mb-2 opacity-50" />
-              <p>Sem notificações</p>
-            </div>
-          ) : (
-            <div className="divide-y">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-4 hover:bg-accent/50 transition-colors cursor-pointer ${
-                    !notification.read ? 'bg-primary/5' : ''
-                  }`}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="flex gap-3">
-                    <div className="text-2xl flex-shrink-0">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-medium text-sm leading-tight">
-                          {notification.title}
-                        </h4>
-                        {!notification.read && (
-                          <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1" />
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {notification.message}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(notification.created_at), {
-                            addSuffix: true,
-                            locale: pt,
-                          })}
-                        </span>
-                        <div className="flex gap-1">
-                          {!notification.read && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                markAsRead.mutate(notification.id);
-                              }}
-                            >
-                              <Check className="h-3 w-3" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteNotification.mutate(notification.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
       </PopoverContent>
     </Popover>
   );

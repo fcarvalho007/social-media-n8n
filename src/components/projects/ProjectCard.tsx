@@ -10,6 +10,7 @@ interface ProjectCardProps {
   totalTasks: number;
   totalMembers: number;
   daysRemaining: number | null;
+  estadoEstatisticas?: "pronto" | "a_carregar" | "erro";
 }
 
 export const ProjectCard = ({
@@ -18,6 +19,7 @@ export const ProjectCard = ({
   totalTasks,
   totalMembers,
   daysRemaining,
+  estadoEstatisticas = "pronto",
 }: ProjectCardProps) => {
   return (
     <Link to={`/projects/${project.id}`}>
@@ -56,7 +58,7 @@ export const ProjectCard = ({
           </div>
           
           {/* Progress Bar */}
-          <div className="space-y-2">
+          {estadoEstatisticas === "pronto" ? <div className="space-y-2">
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground font-medium">Progresso</span>
               <span className="font-bold text-primary">{completionPercentage}%</span>
@@ -67,11 +69,11 @@ export const ProjectCard = ({
                 style={{ width: `${completionPercentage}%` }}
               />
             </div>
-          </div>
+          </div> : <p role="status" className="text-sm text-muted-foreground">{estadoEstatisticas === "a_carregar" ? "A carregar estatísticas…" : "Estatísticas indisponíveis"}</p>}
         </CardHeader>
         
         <CardContent>
-          <div className="grid grid-cols-3 gap-4 text-center mb-4">
+          {estadoEstatisticas === "pronto" && <div className="grid grid-cols-3 gap-4 text-center mb-4">
             <div className="space-y-1">
               <div className="flex items-center justify-center gap-1 text-muted-foreground">
                 <CheckSquare className="h-4 w-4" />
@@ -95,7 +97,7 @@ export const ProjectCard = ({
               <p className="text-2xl font-bold text-primary">{daysRemaining}</p>
               <p className="text-xs text-muted-foreground">Dias</p>
             </div>
-          </div>
+          </div>}
 
           {/* Owner Info */}
           <div className="pt-3 border-t border-border/50">

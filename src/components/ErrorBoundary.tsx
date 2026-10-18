@@ -5,6 +5,7 @@ import { eErroDeChunk, tentarRecarga } from '@/lib/recargaBuild';
 
 interface Props {
   children: ReactNode;
+  inline?: boolean;
 }
 
 interface State {
@@ -31,14 +32,14 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       const versao = eErroDeChunk(this.state.error);
       return (
-        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <div role="alert" className={`flex items-center justify-center bg-background p-6 ${this.props.inline ? 'min-h-80' : 'min-h-screen'}`}>
           <div className="max-w-md text-center">
             <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">{versao ? "Há uma nova versão da app" : "Algo correu mal"}</h2>
+            <h1 className="text-2xl font-bold mb-2">{versao ? "Há uma nova versão da app" : "Não foi possível abrir esta página"}</h1>
             <p className="text-muted-foreground mb-4">
               {versao
                 ? "Não foi possível abrir esta página automaticamente. Recarrega para continuar; o texto que estavas a escrever nos editores e na fonte do carrossel fica guardado neste dispositivo."
-                : "Recarrega a página. Se o problema persistir, contacta o suporte."}
+                : "Tenta carregar a página de novo. Se o problema continuar, podes abrir outra área pelo menu."}
             </p>
             {this.state.error && (
               <details className="mb-4 text-left bg-muted p-3 rounded-lg text-xs">
@@ -49,7 +50,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </details>
             )}
             <Button
-              onClick={() => { window.location.href = window.location.pathname + '?cb=' + Date.now(); }}
+              onClick={() => { window.location.href = urlRecarga(window.location.href); }}
               className="px-6"
             >
               Recarregar página
@@ -61,4 +62,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return this.props.children;
   }
+}
+
+/** Preserve editor IDs, filters and fragments while bypassing a stale app shell. */
+export function urlRecarga(href: string): string {
+  const url = new URL(href);
+  url.searchParams.set('cb', String(Date.now()));
+  return url.href;
 }
