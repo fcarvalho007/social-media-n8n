@@ -2,18 +2,19 @@
 
 ## Instalação autorizada campanhas e isolamento 18/10/2026
 - [x] Confirmar HEAD e árvore autorizados
-- [ ] Auditar dependências e aplicar apenas pré-requisitos/0064/0065 em falta
-- [ ] Instalar duas funções Hub e dez funções sociais autorizadas
-- [ ] Verificar HTTP, isolamento real e leituras sociais sem publicação
-- [ ] Verificar entradas autenticadas e persistência apenas em contexto sintético apropriado
-- [ ] Executar testes pertinentes e reportar compilação, segurança e cron/worker
+- [x] Auditar dependências e aplicar pré-requisitos e DDL 0064/0065 em falta (0064–0066 Cloud)
+- [x] Instalar duas funções Hub e dez funções sociais autorizadas
+- [x] Verificar HTTP, isolamento real com rollback e leituras sociais sem publicação
+- [x] Verificar entradas autenticadas: bloqueadas na pré-visualização sem variável de produção; sem campanha sintética
+- [x] Executar 115 testes, 51 repetidos e grafo Edge de 255 ficheiros; consultar segurança e cron/worker
+- [ ] Desativar send-scheduled-posts em Cloud → Jobs — bloqueado: UPDATE cron.job recusado por ambas as ferramentas (42501); endpoint retirado instalado, sem invocação
 
 ## Instalação consolidada Hub 18/10/2026
 - [x] Confirmar commit/árvore e auditar compatibilidade Cloud
 - [x] Aplicar 0062/0063 compatíveis, bucket privado e cron desligado
 - [x] Publicar as duas funções Hub da correção 958ccf05, sem regenerar código
 - [x] Validar HTTP real: API anónima 401, worker anónimo 401, origem estranha 403
-- [ ] Ativar URL pública — bloqueado: leitura autenticada de operacao/estado devolve 422, Buffer is not defined
+- [x] URL pública já configurada em .env.production e preservada; operacao/estado autenticado 200 em 18/10/2026
 - [x] Instalar configuração privada do worker desligado; auditar RLS/bucket/cron privado/inativo e zero jobs
 - [x] Executar 26 testes isolados; auditar RLS, bucket privado, cron inativo e ausência de jobs
 - [x] Relatar publicação manual e limitação de importação privada

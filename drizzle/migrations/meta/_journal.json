@@ -449,6 +449,27 @@
       "when": 1792350466806,
       "tag": "0063_hub_worker_nuvem_cloud",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1792362182249,
+      "tag": "0064_hub_isolamento_colunas_preflight",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1792362268134,
+      "tag": "0065_publicacao_segura_cloud",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1792362294837,
+      "tag": "0066_isolamento_social",
+      "breakpoints": true
     }
   ]
 }
