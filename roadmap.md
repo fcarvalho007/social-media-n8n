@@ -3,8 +3,9 @@
 ## Instalação consolidada Hub 18/10/2026
 - [x] Confirmar commit/árvore e auditar compatibilidade Cloud
 - [x] Aplicar 0062/0063 compatíveis, bucket privado e cron desligado
-- [ ] Publicar as duas funções Hub — bloqueado: 8,1 MB por função excede limite de cerca de 4,5 MB
-- [ ] Configurar URL pública/worker e verificar acesso no alojamento — depende dos dois deploys
+- [x] Publicar as duas funções Hub da correção cd47a11, sem regenerar código
+- [ ] Ativar URL pública e validar acesso anónimo — bloqueado: ambas as funções devolvem 500 no arranque (Cannot find module 'jsdom'); .env.production retirado
+- [x] Auditar RLS/bucket/cron: privado, sem escrita de clientes, cron inativo, zero jobs/configurações ativas
 - [x] Executar 26 testes isolados; auditar RLS, bucket privado, cron inativo e ausência de jobs
 - [x] Relatar publicação manual e limitação de importação privada
 
