@@ -25,3 +25,4 @@
 - Animated media uses a still+MP4 pair; GIPHY shares it. Paid/redesign AI images are tracked, never auto-applied; redesign returns two text-free images under editable copy.
 - Visual system keeps direction, typography (sistema.tipografia) and palette as independent choices; absent tipografia falls back to the style's legacy pair so old documents render unchanged.
 - Subdirectories (e.g. supabase/functions/) have their own AGENTS.md; read it before changing files there.
+- Hub production may enable its public endpoint only after both native functions deploy successfully; never use local-mode aliases or edit the managed .env.

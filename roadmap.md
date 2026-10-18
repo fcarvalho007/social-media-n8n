@@ -1,5 +1,13 @@
 # Roadmap
 
+## Instalação consolidada Hub 18/10/2026
+- [x] Confirmar commit/árvore e auditar compatibilidade Cloud
+- [x] Aplicar 0062/0063 compatíveis, bucket privado e cron desligado
+- [ ] Publicar as duas funções Hub — bloqueado: 8,1 MB por função excede limite de cerca de 4,5 MB
+- [ ] Configurar URL pública/worker e verificar acesso no alojamento — depende dos dois deploys
+- [x] Executar 26 testes isolados; auditar RLS, bucket privado, cron inativo e ausência de jobs
+- [x] Relatar publicação manual e limitação de importação privada
+
 ## Complemento obrigatório 319 — verificação final
 - [x] Confirmar três Briefs anónimos com noindex/nofollow e proteção dos restantes
 - [x] Verificar HTML/texto/site/preview backup, fontes, formação e leituras literais; leitura direta LearnDash devolve 403, sem nova escrita
