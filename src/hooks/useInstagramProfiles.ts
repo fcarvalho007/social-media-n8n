@@ -50,7 +50,7 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
         .select("*")
         .eq("user_id", user.id)
         .order("scraped_at", { ascending: false });
-      if(projectId) query=query.eq('project_id',projectId);
+      if(projectId) query=query.filter('project_id','eq',projectId);
       const {data,error}=await query;
 
       if (error) throw error;
