@@ -534,6 +534,316 @@ export type Database = {
         }
         Relationships: []
       }
+      hub_documentos: {
+        Row: {
+          atualizado_em: string
+          capa_path: string | null
+          criado_em: string
+          criado_por: string
+          dados: Json
+          hash: string
+          id: string
+          pdf_path: string
+          project_id: string
+          revisao: number
+        }
+        Insert: {
+          atualizado_em?: string
+          capa_path?: string | null
+          criado_em?: string
+          criado_por: string
+          dados: Json
+          hash: string
+          id: string
+          pdf_path: string
+          project_id: string
+          revisao?: number
+        }
+        Update: {
+          atualizado_em?: string
+          capa_path?: string | null
+          criado_em?: string
+          criado_por?: string
+          dados?: Json
+          hash?: string
+          id?: string
+          pdf_path?: string
+          project_id?: string
+          revisao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_documentos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_editorial_artefactos: {
+        Row: {
+          chave: string
+          criado_em: string
+          dados: Json
+          project_id: string
+          tipo: string
+        }
+        Insert: {
+          chave: string
+          criado_em?: string
+          dados: Json
+          project_id: string
+          tipo: string
+        }
+        Update: {
+          chave?: string
+          criado_em?: string
+          dados?: Json
+          project_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_editorial_artefactos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_editorial_estados: {
+        Row: {
+          atualizado_em: string
+          dados: Json
+          project_id: string
+          revisao: number
+        }
+        Insert: {
+          atualizado_em?: string
+          dados: Json
+          project_id: string
+          revisao?: number
+        }
+        Update: {
+          atualizado_em?: string
+          dados?: Json
+          project_id?: string
+          revisao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_editorial_estados_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_jobs: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          dedup: string
+          erro: string | null
+          estado: string
+          id: string
+          lease_ate: string | null
+          lease_token: string | null
+          pedido: Json
+          project_id: string
+          proximo_em: string
+          resultado: Json | null
+          tentativas: number
+          tipo: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          dedup: string
+          erro?: string | null
+          estado?: string
+          id?: string
+          lease_ate?: string | null
+          lease_token?: string | null
+          pedido: Json
+          project_id: string
+          proximo_em?: string
+          resultado?: Json | null
+          tentativas?: number
+          tipo: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          dedup?: string
+          erro?: string | null
+          estado?: string
+          id?: string
+          lease_ate?: string | null
+          lease_token?: string | null
+          pedido?: Json
+          project_id?: string
+          proximo_em?: string
+          resultado?: Json | null
+          tentativas?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_leases: {
+        Row: {
+          ate: string
+          project_id: string
+          recurso: string
+          token: string
+        }
+        Insert: {
+          ate: string
+          project_id: string
+          recurso: string
+          token: string
+        }
+        Update: {
+          ate?: string
+          project_id?: string
+          recurso?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_leases_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_operacao: {
+        Row: {
+          agenda_documentos: Json | null
+          atualizado_em: string
+          pausado: boolean
+          project_id: string
+        }
+        Insert: {
+          agenda_documentos?: Json | null
+          atualizado_em?: string
+          pausado?: boolean
+          project_id: string
+        }
+        Update: {
+          agenda_documentos?: Json | null
+          atualizado_em?: string
+          pausado?: boolean
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_operacao_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_publicacoes: {
+        Row: {
+          assinatura: string
+          atualizado_em: string
+          criado_em: string
+          destino: string
+          estado: string
+          id: string
+          pauta_id: string
+          project_id: string
+          remoto_id: number | null
+          remoto_modificado_em: string | null
+          remoto_url: string | null
+          site_id: string
+          versao: number
+        }
+        Insert: {
+          assinatura: string
+          atualizado_em?: string
+          criado_em?: string
+          destino?: string
+          estado: string
+          id?: string
+          pauta_id: string
+          project_id: string
+          remoto_id?: number | null
+          remoto_modificado_em?: string | null
+          remoto_url?: string | null
+          site_id: string
+          versao: number
+        }
+        Update: {
+          assinatura?: string
+          atualizado_em?: string
+          criado_em?: string
+          destino?: string
+          estado?: string
+          id?: string
+          pauta_id?: string
+          project_id?: string
+          remoto_id?: number | null
+          remoto_modificado_em?: string | null
+          remoto_url?: string | null
+          site_id?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_publicacoes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_recolhas: {
+        Row: {
+          criado_em: string
+          dados: Json
+          id: string
+          project_id: string
+        }
+        Insert: {
+          criado_em?: string
+          dados: Json
+          id: string
+          project_id: string
+        }
+        Update: {
+          criado_em?: string
+          dados?: Json
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_recolhas_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       idempotency_keys: {
         Row: {
           created_at: string | null
@@ -5575,6 +5885,80 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      hub_enfileirar: {
+        Args: { _dedup: string; _pedido: Json; _projeto: string; _tipo: string }
+        Returns: string
+      }
+      hub_estado_guardar: {
+        Args: {
+          _dados: Json
+          _projeto: string
+          _revisao: number
+          _token: string
+        }
+        Returns: number
+      }
+      hub_job_adiar: {
+        Args: { _id: string; _pedido: Json; _resultado: Json; _token: string }
+        Returns: boolean
+      }
+      hub_job_concluir: {
+        Args: { _estado: string; _id: string; _resultado: Json; _token: string }
+        Returns: boolean
+      }
+      hub_job_progresso: {
+        Args: { _id: string; _resultado: Json; _token: string }
+        Returns: boolean
+      }
+      hub_job_renovar: {
+        Args: { _id: string; _token: string }
+        Returns: boolean
+      }
+      hub_job_reservar: {
+        Args: { _tipos?: string[] }
+        Returns: {
+          atualizado_em: string
+          criado_em: string
+          dedup: string
+          erro: string | null
+          estado: string
+          id: string
+          lease_ate: string | null
+          lease_token: string | null
+          pedido: Json
+          project_id: string
+          proximo_em: string
+          resultado: Json | null
+          tentativas: number
+          tipo: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "hub_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      hub_lease_libertar: {
+        Args: { _projeto: string; _recurso: string; _token: string }
+        Returns: undefined
+      }
+      hub_lease_renovar: {
+        Args: { _projeto: string; _recurso: string; _token: string }
+        Returns: boolean
+      }
+      hub_lease_reservar: {
+        Args: { _projeto: string; _recurso: string; _segundos?: number }
+        Returns: string
+      }
+      hub_operacao_definir: {
+        Args: { _pausado: boolean; _projeto: string }
+        Returns: undefined
+      }
+      hub_restaurar: {
+        Args: { _owner: string; _projeto: string; _tabelas: Json }
         Returns: boolean
       }
       log_ai_usage: {
