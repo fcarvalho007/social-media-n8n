@@ -5209,17 +5209,17 @@ async function carregarCatalogo(banco, userId, projeto, estadoSeo, documentos) {
     }, "pdf"],
     ["Not\xEDcias", async () => {
       const rows = await linhas("nl_noticias", "id,titulo,descricao,corpo_artigo,updated_at", (q) => q, "Not\xEDcias", "noticia");
-      for (const r of rows) itens.push({ id: `noticia:${r.id}`, tipo: "noticia", titulo: r.titulo, texto: `${r.descricao ?? ""} ${r.corpo_artigo ?? ""}`, atualizadoEm: r.updated_at ?? "", contexto: "Curadoria partilhada \xB7 acesso da conta", url: `/curadoria?noticia=${encodeURIComponent(r.id)}` });
+      for (const r of rows) itens.push({ id: `noticia:${r.id}`, tipo: "noticia", titulo: r.titulo ?? "", texto: `${r.descricao ?? ""} ${r.corpo_artigo ?? ""}`, atualizadoEm: r.updated_at ?? "", contexto: "Curadoria partilhada \xB7 acesso da conta", url: `/curadoria?noticia=${encodeURIComponent(r.id)}` });
     }, "noticia"],
     ["Artigos", async () => {
       const [e, rows] = await Promise.all([estadoSeo(), linhas("art_rascunhos", "id,titulo,resumo,corpo,updated_at", (q) => q.eq("project_id", projeto).eq("created_by", userId), "Textos de artigos", "artigo")]);
       for (const p of e.pautas) itens.push({ id: `pauta:${p.id}`, tipo: "artigo", titulo: p.texto?.titulo || p.titulo, texto: [p.palavra, p.contributo, p.objetivo, p.texto?.resumo, p.texto?.corpo].filter(Boolean).join(" "), atualizadoEm: p.alteradoEm, contexto: `${e.sites.find((s) => s.id === p.siteId)?.dominio ?? p.siteId} \xB7 plano editorial`, url: `/artigos/plano?id=${encodeURIComponent(p.id)}&secao=texto` });
       for (const c of e.campanhas ?? []) for (const p of c.pecas) itens.push({ id: `campanha:${c.id}:${p.tipo}`, tipo: p.tipo === "artigo" ? "artigo" : "social", titulo: `${c.nome} \xB7 ${p.titulo}`, texto: [p.papel, p.texto, p.cta, c.angulo].join(" "), atualizadoEm: c.alteradoEm, contexto: `Campanha \xB7 ${p.tipo === "newsletter" ? "proposta para newsletter" : p.tipo} \xB7 rascunho`, url: `/campanhas/${encodeURIComponent(c.id)}?peca=${p.tipo}` });
-      for (const r of rows) itens.push({ id: `artigo:${r.id}`, tipo: "artigo", titulo: r.titulo, texto: `${r.resumo ?? ""} ${r.corpo ?? ""}`, atualizadoEm: r.updated_at, contexto: "Texto guardado \xB7 projeto atual", url: `/artigos?id=${encodeURIComponent(r.id)}` });
+      for (const r of rows) itens.push({ id: `artigo:${r.id}`, tipo: "artigo", titulo: r.titulo ?? "", texto: `${r.resumo ?? ""} ${r.corpo ?? ""}`, atualizadoEm: r.updated_at ?? "", contexto: "Texto guardado \xB7 projeto atual", url: `/artigos?id=${encodeURIComponent(r.id)}` });
     }, "artigo"],
     ["Rascunhos sociais", async () => {
       const rows = await linhas("posts_drafts", "id,caption,platform,updated_at", (q) => q.eq("project_id", projeto).eq("user_id", userId), "Rascunhos sociais", "social");
-      for (const r of rows) itens.push({ id: `social:${r.id}`, tipo: "social", titulo: (r.caption || "Rascunho social").slice(0, 95), texto: r.caption ?? "", atualizadoEm: r.updated_at, contexto: `${r.platform} \xB7 rascunho`, url: `/drafts?draft=${encodeURIComponent(r.id)}` });
+      for (const r of rows) itens.push({ id: `social:${r.id}`, tipo: "social", titulo: (r.caption || "Rascunho social").slice(0, 95), texto: r.caption ?? "", atualizadoEm: r.updated_at ?? "", contexto: `${r.platform} \xB7 rascunho`, url: `/drafts?draft=${encodeURIComponent(r.id)}` });
     }, "social"],
     ["Compositor visual", async () => {
       const docs = await linhas("mc_documentos", "id,proposta_id,versao_actual,actualizado_em", (q) => q.eq("project_id", projeto), "Compositor visual", "social");
@@ -5227,7 +5227,7 @@ async function carregarCatalogo(banco, userId, projeto, estadoSeo, documentos) {
         const lote = docs.slice(inicio, inicio + 40);
         const propostas = await banco.from("mc_propostas").select("id,trabalho_id").in("id", [...new Set(lote.map((d) => d.proposta_id))]);
         if (propostas.error) throw new Error("Compositor indispon\xEDvel.");
-        const atuais = lote.filter((d) => d.versao_actual > 0 && /^[0-9a-f-]{36}$/i.test(d.id));
+        const atuais = lote.filter((d) => typeof d.versao_actual === "number" && d.versao_actual > 0 && /^[0-9a-f-]{36}$/i.test(d.id));
         if (!atuais.length) continue;
         const versoes = await banco.from("mc_documentos_versoes").select("documento_id,versao,documento").or(atuais.map((d) => `and(documento_id.eq.${d.id},versao.eq.${d.versao_actual})`).join(","));
         if (versoes.error) throw new Error("Vers\xF5es do compositor indispon\xEDveis.");
@@ -5236,7 +5236,7 @@ async function carregarCatalogo(banco, userId, projeto, estadoSeo, documentos) {
           const v = versoes.data?.find((v2) => v2.documento_id === d.id && v2.versao === d.versao_actual);
           if (!trabalho || !v) continue;
           const texto3 = textoSocial(v.documento);
-          itens.push({ id: `visual:${d.id}`, tipo: "social", titulo: texto3.trim().slice(0, 95) || "Composi\xE7\xE3o visual", texto: texto3, atualizadoEm: d.actualizado_em, contexto: `Compositor \xB7 vers\xE3o ${d.versao_actual}`, url: `/estudio/carrosseis/${encodeURIComponent(trabalho)}` });
+          itens.push({ id: `visual:${d.id}`, tipo: "social", titulo: texto3.trim().slice(0, 95) || "Composi\xE7\xE3o visual", texto: texto3, atualizadoEm: d.actualizado_em ?? "", contexto: `Compositor \xB7 vers\xE3o ${d.versao_actual}`, url: `/estudio/carrosseis/${encodeURIComponent(trabalho)}` });
         }
       }
     }, "social"],
@@ -5246,7 +5246,7 @@ async function carregarCatalogo(banco, userId, projeto, estadoSeo, documentos) {
         const d = r.divulgacao?.composicoes?.[peca];
         const texto3 = textoSocial(d ?? (peca === "story" ? r.divulgacao?.story : r.carrossel));
         if (!texto3.trim()) continue;
-        itens.push({ id: `newsletter:${r.id}:${peca}`, tipo: "social", titulo: `${peca === "story" ? "Story" : "Carrossel"} \xB7 ${texto3.trim().slice(0, 85)}`, texto: texto3, atualizadoEm: r.actualizado_em, contexto: "Divulga\xE7\xE3o da newsletter \xB7 compositor", url: `/estudio/redes-sociais/${encodeURIComponent(r.id)}?compositor=${peca}&peca=${peca}` });
+        itens.push({ id: `newsletter:${r.id}:${peca}`, tipo: "social", titulo: `${peca === "story" ? "Story" : "Carrossel"} \xB7 ${texto3.trim().slice(0, 85)}`, texto: texto3, atualizadoEm: r.actualizado_em ?? "", contexto: "Divulga\xE7\xE3o da newsletter \xB7 compositor", url: `/estudio/redes-sociais/${encodeURIComponent(r.id)}?compositor=${peca}&peca=${peca}` });
       }
     }, "social"]
   ];
