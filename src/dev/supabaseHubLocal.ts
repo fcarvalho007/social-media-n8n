@@ -13,7 +13,7 @@ export function criarClienteHubLocal(storage?: Pick<Storage, "getItem" | "setIte
   const noticias = criarNoticiasHub();
   try {
     const salvo = JSON.parse(storage?.getItem(CHAVE) ?? "null");
-    for (const t of gravaveis) if (Array.isArray(salvo?.[t])) tabelas[t] = salvo[t];
+    for (const t of gravaveis) if (Array.isArray(salvo?.[t])) tabelas[t] = t === 'art_rascunhos' ? salvo[t].map((r: DemoRow) => ({ ...r, created_by: r.created_by ?? r.user_id ?? DEMO_USER_ID })) : salvo[t];
   } catch { /* A malformed local demo starts from its synthetic fixtures. */ }
   const guardar = () => { try { storage?.setItem(CHAVE, JSON.stringify(Object.fromEntries([...gravaveis].map((t) => [t, tabelas[t]])))); } catch { /* Memory still works with unavailable browser storage. */ } };
 

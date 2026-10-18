@@ -1,7 +1,7 @@
 import {
   BarChart3, Bell, Calendar, CheckCircle2, Euro, FileText, FolderKanban,
   GalleryHorizontal, History, Image, KeyRound, LayoutDashboard, Lightbulb,
-  Mail, PlusCircle, Settings, ShieldCheck, Sparkles, Users, Video,
+  Mail, Search, Route, PlusCircle, Settings, SlidersHorizontal, ShieldCheck, Sparkles, Users, Video,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { SEO_DISPONIVEL } from '@/features/seo/local';
@@ -21,7 +21,11 @@ export interface DestinoNavegacao {
 /** One vocabulary for navigation, search, page titles and breadcrumbs. */
 export const DESTINOS_NAVEGACAO: DestinoNavegacao[] = [
   { label: 'Início', url: '/', descricao: 'Retomar trabalho e escolher projeto', grupo: 'Trabalho', icon: LayoutDashboard },
+  { label: 'Pesquisar no Hub', url: '/pesquisa', descricao: 'Pesquisar texto em PDFs, notícias, artigos e peças sociais', grupo: 'Trabalho', icon: Search, palavrasChave: ['pesquisa transversal','encontrar','busca'] },
+  ...(SEO_DISPONIVEL ? [{ label: 'Percurso editorial', url: '/artigos/percurso', pai: '/artigos', descricao: 'Fonte, pesquisa, artigo, aprovação, publicação e resultados', grupo: 'Trabalho' as const, icon: Route }] : []),
+  ...(SEO_DISPONIVEL ? [{ label: 'Sites e regras', url: '/artigos/sites', pai: '/artigos', descricao: 'Configuração guiada de público, voz, temas, oferta, frequência e aprovação', grupo: 'Trabalho' as const, icon: SlidersHorizontal, palavrasChave: ['configurar site','assistente','público','voz','temas','oferta','frequência','aprovação'] }] : []),
   { label: 'Curadoria', url: '/curadoria', descricao: 'Escolher notícias, emails e documentos para criar conteúdo', grupo: 'Trabalho', icon: CheckCircle2 },
+  ...(SEO_DISPONIVEL ? [{label:'Campanhas',url:'/campanhas',descricao:'Criar artigo, newsletter, carrossel, Story e continuidade a partir de uma descoberta',grupo:'Trabalho' as const,icon:Route,palavrasChave:['campanha','descoberta','sequência','multicanal']}] : []),
   { label: 'Criar publicação social', url: '/pending?tab=create', descricao: 'Redes sociais: criação manual ou com IA', grupo: 'Trabalho', icon: PlusCircle },
   { label: 'Conteúdos visuais', url: '/estudio/carrosseis', descricao: 'Carrosséis, posts e stories', grupo: 'Trabalho', icon: GalleryHorizontal },
   { label: 'Roteiros de Reels', url: '/estudio/roteiros', descricao: 'Escrever e preparar a gravação', grupo: 'Trabalho', icon: Video },
@@ -49,8 +53,8 @@ export const DESTINOS_NAVEGACAO: DestinoNavegacao[] = [
 
 /** Main tasks remain visible; account options live together in the footer. */
 export const SECOES_NAVEGACAO = [
-  { titulo: 'Recolher conteúdo', urls: ['/curadoria', ...(DOCUMENTOS_DISPONIVEL ? ['/curadoria/documentos'] : [])] },
-  { titulo: 'Criar conteúdo', urls: ['/newsletter', '/estudio/redes-sociais', '/artigos', '/estudio/carrosseis', '/estudio/roteiros'] },
+  { titulo: 'Recolher conteúdo', urls: ['/pesquisa', '/curadoria', ...(DOCUMENTOS_DISPONIVEL ? ['/curadoria/documentos'] : [])] },
+  { titulo: 'Criar conteúdo', urls: [...(SEO_DISPONIVEL ? ['/campanhas'] : []), '/newsletter', '/estudio/redes-sociais', '/artigos', ...(SEO_DISPONIVEL ? ['/artigos/percurso','/artigos/sites'] : []), '/estudio/carrosseis', '/estudio/roteiros'] },
   { titulo: 'Rever e publicar nas redes', urls: ['/drafts', '/pending', '/calendar', '/publication-history'] },
   { titulo: 'Organizar', urls: ['/projects', '/media-library'] },
   { titulo: 'Resultados e custos', urls: ['/analytics', '/insights', '/benchmark', '/custos'] },
@@ -104,11 +108,13 @@ export function migalhasNavegacao(pathname: string, search = ''): Migalha[] {
   if (pathname.startsWith('/estudio/carrosseis/')) return detalhe('/estudio/carrosseis', 'Compositor');
   if (pathname.startsWith('/estudio/redes-sociais/')) return detalhe('/estudio/redes-sociais', 'Compositor');
   if (pathname.startsWith('/estudio/roteiros/')) return detalhe('/estudio/roteiros', pathname.endsWith('/novo') ? 'Novo roteiro' : 'Editor');
+  if(pathname.startsWith('/campanhas/')) return detalhe('/campanhas',pathname.endsWith('/nova')?'Nova campanha':pathname.includes('/compositor/')?'Compositor':'Detalhe da campanha');
   if (pathname.startsWith('/artigos/')) {
-    const nomes: Record<string,string> = {pesquisa:'Pesquisa SEO',plano:'Plano editorial',automacao:'Automação',custos:'Custos de pesquisa'};
+    const nomes: Record<string,string> = {sites:'Sites e regras',percurso:'Percurso editorial',pesquisa:'Pesquisa SEO',plano:'Plano editorial',automacao:'Automação',custos:'Custos de pesquisa'};
     const migalhas = detalhe('/artigos',nomes[pathname.split('/')[2]] ?? 'Artigo');
     const secoes: Record<string,string> = {conhecimento:'Conhecimento da marca',limites:'Serviços e limites',ciclos:'Ciclos de produção'};
     const label = pathname === '/artigos/plano' && params.has('id') ? (params.get('secao') === 'texto' ? 'Rever artigo' : 'Preparar artigo') : pathname === '/artigos/automacao' ? secoes[params.get('secao') ?? ''] : null;
+    if (pathname.startsWith('/artigos/sites/')) { migalhas[migalhas.length-1].path = '/artigos/sites'; migalhas.push({label:'Configuração guiada',path:null}); }
     if (label) { migalhas[migalhas.length-1].path = pathname; migalhas.push({label,path:null}); }
     return migalhas;
   }

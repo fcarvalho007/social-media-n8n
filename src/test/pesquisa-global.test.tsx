@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GlobalSearch } from '@/components/GlobalSearch';
 
 const mocks = vi.hoisted(() => ({ projects: vi.fn(), tasks: vi.fn() }));
+vi.mock('@/features/percurso/api', () => ({ usePesquisaHub: () => ({ data: undefined, pronto: false, aPesquisar: false }) }));
 vi.mock('@/hooks/useProjects', () => ({ useProjects: mocks.projects }));
 vi.mock('@/hooks/useTasks', () => ({ useTasks: mocks.tasks }));
 beforeAll(() => {

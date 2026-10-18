@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useProjeto } from '@/contexts/ProjetoContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, FileText, Inbox, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,6 +23,8 @@ import {
 
 export default function Drafts() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const encontrado = params.get('draft');
   
   // Filter states
   const [search, setSearch] = useState('');
@@ -53,6 +55,12 @@ export default function Drafts() {
   } = useDrafts(options);
 
   const ctx = useProjeto();
+  useEffect(() => {
+    if (!encontrado || isLoading) return;
+    const el = document.getElementById(`rascunho-${encontrado}`);
+    el?.scrollIntoView({ block: 'center' });
+    el?.focus({ preventScroll: true });
+  }, [encontrado, isLoading, drafts]);
   // Changing user/project clears selection and filters so nothing from another brand stays selected.
   useEffect(() => {
     setSelectedIds(new Set());
@@ -231,15 +239,14 @@ export default function Drafts() {
           : "space-y-3"
         }>
           {drafts.map((draft) => (
-            <DraftCard
-              key={draft.id}
+            <div key={draft.id} id={`rascunho-${draft.id}`} tabIndex={encontrado === draft.id ? -1 : undefined} className={encontrado === draft.id ? "rounded-xl ring-2 ring-primary ring-offset-2 outline-none" : undefined}><DraftCard
               draft={draft}
               isSelected={selectedIds.has(draft.id)}
               onSelect={handleSelect}
               onEdit={handleEdit}
               onDelete={(id) => setDeleteId(id)}
               view={view}
-            />
+            /></div>
           ))}
         </div>
       )}

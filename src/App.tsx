@@ -55,6 +55,10 @@ const CarrosselTrabalho = lazy(() => import("./pages/CarrosselTrabalho"));
 const Artigos = lazy(() => import("./pages/Artigos"));
 import { SEO_DISPONIVEL } from "./features/seo/local";
 const PesquisaSeo = SEO_DISPONIVEL ? lazy(() => import("./pages/PesquisaSeo")) : () => null;
+const ConfigurarSite = lazy(() => import('./pages/ConfigurarSite'));
+const Campanhas = lazy(() => import('./pages/Campanhas'));
+const PesquisaHub = lazy(() => import('./pages/PesquisaHub'));
+const PercursoEditorial = lazy(() => import('./pages/PercursoEditorial'));
 const PlanoEditorial = SEO_DISPONIVEL ? lazy(() => import("./pages/PlanoEditorial")) : () => null;
 const AutomacaoEditorial = SEO_DISPONIVEL ? lazy(() => import("./pages/AutomacaoEditorial")) : () => null;
 const CustosEditorial = SEO_DISPONIVEL ? lazy(() => import("./pages/CustosEditorial")) : () => null;
@@ -146,9 +150,9 @@ const App = () => (
                   <Route path="/estudio/roteiros" element={<Suspense fallback={<PageLoading />}><Roteiros /></Suspense>} />
                   <Route path="/estudio/roteiros/novo" element={<Suspense fallback={<PageLoading />}><Roteiros /></Suspense>} />
                   <Route path="/estudio/roteiros/:id" element={<Suspense fallback={<PageLoading />}><Roteiros /></Suspense>} />
-                  <Route path="/curadoria" element={<Curadoria />} />
+                  <Route path="/curadoria" element={<Curadoria />} /><Route path="/pesquisa" element={<PesquisaHub />} />
                   <Route path="/artigos" element={<Artigos />} />
-                  {SEO_DISPONIVEL && <><Route path="/artigos/pesquisa" element={<PesquisaSeo />} /><Route path="/artigos/plano" element={<PlanoEditorial />} /><Route path="/artigos/automacao" element={<AutomacaoEditorial />} /><Route path="/artigos/custos" element={<CustosEditorial />} /></>}
+                  {SEO_DISPONIVEL && <><Route path="/artigos/pesquisa" element={<PesquisaSeo />} /><Route path="/artigos/plano" element={<PlanoEditorial />} /><Route path="/artigos/percurso" element={<PercursoEditorial />} /><Route path="/campanhas" element={<Campanhas />} /><Route path="/campanhas/:id" element={<Campanhas />} /><Route path="/campanhas/:id/compositor/:peca" element={<Campanhas />} /><Route path="/artigos/sites" element={<ConfigurarSite />} /><Route path="/artigos/sites/:siteId" element={<ConfigurarSite />} /><Route path="/artigos/automacao" element={<AutomacaoEditorial />} /><Route path="/artigos/custos" element={<CustosEditorial />} /></>}
                   <Route path="/definicoes/seguranca" element={<SegurancaConta />} />
                   <Route path="/estudio/migracao" element={<Navigate to="/newsletter/migracao" replace />} />
                   <Route path="/estudio/ligacoes" element={<Suspense fallback={<PageLoading />}><NewsletterLigacoes /></Suspense>} />

@@ -16,7 +16,7 @@ import { mercados, type OrcamentoSeo, type PedidoSeo, type PesquisaGuardada, typ
 import { dataSeo, estimarPesquisa, euroIndicativo, OPERACOES_SEO, totaisPesquisa, usd, diaLisboa } from '@/features/seo/precos';
 export default function PesquisaSeo(){
  const {data:e,error,isLoading,refetch,atualizar}=useSeo(),[sp,setSp]=useSearchParams(),nav=useNavigate();
- const [site,setSite]=useState(sp.get('site')??'sms'),[op,setOp]=useState<OperacaoSeo>('sugestoes'),[modo,setModo]=useState<ModoSeo>('exemplo'),[mercado,setMercado]=useState<PesquisaSeo['mercado']>('PT'),[termos,setTermos]=useState('sms marketing'),[dominio,setDominio]=useState('smsonline.pt'),[concorrente,setConcorrente]=useState(''),[limite,setLimite]=useState('100'),[renovar,setRenovar]=useState(false);
+ const [site,setSite]=useState(sp.get('site')??'sms'),[op,setOp]=useState<OperacaoSeo>('sugestoes'),[modo,setModo]=useState<ModoSeo>('exemplo'),[mercado,setMercado]=useState<PesquisaSeo['mercado']>('PT'),[termos,setTermos]=useState((sp.get('termo')??'sms marketing').slice(0,80)),[dominio,setDominio]=useState('smsonline.pt'),[concorrente,setConcorrente]=useState(''),[limite,setLimite]=useState('100'),[renovar,setRenovar]=useState(false);
  const [orcamento,setOrcamento]=useState<OrcamentoSeo|null>(null),[ocupado,setOcupado]=useState(false),[erro,setErro]=useState<string|null>(null),[erroPedido,setErroPedido]=useState<string|null>(null),[formAberto,setFormAberto]=useState(!sp.get('resultado'));
  const id=sp.get('resultado'),pedidoId=sp.get('pedido');
  const resultado=useQuery({queryKey:['seo-resultado',id],queryFn:()=>apiSeo<PesquisaGuardada>('resultado',{id}),enabled:!!id,retry:false});

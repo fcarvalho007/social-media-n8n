@@ -7,7 +7,10 @@ import { estruturaAtual } from '../seo/editorial';
 import { estadoInicialSeo } from '../../src/features/seo/catalogo';
 import type { EstadoSeo } from '../../src/features/seo/contratos';
 import { exigirEscrita, FalhaHttp, type ContextoBackend } from './seguranca';
+import { fonteCampanhaNuvem, lerComposicaoCampanha, operarCampanha } from './campanhas';
+import { CampanhasEditorial } from '../seo/campanhas';
 export async function operarSeo(m: MotorSeo, acao: string, a: Record<string, unknown>) {
+    if(acao.startsWith('campanha-')) return operarCampanha(m,acao,a);
     const id = (v: unknown) => z.string().uuid().parse(v), versao = () => z.number().int().positive().parse(a.versao);
     switch (acao) {
         case 'estado': return m.estado();
@@ -24,6 +27,7 @@ export async function operarSeo(m: MotorSeo, acao: string, a: Record<string, unk
         }
         case 'resultado': return m.resultado(id(a.id));
         case 'configuracao': return m.guardarConfiguracao(a.configuracao);
+        case 'configurar-site': return m.configurarSite(z.string().max(80).parse(a.siteId), z.number().int().positive().parse(a.revista), a.definicao, a.confirmacao === true);
         case 'politica': return m.guardarPolitica(z.string().max(80).parse(a.siteId), a.politica, z.number().int().parse(a.revista), a.identidade);
         case 'pauta': return m.guardarPauta(a.pauta);
         case 'planear': return m.planear(id(a.id), z.array(z.string().max(80)).min(1).max(20).parse(a.palavras), z.string().max(80).parse(a.siteId));
@@ -48,7 +52,14 @@ export class ServicoSeo {
                 throw new Error('O histórico editorial não pôde ser lido.');
             const { orcamentos: _, ...e } = (r.data?.dados ?? estadoInicialSeo()) as EstadoSeo;
             const c = this.credenciais();
-            return { ...e, pautas: e.pautas.map(p => ({ ...p, estruturaAtual: estruturaAtual(p, e.sites.find(s => s.id === p.siteId)!) })), ligacao: { dataforseo: !!(c.login && c.password), deepseek: !!c.deepseek, servidorLigado: true }, erroMotor: null };
+            const campanhas=new CampanhasEditorial(new RepositorioSeoNuvem(this.sb,ctx.projeto));
+            return { ...e, revisoesCampanhas:Object.fromEntries(await Promise.all((e.campanhas??[]).map(async p=>[p.id,await campanhas.estadoRevisoes(p,e as EstadoSeo)]))), podeEditar: ctx.escrever, pautas: e.pautas.map(p => ({ ...p, estruturaAtual: estruturaAtual(p, e.sites.find(s => s.id === p.siteId)!) })), ligacao: { dataforseo: !!(c.login && c.password), deepseek: !!c.deepseek, servidorLigado: true }, erroMotor: null };
+        }
+        if(acao==='campanha-fonte')return fonteCampanhaNuvem(ctx,a.fonte);
+        if(acao==='campanha-composicao'){
+            const r=await ctx.user.from('hub_editorial_estados').select('dados').eq('project_id',ctx.projeto).maybeSingle();
+            if(r.error||!r.data)throw new Error('Não foi possível ler a campanha neste projeto.');
+            return lerComposicaoCampanha(ctx,r.data.dados as EstadoSeo,a);
         }
         if (acao === 'resultado') {
             const id = z.string().uuid().parse(a.id), r = await this.sb.from('hub_editorial_artefactos').select('dados').eq('project_id', ctx.projeto).eq('tipo', 'resultado').eq('chave', id).single();
@@ -58,6 +69,11 @@ export class ServicoSeo {
         }
         if (!['ciclo'].includes(acao))
             exigirEscrita(ctx);
+        if(acao==='campanha-criar'){
+            const fonte=await fonteCampanhaNuvem(ctx,a.fonte);
+            if(fonte.hash!==(a.fonte as {hash?:string})?.hash)throw new Error('A descoberta mudou. Reabre a fonte antes de preparar a campanha.');
+            a={...a,fonte};
+        }
         if (acao === 'executar-ciclo') {
             exigirEscrita(ctx);
             const r = await ctx.user.rpc('hub_enfileirar', { _projeto: ctx.projeto, _tipo: 'seo_ciclo', _dedup: `manual:${z.string().uuid().parse(a.pedidoId)}`, _pedido: {} });

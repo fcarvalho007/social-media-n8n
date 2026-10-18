@@ -1,3 +1,4 @@
+import { NoticiaEncontrada } from '@/features/percurso/NoticiaEncontrada';
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -51,6 +52,7 @@ export default function Curadoria() {
           setVersaoLista(v => v + 1);
           toast.success(r.noticias > 0 ? `${r.noticias} ${r.noticias === 1 ? "notícia nova" : "notícias novas"} em «Por rever».` : "Processamento concluído, sem notícias novas.");
         }} />
+        {params.get('noticia') && <NoticiaEncontrada id={params.get('noticia')!} fechar={() => setParams(p => { const n = new URLSearchParams(p); n.delete('noticia'); return n; })} />}
         <CuradoriaNoticias key={versaoLista} />
         {colarAberto && <AdicionarNoticias
           edicaoId={edicao.data?.id ?? null}

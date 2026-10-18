@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ConhecimentoMarca, EstruturaGuardada, GuiaArtigo } from './sequencia';
+import type { Campanha } from '../campanhas/modelo';
 
 export const operacoes = ['sugestoes', 'relacionadas', 'ideias', 'visao', 'dominio', 'lacunas', 'volume', 'serp'] as const;
 export type OperacaoSeo = typeof operacoes[number];
@@ -38,6 +39,7 @@ export interface PoliticaSite {
 export interface SiteEditorial {
   id: string; nome: string; dominio: string; estado: 'piloto' | 'planeado'; publico: string; voz: string;
   objetivo: string; oferta: string; revisaoObrigatoria: boolean; politica: PoliticaSite;
+  configuracaoGuiada?: { concluidaEm: string; revista: number };
   conhecimento?: ConhecimentoMarca;
 }
 export interface FonteEditorial { id: string; titulo: string; url: string; excerto: string; verificadaEm: string; aprovada: boolean }
@@ -82,8 +84,11 @@ export interface EstadoSeo {
   pedidos: PedidoSeo[]; pautas: PautaEditorial[]; auditoria: RegistoAuditoriaSeo[];
   slots: { id: string; siteId: string; em: string; pautaId: string | null; estado: string; detalhe: string }[];
   conta: ContaSeo | null;
+  campanhas?: Campanha[];
 }
 export interface EstadoPublicoSeo extends Omit<EstadoSeo, 'orcamentos'> {
+  podeEditar?: boolean;
+  revisoesCampanhas?: Record<string, Record<string, boolean>>;
   ligacao: { dataforseo: boolean; deepseek: boolean; servidorLigado: boolean }; erroMotor: string | null;
 }
 export interface PesquisaGuardada { id: string; pedidoId: string; pedido: PesquisaSeo; recolhidaEm: string; dados: DadosPesquisa }

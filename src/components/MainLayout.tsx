@@ -13,7 +13,7 @@ export function MainLayout() {
     const migalhas = migalhasNavegacao(pathname, search);
     document.title = `${migalhas.at(-1)?.label ?? 'Início'} · Hub de conteúdo`;
   }, [pathname, search]);
-  const editorIsolado = pathname === '/estudio/editor-prova' || (/^\/estudio\/carrosseis\/[^/]+$/.test(pathname) && pathname !== '/estudio/carrosseis/novo');
+  const editorIsolado = /^\/campanhas\/[^/]+\/compositor\/[^/]+$/.test(pathname) || pathname === '/estudio/editor-prova' || (/^\/estudio\/carrosseis\/[^/]+$/.test(pathname) && pathname !== '/estudio/carrosseis/novo');
 
   return (
     <SidebarProvider defaultOpen={window.innerWidth >= 1024} className="hub-navigation" style={{ '--sidebar-width': '16.25rem' } as CSSProperties}>

@@ -1,3 +1,5 @@
+import { schemaDefinicaoSite, politicaComDefinicao, problemasDefinicao } from '../../src/features/seo/configuracaoSite';
+import { CampanhasEditorial } from './campanhas';
 import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
@@ -32,7 +34,7 @@ export class MotorSeo {
   constructor(raiz:string,private credenciais:()=>CredenciaisSeo,private f:typeof fetch=fetch,private agora:()=>Date=()=>new Date(),armazem?:ArmazemSeo){this.repo=armazem??new RepositorioSeo(raiz);}
   async iniciar(){await this.repo.iniciar();}
   async fechar(){this.fechado=true;await Promise.allSettled([...this.tarefas.values()]);await this.repo.fechar();}
-  async estado():Promise<EstadoPublicoSeo>{const {orcamentos:_,...e}=await this.repo.ler();const c=this.credenciais();return{...e,pautas:e.pautas.map(p=>({...p,estruturaAtual:estruturaAtual(p,siteDe(e,p.siteId))})),ligacao:{dataforseo:!!(c.login&&c.password),deepseek:!!c.deepseek,servidorLigado:true},erroMotor:this.erroMotor};}
+  async estado():Promise<EstadoPublicoSeo>{const {orcamentos:_,...e}=await this.repo.ler();const c=this.credenciais();const campanhas=new CampanhasEditorial(this.repo);return{...e,revisoesCampanhas:Object.fromEntries(await Promise.all((e.campanhas??[]).map(async p=>[p.id,await campanhas.estadoRevisoes(p,e as EstadoSeo)]))),pautas:e.pautas.map(p=>({...p,estruturaAtual:estruturaAtual(p,siteDe(e,p.siteId))})),ligacao:{dataforseo:!!(c.login&&c.password),deepseek:!!c.deepseek,servidorLigado:true},erroMotor:this.erroMotor};}
   private bloqueiosPagamento(e:EstadoSeo,s:SiteEditorial,micro:number,fornecedor:'dataforseo'|'deepseek') {
     const b:string[]=[];const c=this.credenciais();if(fornecedor==='dataforseo'&&(!c.login||!c.password))b.push('Faltam DATAFORSEO_LOGIN e DATAFORSEO_PASSWORD no servidor local.');
     if(fornecedor==='deepseek'&&!c.deepseek)b.push('Falta DEEPSEEK_API_KEY no servidor local.');
@@ -115,6 +117,22 @@ export class MotorSeo {
   async resultado(id:string){const e=await this.repo.ler();if(!e.pedidos.some(p=>p.resultadoId===id))throw new Error('Resultado não encontrado.');return this.repo.resultado(id);}
   async guardarConfiguracao(bruto:unknown){const c=schemaConfiguracaoSeo.parse(bruto) as ConfigGeralSeo;validarConfig(c);return this.repo.alterar(e=>{if(c.revista!==e.configuracao.revista)throw new Error('A configuração mudou noutro separador. Reabre os limites antes de guardar.');e.configuracao={...c,revista:c.revista+1};auditar(e,'configuracao','hub',JSON.stringify(c),this.agora());return e.configuracao;});}
   async guardarPolitica(id:string,bruto:unknown,revista:number,identidade?:unknown){const voz=identidade===undefined?null:z.object({publico:z.string().trim().min(10).max(6000),voz:z.string().trim().min(10).max(6000),objetivo:z.string().trim().min(10).max(6000),oferta:z.string().trim().min(10).max(6000)}).strict().parse(identidade);const p=schemaPoliticaSeo.parse(bruto) as PoliticaSite;return this.repo.alterar(e=>{const s=siteDe(e,id);if(revista!==s.politica.revista)throw new Error('A política mudou noutro separador. Reabre a configuração antes de guardar.');validarPolitica(s,p);if(voz)Object.assign(s,voz);s.politica={...p,revista:s.politica.revista+1};for(const a of e.pautas.filter(a=>a.siteId===id&&a.aprovacao)){a.aprovacao=null;a.estado='aguarda_revisao';a.motivo='Política alterada. É necessária nova revisão.';}auditar(e,'politica_site',id,JSON.stringify(s.politica),this.agora());return s;});}
+  async configurarSite(id:string,revista:number,bruto:unknown,confirmacao=false){
+    if(!confirmacao)throw new Error('Confirma que reveste as definições deste site antes de guardar.');
+    const d=schemaDefinicaoSite.parse(bruto);
+    return this.repo.alterar(e=>{
+      const s=siteDe(e,id);
+      if(revista!==s.politica.revista)throw new Error('O site mudou noutro separador. As tuas alterações foram preservadas; reabre a configuração guardada antes de continuar.');
+      const problemas=problemasDefinicao(d,s);if(problemas.length)throw new Error(problemas.map(p=>p.mensagem).join(' '));
+      const p=politicaComDefinicao(s.politica,d);validarPolitica(s,p);
+      Object.assign(s,{publico:d.publico,objetivo:d.objetivo,voz:d.voz,oferta:d.oferta});
+      s.politica={...p,revista:s.politica.revista+1};
+      s.configuracaoGuiada={concluidaEm:this.agora().toISOString(),revista:s.politica.revista};
+      for(const a of e.pautas.filter(a=>a.siteId===id&&a.aprovacao)){a.aprovacao=null;a.estado='aguarda_revisao';a.motivo='Definições do site alteradas. É necessária nova revisão.';}
+      auditar(e,'site_configurado',id,`Revisão ${s.politica.revista} · ${d.limiteSemanal} artigo(s)/semana · preparação ${d.producao} · publicação ${d.publicacao} · política ${s.politica.ativa?'já ativa':'inativa'}`,this.agora());
+      return s;
+    });
+  }
   async guardarPauta(bruto:unknown){const v=schemaPauta.parse(bruto) as DadosPautaEditorial;return this.repo.alterar(async e=>{const s=siteDe(e,v.siteId);if(v.fontes.reduce((n,f)=>n+f.excerto.length,0)>40000)throw new Error('Usa até 40 000 caracteres de fontes por pauta.');if(new Set(v.fontes.map(f=>f.id)).size!==v.fontes.length)throw new Error('Cada fonte precisa de um identificador diferente.');for(const f of v.fontes)if(f.aprovada&&(!Number.isFinite(Date.parse(f.verificadaEm))||Date.parse(f.verificadaEm)>this.agora().getTime()+300000))throw new Error('Indica uma data de verificação válida para cada fonte aprovada.');
     const antigo=v.id?pautaDe(e,v.id):null;if(antigo&&antigo.versao!==v.versao)throw new Error('A pauta mudou noutro separador. O teu texto continua no formulário; reabre a versão guardada antes de aplicar alterações.');
     const pesquisa=v.pesquisaId?e.pedidos.find(p=>p.resultadoId===v.pesquisaId):null;if(v.pesquisaId&&!pesquisa)throw new Error('A pesquisa de origem não está disponível.');

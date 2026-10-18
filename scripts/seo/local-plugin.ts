@@ -4,7 +4,9 @@ import { setInterval, clearInterval } from 'node:timers';
 import { loadEnv, type Plugin } from 'vite';
 import path from 'node:path';
 import { MotorSeo } from './motor-local';
+import { projetarEstado } from '../backend/percurso';
 import { z } from 'zod';
+import { operarCampanha } from '../backend/campanhas';
 import { guardarCredenciaisLocais, lerCredenciaisLocais } from './credenciais';
 import type { CredenciaisSeo } from './motor-local';
 export function seoLocal():Plugin {
@@ -20,12 +22,14 @@ export function seoLocal():Plugin {
       const host=req.headers.host??'',remoto=req.socket.remoteAddress;
       const loopback=remoto==='127.0.0.1'||remoto==='::1'||remoto==='::ffff:127.0.0.1';
       if(!loopback||req.method!=='POST'||!/^127\.0\.0\.1:\d+$/.test(host)||req.headers.origin!==`http://${host}`||!req.headers['content-type']?.startsWith('application/json')){res.statusCode=403;res.end(JSON.stringify({erro:'Este pedido só pode partir do Hub local.'}));return;}
-      try{await pronto;let corpo='';for await(const parte of req){corpo+=parte;if(Buffer.byteLength(corpo)>300000)throw new Error('O pedido excede o limite local. Reduz os excertos ou a lista.');}const a=JSON.parse(corpo||'{}');if(!a||typeof a!=='object'||Array.isArray(a))throw new Error('Pedido inválido.');
+      try{await pronto;let corpo='';for await(const parte of req){corpo+=parte;if(Buffer.byteLength(corpo)>(req.url?.startsWith('/campanha-composicao-guardar')?1700000:300000))throw new Error('O pedido excede o limite local. Reduz os excertos ou os recursos.');}const a=JSON.parse(corpo||'{}');if(!a||typeof a!=='object'||Array.isArray(a))throw new Error('Pedido inválido.');
+        if(req.url?.startsWith('/campanha-')){res.end(JSON.stringify(await operarCampanha(motor,req.url.split('?')[0].slice(1),a)));return;}
         const id=(v:unknown)=>z.string().uuid().parse(v);let dados:unknown;
         switch(req.url?.split('?')[0]){
           case '/credenciais':{const grava=filaCredenciais.then(async()=>{privadas=await guardarCredenciaisLocais(raiz,privadas,a.credenciais);});filaCredenciais=grava.catch(()=>{});await grava;dados={guardado:true};break;}
           case '/pausar':dados=await motor.pausar();break;
           case '/estado':dados=await motor.estado();break;
+          case '/percurso':dados=projetarEstado(await motor.estado(),[],false,true);break;
           case '/orcamento':dados=await motor.orcamentarPesquisa(a.pesquisa);break;
           case '/conhecimento':dados=await motor.guardarConhecimento(z.string().max(80).parse(a.siteId),a.conhecimento);break;
           case '/usar-conhecimento':dados=await motor.usarConhecimento(id(a.id),z.number().int().parse(a.versao));break;
@@ -35,6 +39,7 @@ export function seoLocal():Plugin {
           case '/executar':dados=await motor.executar(id(a.id),a.confirmar===true);break;
           case '/resultado':dados=await motor.resultado(id(a.id));break;
           case '/configuracao':dados=await motor.guardarConfiguracao(a.configuracao);break;
+          case '/configurar-site':dados=await motor.configurarSite(z.string().max(80).parse(a.siteId),z.number().int().positive().parse(a.revista),a.definicao,a.confirmacao===true);break;
           case '/politica':dados=await motor.guardarPolitica(z.string().max(80).parse(a.siteId),a.politica,z.number().int().parse(a.revista),a.identidade);break;
           case '/pauta':dados=await motor.guardarPauta(a.pauta);break;
           case '/planear':dados=await motor.planear(id(a.id),z.array(z.string().max(80)).min(1).max(20).parse(a.palavras),z.string().max(80).parse(a.siteId));break;

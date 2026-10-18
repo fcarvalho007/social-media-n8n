@@ -15,6 +15,7 @@ export const BACKEND_NUVEM = !!BACKEND_HUB_URL && !MODO_HUB_LOCAL;
 export async function pedidoBackend(caminho: string, corpo: Record<string, unknown> | FormData = {}, opcoes: {
     projeto?: string;
     timeout?: number;
+    signal?: AbortSignal;
 } = {}): Promise<Response> {
     if (!BACKEND_HUB_URL)
         throw new Error('O serviço editorial ainda não foi configurado.');
@@ -29,7 +30,7 @@ export async function pedidoBackend(caminho: string, corpo: Record<string, unkno
     const form = corpo instanceof FormData;
     let r: Response;
     try {
-        r = await fetch(`${BACKEND_HUB_URL}${caminho}`, { method: 'POST', headers: { Authorization: `Bearer ${sessao.data.session.access_token}`, 'X-Hub-Projeto': projeto, ...(!form ? { 'Content-Type': 'application/json' } : {}) }, body: form ? corpo : JSON.stringify(corpo), signal: AbortSignal.timeout(opcoes.timeout ?? 45000), redirect: 'error', credentials: 'omit' });
+        r = await fetch(`${BACKEND_HUB_URL}${caminho}`, { method: 'POST', headers: { Authorization: `Bearer ${sessao.data.session.access_token}`, 'X-Hub-Projeto': projeto, ...(!form ? { 'Content-Type': 'application/json' } : {}) }, body: form ? corpo : JSON.stringify(corpo), signal: AbortSignal.any([AbortSignal.timeout(opcoes.timeout ?? 45000), ...(opcoes.signal ? [opcoes.signal] : [])]), redirect: 'error', credentials: 'omit' });
     }
     catch {
         throw new Error('O serviço editorial não respondeu. Confere o histórico antes de repetir pedidos pagos ou publicações.');
@@ -49,6 +50,7 @@ export async function pedidoBackend(caminho: string, corpo: Record<string, unkno
 export async function apiBackend<T>(caminho: string, dados: Record<string, unknown> = {}, opcoes: {
     projeto?: string;
     timeout?: number;
+    signal?: AbortSignal;
 } = {}): Promise<T> {
     const r = await pedidoBackend(caminho, dados, opcoes);
     try {

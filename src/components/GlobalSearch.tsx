@@ -7,6 +7,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Button } from '@/components/ui/button';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
+import { PesquisaRapida } from '@/features/percurso/PesquisaRapida';
 import { DESTINOS_NAVEGACAO } from '@/lib/navegacao';
 
 interface GlobalSearchProps {
@@ -41,7 +42,7 @@ function ResultadosPesquisa({ aoEscolher }: { aoEscolher: (url: string) => void 
       <CommandInput
         value={query}
         onValueChange={setQuery}
-        placeholder="Áreas, projetos e tarefas…"
+        placeholder="Conteúdos, áreas, projetos e tarefas…"
         aria-label="Pesquisar na aplicação"
         className="h-14 pr-12 text-base"
       />
@@ -76,6 +77,7 @@ function ResultadosPesquisa({ aoEscolher }: { aoEscolher: (url: string) => void 
             ))}
           </CommandGroup>
         )}
+        <PesquisaRapida consulta={query} abrir={aoEscolher} />
         {aCarregar && <p role="status" className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" aria-hidden />A carregar projetos e tarefas…</p>}
         {erro && (
           <div role="alert" className="space-y-2 px-3 py-4 text-sm">
@@ -83,7 +85,7 @@ function ResultadosPesquisa({ aoEscolher }: { aoEscolher: (url: string) => void 
             <Button variant="outline" size="sm" onClick={repetir}><RefreshCw className="mr-2 h-4 w-4" aria-hidden />Tentar de novo</Button>
           </div>
         )}
-        {!aCarregar && !erro && total === 0 && <CommandEmpty>Nenhum resultado. Experimenta outro termo.</CommandEmpty>}
+        {!aCarregar && !erro && total === 0 && termo.length < 2 && <CommandEmpty>Nenhum resultado. Experimenta outro termo.</CommandEmpty>}
       </CommandList>
       <p className="border-t px-4 py-2 text-xs text-muted-foreground">Usa ↑ ↓ para escolher e Enter para abrir.</p>
     </Command>
@@ -107,7 +109,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw_-_2rem)] max-w-xl gap-0 overflow-hidden rounded-xl p-0">
         <DialogTitle className="sr-only">Pesquisa na aplicação</DialogTitle>
-        <DialogDescription className="sr-only">Abre uma área, um projeto ou o projeto de uma tarefa. Usa as setas e Enter para escolher.</DialogDescription>
+        <DialogDescription className="sr-only">Pesquisa conteúdos, abre uma área, um projeto ou o projeto de uma tarefa. Usa as setas e Enter para escolher.</DialogDescription>
         {open && <ResultadosPesquisa aoEscolher={(url) => { navigate(url); onOpenChange(false); }} />}
       </DialogContent>
     </Dialog>

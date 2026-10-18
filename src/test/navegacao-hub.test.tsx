@@ -1,14 +1,25 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 vi.mock('@/features/documentos/modelo', async () => ({...await vi.importActual('@/features/documentos/modelo'),DOCUMENTOS_LOCAL:true,DOCUMENTOS_DISPONIVEL:true}));
+vi.mock('@/features/seo/local',()=>({SEO_DISPONIVEL:true}));
 import { useQuery } from '@tanstack/react-query';
 import { DESTINOS_NAVEGACAO, SECOES_NAVEGACAO, itemNavegacaoAtivo, migalhasNavegacao } from '@/lib/navegacao';
 import { urlRecarga } from '@/components/ErrorBoundary';
 import { AccountQueryProvider } from '@/components/AccountQueryProvider';
 
 describe('contexto coerente de navegação', () => {
+  it('campanhas preservam a lista nas migalhas e a entrada única no menu',()=>{
+    expect(migalhasNavegacao('/campanhas/abc').map(m=>m.label)).toEqual(['Início','Campanhas','Detalhe da campanha']);
+    expect(migalhasNavegacao('/campanhas/abc/compositor/story').at(-1)?.label).toBe('Compositor');
+    expect(migalhasNavegacao('/campanhas/nova').at(-1)?.label).toBe('Nova campanha');
+    expect(itemNavegacaoAtivo('/campanhas/abc','?peca=story','/campanhas')).toBe(true);
+  });
   it.each(['/calendar', '/custos', '/media-library', '/drafts', '/publication-history', '/settings/notifications'])('o destino %s tem o seu nome no cabeçalho', (p) => {
     expect(migalhasNavegacao(p).at(-1)?.label).toBe(DESTINOS_NAVEGACAO.find(d => d.url === p)?.label);
+  });
+  it('mantém o contexto do assistente de sites e a volta à lista nas migalhas', () => {
+    expect(migalhasNavegacao('/artigos/sites/sms').map(m => m.label)).toEqual(['Início','Artigos','Sites e regras','Configuração guiada']);
+    expect(migalhasNavegacao('/artigos/sites/sms').at(-2)?.path).toBe('/artigos/sites');
   });
   it('distingue Aprovar e Criar no mesmo pathname', () => {
     expect(itemNavegacaoAtivo('/pending', '?tab=create', '/pending')).toBe(false);

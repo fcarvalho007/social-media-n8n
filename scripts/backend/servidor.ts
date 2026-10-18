@@ -9,6 +9,7 @@ import { ServicoSeo } from './seo';
 import { DocumentosNuvem } from './documentos';
 import { PublicadorWordPress } from './wordpress';
 import { guardarBackup } from './backup';
+import { consultarPercurso, pesquisarHub } from './percurso';
 export interface ConfigBackend {
     url: string;
     anon: string;
@@ -85,7 +86,7 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
                 for (const [k, v] of limites)
                     if (v.fim <= agora)
                         limites.delete(k);
-            const leitura = { seo: ['estado', 'resultado', 'ciclo'], documentos: ['capas', 'documento', 'versoes', 'acervo', 'recolhas', 'encontrar', 'ficheiro', 'fontes', 'diagnostico', 'legado/catalogo', 'tarefas', 'ler'], operacao: ['estado'], wordpress: ['verificar', 'estado'] } as Record<string, string[]>;
+            const leitura = { seo: ['estado', 'resultado', 'ciclo', 'campanha-fonte', 'campanha-composicao'], documentos: ['capas', 'documento', 'versoes', 'acervo', 'recolhas', 'encontrar', 'ficheiro', 'fontes', 'diagnostico', 'legado/catalogo', 'tarefas', 'ler'], operacao: ['estado', 'percurso', 'pesquisa'], wordpress: ['verificar', 'estado'] } as Record<string, string[]>;
             if (!leitura[caminho[1]].includes(caminho[2]) && !(caminho[1] === 'operacao' && caminho[2] === 'backup')) {
                 const copia = await servicos.sb.from('hub_leases').select('token').eq('project_id', ctx.projeto).eq('recurso', 'backup').gt('ate', new Date().toISOString()).maybeSingle();
                 if (copia.error)
@@ -117,7 +118,7 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
             }
             if (!tipo.startsWith('application/json'))
                 throw new FalhaHttp('Pedido JSON obrigatório.', 415);
-            const a = JSON.parse((await lerCorpo(req, 400000)).toString('utf8') || '{}') as Record<string, unknown>;
+            const a = JSON.parse((await lerCorpo(req, caminho[1]==='seo'&&caminho[2]==='campanha-composicao-guardar'?1700000:400000)).toString('utf8') || '{}') as Record<string, unknown>;
             if (!a || typeof a !== 'object' || Array.isArray(a))
                 throw new FalhaHttp('Pedido inválido.');
             let resultado: unknown;
@@ -185,6 +186,8 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
     });
 }
 async function operarServico(sb: SupabaseClient, ctx: ContextoBackend, acao: string, a: Record<string, unknown>) {
+    if (acao === 'percurso') return consultarPercurso(ctx);
+    if (acao === 'pesquisa') return pesquisarHub(ctx, a);
     if (acao === 'estado') {
         const [o, j] = await Promise.all([sb.from('hub_operacao').select('pausado,agenda_documentos,atualizado_em').eq('project_id', ctx.projeto).maybeSingle(), sb.from('hub_jobs').select('id,tipo,estado,criado_em,atualizado_em,resultado').eq('project_id', ctx.projeto).order('criado_em', { ascending: false }).limit(30)]);
         if (o.error || j.error)

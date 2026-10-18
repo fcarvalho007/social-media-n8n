@@ -1,0 +1,35 @@
+import type { EstadoSeo, PautaEditorial } from '../seo/contratos';
+export type EstadoEtapa = 'concluida' | 'pendente' | 'atencao' | 'indisponivel' | 'opcional';
+export interface EtapaEditorial { id: string; nome: string; estado: EstadoEtapa; detalhe: string; acao: string; url: string; em?: string }
+export interface EnvioEditorial { id: string; pauta_id: string; site_id: string; versao: number; destino: string; estado: string; remoto_url: string | null; atualizado_em: string }
+export interface TrabalhoEditorial { id: string; estado: string; pedido: { pautaId?: string; versao?: number }; resultado?: { erro?: string } | null }
+export interface Percurso { id: string; titulo: string; dominio: string; versao: number; alteradoEm: string; modo: string; etapas: EtapaEditorial[]; proxima: EtapaEditorial; fontes: { titulo: string; url: string }[]; publicacoes: EnvioEditorial[] }
+export interface RespostaPercurso { percursos: Percurso[]; avisos: string[]; recolhidoEm: string; local: boolean }
+export function construirPercursos(e: Pick<EstadoSeo, 'pautas' | 'sites' | 'pedidos'>, envios: EnvioEditorial[], aprovadas: Set<string>, publicacoesDisponiveis: boolean, local = false, trabalhos: TrabalhoEditorial[] = []): RespostaPercurso {
+  const percursos = e.pautas.map((p: PautaEditorial): Percurso => {
+    const site = e.sites.find(s => s.id === p.siteId), editor = `/artigos/plano?id=${encodeURIComponent(p.id)}`;
+    const fontesOk = p.fontes.length > 0 && p.fontes.every(f => f.aprovada && !!f.verificadaEm && f.excerto.trim().length >= 200);
+    const pesquisa = p.pesquisaId ? e.pedidos.find(r => r.resultadoId === p.pesquisaId && r.tipo === 'pesquisa') : null;
+    const publicados = envios.filter(r => r.pauta_id === p.id && r.site_id === p.siteId).sort((a, b) => b.atualizado_em.localeCompare(a.atualizado_em));
+    const atual = publicados.filter(r => r.versao === p.versao);
+    const publico = atual.find(r => r.estado === 'enviado' && r.destino === 'publish');
+    const rascunho = atual.find(r => r.estado === 'enviado' && r.destino === 'draft');
+    const jobs = trabalhos.filter(j => j.pedido.pautaId === p.id);
+    const naFila = jobs.some(j => j.pedido.versao === p.versao && ['fila', 'em_curso'].includes(j.estado));
+    const jobIncerto = jobs.some(j => j.estado === 'incerto');
+    const incerto = jobIncerto || publicados.some(r => ['incerto', 'reservado'].includes(r.estado));
+    const falha = jobs.some(j => j.pedido.versao === p.versao && j.estado === 'falhou') || atual.some(r => ['falhou', 'cancelado'].includes(r.estado));
+    const anterior = publicados.some(r => r.estado === 'enviado' && r.destino === 'publish' && r.versao !== p.versao);
+    const etapas: EtapaEditorial[] = [
+      { id: 'fonte', nome: 'Fonte', estado: fontesOk ? 'concluida' : 'pendente', detalhe: fontesOk ? `${p.fontes.length} fonte(s) confirmada(s). Origem do tema: ${p.origem === 'topico' ? 'tópico próprio' : p.origem}.` : p.fontes.length ? 'Há fontes por verificar ou com excertos insuficientes.' : 'Ainda sem fontes de suporte guardadas.', acao: 'Rever fontes', url: `${editor}&secao=fontes` },
+      { id: 'pesquisa', nome: 'Pesquisa', estado: pesquisa?.estado === 'concluido' ? 'concluida' : pesquisa ? pesquisa.estado === 'falhou' || pesquisa.estado === 'incerto' ? 'atencao' : 'pendente' : p.pesquisaId ? 'atencao' : 'opcional', detalhe: pesquisa ? `${pesquisa.operacao} · ${pesquisa.estado === 'concluido' ? 'resultado guardado' : pesquisa.estado} · ${pesquisa.modo}.` : p.pesquisaId ? 'A referência existe, mas a pesquisa não foi encontrada no projeto.' : 'Sem pesquisa SEO associada. Podes trabalhar a partir de um tópico ou fonte.', acao: pesquisa?.resultadoId ? 'Abrir pesquisa guardada' : 'Pesquisar tema', url: pesquisa?.resultadoId ? `/artigos/pesquisa?site=${encodeURIComponent(p.siteId)}&resultado=${encodeURIComponent(pesquisa.resultadoId)}` : `/artigos/pesquisa?site=${encodeURIComponent(p.siteId)}&termo=${encodeURIComponent(p.palavra || p.titulo)}`, em: pesquisa?.terminadoEm ?? undefined },
+      { id: 'artigo', nome: 'Artigo', estado: p.estado === 'bloqueado' ? 'atencao' : p.texto ? 'concluida' : 'pendente', detalhe: p.estado === 'bloqueado' ? p.motivo || 'Produção bloqueada. Revê os pedidos antes de repetir.' : p.texto ? `Texto guardado · versão ${p.versao}.${p.proposta ? ' Há uma proposta por rever; o texto atual foi preservado.' : ''}` : p.proposta ? 'Há uma proposta por rever e aplicar ao artigo.' : 'Prepara o brief, confirma a estrutura e redige o texto.', acao: 'Abrir artigo', url: `${editor}&secao=${p.texto || p.proposta ? 'texto' : 'brief'}`, em: p.alteradoEm },
+      { id: 'aprovacao', nome: 'Aprovação', estado: aprovadas.has(p.id) ? 'concluida' : p.aprovacao ? 'atencao' : 'pendente', detalhe: aprovadas.has(p.id) ? `Versão ${p.versao} aprovada para ${site?.dominio || p.siteId}.` : p.aprovacao ? 'A aprovação já não corresponde ao texto, fontes ou política atuais. É necessária nova revisão.' : site?.revisaoObrigatoria ? 'Este site exige validação humana desta versão.' : 'Rever a qualidade ou seguir a política de automação configurada.', acao: 'Rever aprovação', url: `${editor}&secao=texto`, em: aprovadas.has(p.id) ? p.aprovacao?.em : undefined },
+      { id: 'publicacao', nome: 'Publicação', estado: !publicacoesDisponiveis ? 'indisponivel' : incerto ? 'atencao' : publico ? 'concluida' : falha ? 'atencao' : 'pendente', detalhe: !publicacoesDisponiveis ? local ? 'A pré-visualização local não consulta envios reais para WordPress.' : 'Não foi possível confirmar os envios. Atualiza antes de tentar publicar.' : incerto ? 'Há um envio reservado ou por confirmar. Reconcilia antes de repetir.' : publico ? `Publicação confirmada no WordPress · versão ${p.versao}.` : naFila ? 'Pedido na fila ou em processamento. Aguarda a confirmação do WordPress.' : falha ? 'O envio desta versão falhou. Consulta o histórico antes de repetir.' : rascunho ? 'Rascunho confirmado no WordPress. Ainda não está publicado.' : anterior ? 'Existe uma versão anterior publicada. A versão atual ainda não foi publicada.' : 'Sem confirmação de publicação desta versão.', acao: 'Consultar envios', url: `${editor}&secao=texto`, em: publico?.atualizado_em },
+      { id: 'resultados', nome: 'Resultados', estado: 'indisponivel', detalhe: publico ? 'A medição orgânica por artigo ainda não está ligada. Não há visitas ou conversões verificadas para apresentar.' : 'Após a publicação, será necessária medição associada ao URL do artigo.', acao: 'Ver ligações de serviços', url: '/estudio/ligacoes' },
+    ];
+    const proxima = etapas.find(t => t.estado === 'atencao') ?? etapas.find(t => t.estado === 'pendente') ?? etapas.find(t => t.estado === 'indisponivel') ?? etapas[5];
+    return { id: p.id, titulo: p.titulo, dominio: site?.dominio ?? p.siteId, versao: p.versao, alteradoEm: p.alteradoEm, modo: p.modoOrigem, etapas, proxima, fontes: p.fontes.map(f => ({ titulo: f.titulo, url: f.url })), publicacoes: publicados };
+  }).sort((a, b) => b.alteradoEm.localeCompare(a.alteradoEm));
+  return { percursos, avisos: [], recolhidoEm: new Date().toISOString(), local };
+}
