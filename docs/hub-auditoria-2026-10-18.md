@@ -8,7 +8,7 @@ Esta ronda melhora a navegação comum e os estados de trabalho editorial, com d
 - Branch de trabalho: `codex/hub-ux-consistencia-2026-10-18`.
 - Mantêm-se autenticação, base de dados e motores existentes. Esta ronda não introduz tabelas, fornecedor de IA ou migrações de esquema.
 - Os padrões aprovados da divulgação da newsletter continuam sem retrato e com fecho de subscrição. Os Briefs e o radar preservam os destinos existentes.
-- A instalação remota é um passo posterior à validação local. Este relatório não comprova uma instalação no Lovable nem uma publicação em produção.
+- A branch foi importada no Lovable, que confirmou o commit `5188552bcfbf60d9773dc4b82409d1facb9fef49`, a árvore `ae64c2f84780e1296531e530ab3dabe5d6423078` e a área de trabalho limpa. Os sete deploys de funções foram confirmados. A publicação da interface pública está pendente de autorização específica pedida pela revisão automática.
 
 ## Alterações realizadas
 
@@ -43,7 +43,7 @@ Esta pré-visualização serve para rever a interface e o comportamento local. N
 
 ## Validação
 
-A base tinha 650 testes aprovados e um teste já ignorado. As alterações acrescentam regressões para navegação, pesquisa, notificações, isolamento de conta, estados de falha, preferências, curadoria, concorrência no editor de artigos e confirmação de entrega. Resultado final: **715 testes aprovados, 1 teste preexistente ignorado; 130 suites aprovadas e 1 ignorada**. Typecheck e build de produção aprovados. O grafo Edge de 249 ficheiros e as funções de newsletter passaram no Deno; o lembrete foi verificado separadamente. O detector de design não reportou ocorrências nos alvos revistos. A revisão visual em Chrome, incluindo viewport de 393 × 852, confirmou a correção do formulário de artigos e a pesquisa por teclado; não substitui testes em dispositivos físicos.
+A base tinha 650 testes aprovados e um teste já ignorado. As alterações acrescentam regressões para navegação, pesquisa, notificações, isolamento de conta, estados de falha, preferências, curadoria, concorrência no editor de artigos e confirmação de entrega. Resultado final: **715 testes aprovados, 1 teste preexistente ignorado; 130 suites aprovadas e 1 ignorada**. Typecheck e build de produção aprovados. O grafo Edge de 250 ficheiros e as funções de newsletter passaram no Deno; o lembrete foi verificado separadamente. O detector de design não reportou ocorrências nos alvos revistos. A revisão visual em Chrome, incluindo viewport de 393 × 852, confirmou a correção do formulário de artigos e a pesquisa por teclado; não substitui testes em dispositivos físicos.
 
 ```sh
 npm run test
@@ -70,6 +70,16 @@ A verificação ESLint direcionada identificou seis erros preexistentes em `Publ
 
 ## Custos e instalação
 
-O desenvolvimento, a demonstração e os testes locais desta ronda consomem **0 créditos Lovable**. Não se atribui uma poupança hipotética por linha de código. Só é possível calcular o custo da instalação final após observar o consumo real; à taxa indicada pelo proprietário, cada crédito corresponde a 0,30 €.
+O desenvolvimento, a demonstração e os testes locais desta ronda consumiram **0 créditos Lovable**. Os dois pedidos de instalação consumiram **0,50 + 0,80 = 1,30 créditos**, confirmados nos menus das respostas do Lovable, equivalentes a **0,39 €** à taxa indicada de 0,30 €/crédito. O primeiro parou por ainda estar selecionada a branch anterior; a branch foi depois trocada nas definições Git. Não se atribui uma poupança hipotética por linha de código.
 
 Para a instalação final, enviar a alteração consolidada da branch depois da validação. O código partilhado de confirmação de entrega é alcançado por `nl-api`, `nl-conteudos`, `nl-hooks`, `nl-newsletter`, `nl-publico` e `nl-worker-conteudos`; estas funções requerem atualização além da aplicação frontend. Atualizar também `send_story_reminder`, cuja confirmação de sucesso foi corrigida e testada sem envios reais. Conferir o resultado remoto e registar os passos efetivamente concluídos; não tratar a importação do código como prova de funcionamento dos serviços externos.
+
+
+## Registo da instalação
+
+- PR: https://github.com/fcarvalho007/social-media-n8n/pull/10 (aberta, sem merge na branch anterior).
+- Versão de código instalada nas funções: `5188552bcfbf60d9773dc4b82409d1facb9fef49`.
+- Lovable confirmou deploy individual de `nl-api`, `nl-conteudos`, `nl-hooks`, `nl-newsletter`, `nl-publico`, `nl-worker-conteudos` e `send_story_reminder`.
+- O agente Lovable reportou não ter alterado ficheiros, dependências, migrações, credenciais, permissões ou dados, nem executado jobs, envios ou publicações de conteúdo.
+- A revisão automática recusou o clique em «Publish changes», por considerar que a autorização para sincronização/deploy não cobria suficientemente o passo separado de atualização da aplicação pública. Foi solicitada autorização específica ao proprietário; não foi usada uma via alternativa para contornar a recusa.
+- A pré-visualização local continua disponível em `http://127.0.0.1:5183/`, sem Cloud ou operações externas. Falta validar a interface publicada depois dessa aprovação.
