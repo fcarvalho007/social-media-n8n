@@ -783,7 +783,7 @@ export function PainelFerramentasExtraidas({ email }: { email: EmailRecebido }) 
           Ver diretório →
         </a>
       {q.isError && <Alert variant="destructive" className="m-3 w-auto"><AlertTitle>Não foi possível carregar as ferramentas extraídas</AlertTitle><AlertDescription><Button variant="outline" className="min-h-11" disabled={q.isFetching} onClick={() => void q.refetch()}>Tentar consultar ferramentas novamente</Button></AlertDescription></Alert>}
-        <ul id={painelId} hidden={!aberto || q.isError} className="flex flex-col gap-1.5 px-3 pb-3">
+        <ul id={painelId} hidden={!aberto || q.isError} className={aberto && !q.isError ? "flex flex-col gap-1.5 px-3 pb-3" : "hidden"}>
           {ferramentas.map((f) => (
             <li key={f.id} className="rounded-[10px] p-2.5 flex items-start gap-2"
               style={{ background: T.card, border: `1px solid ${T.line}` }}>

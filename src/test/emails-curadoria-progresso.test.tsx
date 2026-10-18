@@ -23,3 +23,9 @@ it('falhas ao ler ferramentas não desaparecem como se não existissem resultado
  render(<QueryClientProvider client={qc}><PainelFerramentasExtraidas email={email}/></QueryClientProvider>);
  expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível carregar as ferramentas extraídas');expect(screen.getByRole('link',{name:'Ver diretório →'}).closest('button')).toBeNull();
 });
+
+it('as ferramentas ficam recolhidas até à abertura explícita do painel',async()=>{
+ m.ferramentas.mockResolvedValueOnce([{id:'f1',nome:'Ferramenta de teste',descricao:'Referência extraída',url:'https://example.org',estado:'pendente'}]);
+ render(<QueryClientProvider client={qc}><PainelFerramentasExtraidas email={email}/></QueryClientProvider>);
+ const nome=await screen.findByText('Ferramenta de teste');expect(nome).not.toBeVisible();fireEvent.click(screen.getByRole('button',{name:/Ferramentas sugeridas/}));expect(nome).toBeVisible();
+});
