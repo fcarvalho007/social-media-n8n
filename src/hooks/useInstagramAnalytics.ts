@@ -1,3 +1,4 @@
+import {useProjetoOpcional} from '@/contexts/ProjetoContext';
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,46 +49,39 @@ interface UseInstagramAnalyticsOptions {
 
 export function useInstagramAnalytics(options?: UseInstagramAnalyticsOptions) {
   const { user } = useAuth();
+  const projectId=useProjetoOpcional()?.projetoId??null;
   const queryClient = useQueryClient();
   const isPublicMode = options?.publicMode === true;
 
   const { data: analytics = [], isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: ["instagram-analytics", isPublicMode ? "public" : user?.id],
+    queryKey: ["instagram-analytics", user?.id, projectId],
     queryFn: async () => {
-      // Public mode: ALWAYS fetch all data without user filter (even if authenticated)
-      if (isPublicMode) {
-        const { data, error } = await supabase
-          .from("instagram_analytics")
-          .select("*")
-          .order("posted_at", { ascending: false });
-
-        if (error) throw error;
-        return data as InstagramAnalyticsItem[];
-      }
-
       // Authenticated private mode: filter by user_id
       if (!user?.id) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("instagram_analytics")
         .select("*")
         .eq("user_id", user.id)
         .order("posted_at", { ascending: false });
+      if(projectId) query=query.eq('project_id',projectId);
+      const {data,error}=await query;
 
       if (error) throw error;
       return data as InstagramAnalyticsItem[];
     },
-    enabled: isPublicMode || !!user?.id,
+    enabled: !!user?.id,
     retry: 1,
   });
 
   const importMutation = useMutation({
     mutationFn: async (posts: any[]) => {
       const { data, error } = await supabase.functions.invoke("import-instagram-data", {
-        body: { posts, alsoImportToMediaLibrary: true },
+        body: { posts, alsoImportToMediaLibrary: true,project_id:projectId },
       });
 
       if (error) throw error;
+      if(data?.success===false) throw new Error(data.errors?.join(" ")||data.error||"Importação incompleta. Revê os resultados antes de repetir.");
       return data;
     },
     onSuccess: (data) => {

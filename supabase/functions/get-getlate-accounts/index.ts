@@ -1,4 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { exigirEditor, erroSocial } from '../_shared/social-seguro.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2.98.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,19 +24,7 @@ Deno.serve(async (req) => {
       throw new Error('GETLATE_API_TOKEN not configured');
     }
 
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing authorization header');
-    }
-
-    // Verify user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (authError || !user) {
-      throw new Error('Unauthorized');
-    }
+    await exigirEditor(req,supabase);
 
     console.log('[get-getlate-accounts] Fetching accounts from Getlate API...');
 
@@ -47,7 +36,7 @@ Deno.serve(async (req) => {
     });
 
     const profilesText = await profilesResponse.text();
-    console.log('[get-getlate-accounts] Profiles response:', profilesText);
+    if(!profilesResponse.ok) throw new Error('O fornecedor não confirmou os perfis.');
 
     let profiles = [];
     try {
@@ -70,7 +59,7 @@ Deno.serve(async (req) => {
       });
 
       const accountsText = await accountsResponse.text();
-      console.log(`[get-getlate-accounts] Accounts for profile ${profile.name}:`, accountsText);
+      if(!accountsResponse.ok) throw new Error('O fornecedor não confirmou as contas.');
 
       try {
         const accountsData = JSON.parse(accountsText);
@@ -78,7 +67,7 @@ Deno.serve(async (req) => {
         
         for (const account of accounts) {
           allAccounts.push({
-            ...account,
+            _id:account._id,platform:account.platform,username:account.username,displayName:account.displayName,isActive:account.isActive,
             profileId: profile._id,
             profileName: profile.name,
           });
@@ -88,7 +77,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('[get-getlate-accounts] All accounts:', JSON.stringify(allAccounts, null, 2));
+
 
     return new Response(
       JSON.stringify({ 
@@ -102,20 +91,5 @@ Deno.serve(async (req) => {
       }
     );
 
-  } catch (error) {
-    console.error('[get-getlate-accounts] Error:', error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: errorMessage
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
-      }
-    );
-  }
+  } catch(error) {return erroSocial(error,corsHeaders);}
 });

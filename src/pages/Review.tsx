@@ -994,19 +994,19 @@ const Review = () => {
       console.log('[Instagram] Publish result:', data);
 
       toast.dismiss(loadingToast);
-      toast.success('✓ Publicado no Instagram com sucesso!', {
+      toast.success('Pedido aceite no Instagram. Aguarda a confirmação no histórico.', {
         duration: 5000,
         className: 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0',
       });
 
-      // Update post status to published
+      // Webhook acceptance is pending until the provider confirms delivery.
       // ✅ CORREÇÃO: Não sobrescrever template_X_images - a BD mantém array completo (ativas + arquivadas)
       await supabase
         .from('posts')
         .update({
           caption_edited: useDifferentCaptions ? instagramCaption : caption,
-          status: 'published',
-          published_at: new Date().toISOString(),
+          status: 'pending',
+          published_at: null,
         })
         .eq('id', id);
       
@@ -1176,19 +1176,19 @@ const Review = () => {
       console.log('[LinkedIn] Publish result:', data);
 
       toast.dismiss(loadingToast);
-      toast.success('✓ Publicado no LinkedIn com sucesso!', {
+      toast.success('Pedido aceite no LinkedIn. Aguarda a confirmação no histórico.', {
         duration: 5000,
         className: 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0',
       });
 
-      // Update post status to published
+      // Webhook acceptance is pending until the provider confirms delivery.
       // ✅ CORREÇÃO: Não sobrescrever template_X_images - a BD mantém array completo (ativas + arquivadas)
       await supabase
         .from('posts')
         .update({
           linkedin_body: linkedinBody,
-          status: 'published',
-          published_at: new Date().toISOString(),
+          status: 'pending',
+          published_at: null,
         })
         .eq('id', id);
       

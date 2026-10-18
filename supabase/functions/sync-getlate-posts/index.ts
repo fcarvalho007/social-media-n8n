@@ -1,4 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { exigirEditor, erroSocial } from '../_shared/social-seguro.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2.98.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,6 +44,7 @@ interface GetlatePost {
 interface SyncPayload {
   date_from?: string;  // ISO date string
   date_to?: string;    // ISO date string
+  read_only?: boolean;
   force?: boolean;     // Force sync even if recently synced
 }
 
@@ -68,22 +70,11 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get auth header for user context
-    const authHeader = req.headers.get('authorization');
-    let userId: string | null = null;
-    
-    if (authHeader) {
-      const userSupabase = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY') || '', {
-        global: { headers: { Authorization: authHeader } }
-      });
-      const { data: { user } } = await userSupabase.auth.getUser();
-      userId = user?.id || null;
-    }
-
-    console.log('[sync-getlate-posts] Starting sync for user:', userId);
+    const userId=await exigirEditor(req,supabase);
 
     // Parse request body
-    const body: SyncPayload = await req.json().catch(() => ({}));
+    if(!['GET','POST'].includes(req.method)) return new Response(null,{status:405,headers:corsHeaders});
+    const body: SyncPayload = req.method==='GET'?{}:await req.json();
     
     // Default: sync last 90 days
     const dateTo = body.date_to || new Date().toISOString();
@@ -94,8 +85,10 @@ Deno.serve(async (req) => {
     // Fetch posts from Getlate API - separate calls per status
     // (API may not support multiple statuses in one request)
     const allGetlatePosts: GetlatePost[] = [];
-    const statusesToSync = ['published', 'scheduled', 'queued', 'failed'];
-    const limit = 50;
+    const fetchErrors:string[]=[];
+    const readOnly=req.method==='GET'||body.read_only===true;
+    const statusesToSync = readOnly?['published']:['published', 'scheduled', 'failed', 'draft'];
+    const limit = readOnly?5:50;
 
     for (const status of statusesToSync) {
       let page = 1;
@@ -124,18 +117,18 @@ Deno.serve(async (req) => {
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`[sync-getlate-posts] Getlate API error for ${status}: ${response.status} - ${errorText}`);
-          // Continue with other statuses instead of failing completely
+          fetchErrors.push(`${status}: HTTP ${response.status}`);
           break;
         }
 
         const rawText = await response.text();
-        console.log(`[sync-getlate-posts] Raw ${status} response (first 500 chars):`, rawText.substring(0, 500));
+
 
         let data;
         try {
           data = JSON.parse(rawText);
         } catch (parseError) {
-          console.error(`[sync-getlate-posts] JSON parse error for ${status}:`, parseError);
+          fetchErrors.push(`${status}: resposta inválida`);
           break;
         }
 
@@ -146,13 +139,13 @@ Deno.serve(async (req) => {
         allGetlatePosts.push(...posts);
         
         // Check if there are more pages
-        if (posts.length < limit) {
+        if (readOnly || posts.length < limit) {
           hasMore = false;
         } else {
           page++;
           // Safety limit per status
           if (page > 10) {
-            console.warn(`[sync-getlate-posts] Hit page limit for ${status}, moving to next status`);
+            fetchErrors.push(`${status}: limite de páginas; sincronização incompleta`);
             hasMore = false;
           }
         }
@@ -177,9 +170,11 @@ Deno.serve(async (req) => {
     const externalIds = allGetlatePosts.map(p => p._id);
     
     // Process each post
+    if(req.method==='GET'||body.read_only) return new Response(JSON.stringify({success:fetchErrors.length===0,read_only:true,total:allGetlatePosts.length,errors:fetchErrors,posts:allGetlatePosts.slice(0,5).map(p=>({id:p._id,status:p.status,platforms:p.platforms?.map(a=>a.platform)}))}),{status:fetchErrors.length?502:200,headers:{...corsHeaders,'Content-Type':'application/json'}});
+
     let syncedPosts = 0;
     let syncedMedia = 0;
-    const errors: string[] = [];
+    const errors: string[] = [...fetchErrors];
 
     for (const getlatePost of allGetlatePosts) {
       try {
@@ -195,7 +190,9 @@ Deno.serve(async (req) => {
         const externalPostIds: Record<string, string> = {};
         
         for (const platform of getlatePost.platforms || []) {
-          const networkName = ACCOUNT_TO_PLATFORM[platform.accountId] || platform.platform;
+          const accountId=typeof platform.accountId==='string'?platform.accountId:(platform.accountId as {_id?:string})?._id;
+          const networkName = accountId ? ACCOUNT_TO_PLATFORM[accountId] : undefined;
+          if(!networkName) continue;
           if (networkName && !selectedNetworks.includes(networkName)) {
             selectedNetworks.push(networkName);
           }
@@ -203,6 +200,8 @@ Deno.serve(async (req) => {
             externalPostIds[networkName] = platform.publishedUrl;
           }
         }
+
+        if(selectedNetworks.length===0) continue;
 
         // Extract media URLs
         const mediaUrls: string[] = (getlatePost.mediaItems || [])
@@ -221,7 +220,9 @@ Deno.serve(async (req) => {
         const { data: existingPost } = await supabase
           .from('posts')
           .select('id, external_post_ids')
-          .or(`external_post_ids->getlate.eq.${getlatePost._id}`)
+          .eq('user_id',userId)
+          .eq('workflow_id',`getlate:${getlatePost._id}`)
+          .limit(1)
           .maybeSingle();
 
         const postData = {
@@ -249,7 +250,7 @@ Deno.serve(async (req) => {
           const { error: updateError } = await supabase
             .from('posts')
             .update(postData)
-            .eq('id', existingPost.id);
+            .eq('id', existingPost.id).eq('user_id',userId);
 
           if (updateError) {
             console.error(`[sync-getlate-posts] Update error for ${getlatePost._id}:`, updateError);
@@ -258,19 +259,7 @@ Deno.serve(async (req) => {
             syncedPosts++;
           }
         } else {
-          // Insert new post - need user_id
-          // For now, use the first user or a system user
-          let insertUserId = userId;
-          
-          if (!insertUserId) {
-            // Get first user from profiles as fallback
-            const { data: firstUser } = await supabase
-              .from('profiles')
-              .select('id')
-              .limit(1)
-              .single();
-            insertUserId = firstUser?.id;
-          }
+          const insertUserId=userId;
 
           if (insertUserId) {
             const { error: insertError } = await supabase
@@ -295,7 +284,7 @@ Deno.serve(async (req) => {
         const { data: insertedPost } = await supabase
           .from('posts')
           .select('id')
-          .eq('workflow_id', `getlate:${getlatePost._id}`)
+          .eq('workflow_id', `getlate:${getlatePost._id}`).eq('user_id',userId).limit(1)
           .maybeSingle();
         
         // Extract publication URL from platforms
@@ -313,7 +302,7 @@ Deno.serve(async (req) => {
           const { data: existingMedia } = await supabase
             .from('media_library')
             .select('id')
-            .eq('file_url', mediaItem.url)
+            .eq('file_url', mediaItem.url).eq('user_id',userId).limit(1)
             .maybeSingle();
 
           if (!existingMedia && userId) {
@@ -342,7 +331,7 @@ Deno.serve(async (req) => {
                 publication_url: publicationUrl,
                 post_id: insertedPost?.id || null
               })
-              .eq('id', existingMedia.id)
+              .eq('id', existingMedia.id).eq('user_id',userId)
               .is('publication_url', null);
           }
         }
@@ -355,7 +344,7 @@ Deno.serve(async (req) => {
     console.log(`[sync-getlate-posts] Sync complete: ${syncedPosts} posts, ${syncedMedia} media items`);
 
     const hadErrors = errors.length > 0;
-    const success = !hadErrors || syncedPosts > 0;
+    const success = !hadErrors;
     
     return new Response(JSON.stringify({
       success,
@@ -373,14 +362,6 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('[sync-getlate-posts] Error:', error);
-    
-    return new Response(JSON.stringify({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return erroSocial(error,corsHeaders);
   }
 });

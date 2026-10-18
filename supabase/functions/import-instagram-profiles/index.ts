@@ -1,4 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { exigirEditor, exigirProjeto, erroSocial } from '../_shared/social-seguro.ts';
+import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,12 +74,16 @@ Deno.serve(async (req) => {
       );
     }
 
+    await exigirEditor(req,supabase);
+    if(req.method!=='POST') return new Response(JSON.stringify({error:'Método não permitido'}),{status:405,headers:{...corsHeaders,'Content-Type':'application/json'}});
+
     console.log("User authenticated:", user.id);
 
     // Parse request body
-    const { profiles } = await req.json();
+    const { profiles,project_id } = await req.json();
+    const projectId=await exigirProjeto(supabase,user.id,project_id);
     
-    if (!Array.isArray(profiles) || profiles.length === 0) {
+    if (!Array.isArray(profiles) || profiles.length === 0 || profiles.length>25) {
       return new Response(
         JSON.stringify({ error: "No profiles provided" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -105,6 +110,7 @@ Deno.serve(async (req) => {
     }
 
     const today = new Date().toISOString().split("T")[0];
+    const errors:string[]=[];
     let profilesImported = 0;
     let profilesDuplicate = 0;
     let postsImported = 0;
@@ -117,6 +123,7 @@ Deno.serve(async (req) => {
         const { data: existingProfile } = await supabase
           .from("instagram_profiles")
           .select("id")
+          .eq("user_id",user.id).filter("project_id",projectId?"eq":"is",projectId??"null")
           .eq("username", profile.username)
           .eq("scraped_date", today)
           .single();
@@ -145,10 +152,10 @@ Deno.serve(async (req) => {
               is_private: profile.private || false,
               scraped_at: new Date().toISOString(),
             })
-            .eq("id", existingProfile.id);
+            .eq("id", existingProfile.id).eq("user_id",user.id);
 
           if (updateError) {
-            console.error(`Error updating profile ${profile.username}:`, updateError);
+            errors.push(`Não foi possível atualizar ${profile.username}.`);
           }
           
           profilesDuplicate++;
@@ -158,6 +165,7 @@ Deno.serve(async (req) => {
             .from("instagram_profiles")
             .insert({
               user_id: user.id,
+              project_id:projectId,
               instagram_id: profile.id,
               username: profile.username,
               full_name: profile.fullName || null,
@@ -178,7 +186,7 @@ Deno.serve(async (req) => {
             });
 
           if (insertError) {
-            console.error(`Error inserting profile ${profile.username}:`, insertError);
+            if(insertError.code==='23505') profilesDuplicate++; else errors.push(`Não foi possível importar ${profile.username}.`);
           } else {
             profilesImported++;
             console.log(`Imported profile: ${profile.username}`);
@@ -201,7 +209,7 @@ Deno.serve(async (req) => {
               const { data: existingPost } = await supabase
                 .from("instagram_analytics")
                 .select("id")
-                .eq("shortcode", post.shortCode)
+                .eq("user_id",user.id).filter("project_id",projectId?"eq":"is",projectId??"null").eq("shortcode", post.shortCode)
                 .single();
 
               if (existingPost) {
@@ -246,6 +254,7 @@ Deno.serve(async (req) => {
                 .from("instagram_analytics")
                 .insert({
                   user_id: user.id,
+              project_id:projectId,
                   post_url: post.url || `https://www.instagram.com/p/${post.shortCode}/`,
                   shortcode: post.shortCode,
                   post_type: postType,
@@ -266,17 +275,17 @@ Deno.serve(async (req) => {
                 });
 
               if (postError) {
-                console.error(`Error inserting post ${post.shortCode}:`, postError);
+                errors.push(`Não foi possível importar ${post.shortCode}.`);
               } else {
                 postsImported++;
               }
             } catch (postErr) {
-              console.error(`Error processing post:`, postErr);
+              errors.push("Uma publicação não foi processada.");
             }
           }
         }
       } catch (profileErr) {
-        console.error(`Error processing profile ${profile.username}:`, profileErr);
+        errors.push(`O perfil ${profile.username} não foi processado.`);
       }
     }
 
@@ -284,7 +293,8 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: errors.length===0,
+        errors,
         profiles: {
           imported: profilesImported,
           updated: profilesDuplicate,
@@ -297,12 +307,5 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: unknown) {
-    console.error("Import error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ error: "Internal server error", details: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
+  } catch(error) {return erroSocial(error,corsHeaders);}
 });

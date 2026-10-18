@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.1";
+import { createClient } from "npm:@supabase/supabase-js@2.98.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,40 +14,11 @@ serve(async (req) => {
   try {
     console.log('Incoming webhook received');
 
-    // Validate webhook secret (priority authentication)
-    const webhookSecret = req.headers.get('x-webhook-secret');
-    const expectedSecret = Deno.env.get('N8N_WEBHOOK_SECRET');
-    
-    // Parse payload once
-    const payload = await req.json();
-    console.log('Payload received:', JSON.stringify(payload, null, 2));
-    
-    // Authentication logic
-    if (webhookSecret && webhookSecret === expectedSecret) {
-      // Webhook secret is valid - skip email validation
-      console.log('✅ Authenticated via webhook secret');
-    } else if (!webhookSecret) {
-      // No webhook secret provided - validate email
-      console.log('No webhook secret - validating email');
-      
-      const allowedEmailsStr = Deno.env.get('ALLOWED_EMAILS');
-      const allowedEmails = allowedEmailsStr ? allowedEmailsStr.split(',').map(e => e.trim()) : [];
-      
-      if (payload.source && !allowedEmails.includes(payload.source)) {
-        console.error('Email not allowed:', payload.source);
-        return new Response(
-          JSON.stringify({ error: 'Email not authorized' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    } else {
-      // Webhook secret provided but invalid
-      console.error('Invalid webhook secret');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const expectedSecret=Deno.env.get('N8N_WEBHOOK_SECRET');
+    if(!expectedSecret||req.headers.get('x-webhook-secret')!==expectedSecret) return new Response(JSON.stringify({error:'Unauthorized'}),{status:401,headers:{...corsHeaders,'Content-Type':'application/json'}});
+    if(req.method!=='POST') return new Response(null,{status:405,headers:corsHeaders});
+    const payload=await req.json();
+    if(typeof payload.user_id!=='string'||!/^[0-9a-f-]{36}$/i.test(payload.user_id)||typeof payload.workflow_id!=='string'||!payload.workflow_id.trim()) return new Response(JSON.stringify({error:'É necessário indicar o proprietário e o workflow.'}),{status:400,headers:{...corsHeaders,'Content-Type':'application/json'}});
 
     // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || Deno.env.get('VITE_SUPABASE_URL');
@@ -63,11 +34,15 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    const roles=await supabase.from('user_roles').select('role').eq('user_id',payload.user_id).in('role',['admin','editor']);
+    if(roles.error||!roles.data?.length) return new Response(JSON.stringify({error:'Proprietário sem permissão editorial.'}),{status:403,headers:{...corsHeaders,'Content-Type':'application/json'}});
+
     // Insert post into database
     const { data, error } = await supabase
       .from('posts')
       .insert({
         workflow_id: payload.workflow_id,
+        user_id:payload.user_id,
         source: payload.source || 'n8n_workflow',
         tema: payload.tema,
         caption: payload.caption,
@@ -82,7 +57,7 @@ serve(async (req) => {
         content_type: payload.content_type || 'carousel',
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Database error:', error);
@@ -92,6 +67,11 @@ serve(async (req) => {
       );
     }
 
+    if(!data){
+      const previous=await supabase.from('posts').select('id').eq('user_id',payload.user_id).eq('workflow_id',payload.workflow_id).limit(1).maybeSingle();
+      if(previous.error||!previous.data)throw new Error('Resultado do webhook não confirmado.');
+      return new Response(JSON.stringify({success:true,deduplicated:true,post:previous.data}),{status:200,headers:{...corsHeaders,'Content-Type':'application/json'}});
+    }
     console.log('Post created successfully:', data.id);
 
     return new Response(

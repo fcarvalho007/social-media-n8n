@@ -1,3 +1,4 @@
+import {getMarca} from '@/services/estudio';
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getFormatConfig } from '@/types/social';
@@ -437,9 +438,7 @@ export function usePublishWithProgress() {
         }
       }
 
-      // NOTE: O guard de duplicados IG 24h foi removido — o `duplicateValidator`
-      // do painel de pré-validação cobre o caso sem custo de latência no clique.
-      // O backend continua a fazer ZWSP retry automaticamente em caso de 409.
+      // Server reservations are authoritative; a duplicate refusal is never bypassed.
 
       // ═══════════════════════════════════════════
       // CREATE POST RECORD EARLY (before upload) so ALL attempts are logged
@@ -454,7 +453,9 @@ export function usePublishWithProgress() {
       
       console.log(`[usePublishWithProgress] Publication mode: ${isScheduledForLater ? 'SCHEDULED' : 'IMMEDIATE'}, status: ${initialStatus}`);
       
+      const projetoDaPublicacao=await getMarca();
       const initialPostData = {
+        project_id:projetoDaPublicacao,
         user_id: user.id,
         post_type: postType,
         selected_networks: selectedNetworks,
@@ -623,29 +624,8 @@ export function usePublishWithProgress() {
         return 0;
       });
       
-      // Create scheduled_job for tracking if this is a scheduled post
-      if (isScheduledForLater && scheduledDate && createdPostId) {
-        const { error: jobError } = await supabase.from('scheduled_jobs').insert({
-          post_id: createdPostId,
-          job_type: 'post',
-          scheduled_for: scheduledDate.toISOString(),
-          status: 'pending',
-          created_by: user.id,
-          payload: {
-            post_id: createdPostId,
-            formats: consolidatedFormats,
-            caption,
-            media_urls: mediaUrls,
-          },
-        });
-        
-        if (jobError) {
-          console.warn('[usePublishWithProgress] Failed to create scheduled_job:', jobError);
-        } else {
-          console.log(`[usePublishWithProgress] Scheduled job created for post ${createdPostId}`);
-        }
-      }
-      
+      // Scheduling is performed once by Getlate, never also by the legacy n8n cron.
+
       // Phase 1 complete
       updatePhase1('success', 100, 'Ficheiros enviados com sucesso');
       
