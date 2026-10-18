@@ -121,8 +121,6 @@ verify_jwt = false
 # the worker accepts only the private cron token, never a user-supplied project.
 [functions.hub-editorial]
 verify_jwt = false
-static_files = ["./functions/hub-editorial/pdfium.wasm"]
 
 [functions.hub-editorial-worker]
 verify_jwt = false
-static_files = ["./functions/hub-editorial-worker/pdfium.wasm"]
