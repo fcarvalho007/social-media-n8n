@@ -1098,7 +1098,7 @@ const Calendar = () => {
                   <div className="hub-page-icon">
                     <CalendarIcon className="size-5 text-primary" />
                   </div>
-                  <span>Calendário</span>
+                  <span>Calendário social</span>
                 </h1>
                 <div className="flex items-center gap-3 mt-2 ml-[52px]">
                   <p className="text-sm text-muted-foreground hidden sm:block">

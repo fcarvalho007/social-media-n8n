@@ -181,7 +181,7 @@ export function CalendarioBloco() {
   ];
   return (
     <Bloco className="lg:col-span-6">
-      <Titulo icon={CalendarDays} acao={<LinkVer to="/calendar">Ver calendário</LinkVer>}>Calendário</Titulo>
+      <Titulo icon={CalendarDays} acao={<LinkVer to="/calendar">Ver calendário social</LinkVer>}>Calendário social</Titulo>
       <ul className="flex flex-col divide-y">
         {linhas.map((l) => (
           <li key={l.r} className="flex items-center justify-between gap-3 py-3.5">

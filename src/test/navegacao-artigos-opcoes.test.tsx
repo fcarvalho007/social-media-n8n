@@ -10,12 +10,12 @@ describe('navegação de artigos com opções secundárias', () => {
   render(<MemoryRouter initialEntries={['/artigos/pesquisa']}><NavegacaoArtigos/></MemoryRouter>);
   expect(screen.getByRole('link', { name: 'Pesquisa SEO' })).toHaveAttribute('aria-current', 'page');
   await userEvent.click(screen.getByRole('button', { name: 'Mais opções dos artigos' }));
-  expect(screen.getByRole('menuitem', { name: 'Automação' })).toHaveAttribute('href', '/artigos/automacao');
+  expect(screen.getByRole('menuitem', { name: 'Automação editorial' })).toHaveAttribute('href', '/artigos/automacao');
   expect(screen.getByRole('menuitem', { name: 'Rascunhos livres' })).toHaveAttribute('href', '/artigos?livres=1');
  });
  it('identifica a página ativa mesmo quando pertence às opções secundárias', async () => {
   render(<MemoryRouter initialEntries={['/artigos/automacao']}><NavegacaoArtigos/></MemoryRouter>);
-  await userEvent.click(screen.getByRole('button', { name: 'Mais opções dos artigos: Automação' }));
-  expect(screen.getByRole('menuitem', { name: 'Automação' })).toHaveAttribute('aria-current', 'page');
+  await userEvent.click(screen.getByRole('button', { name: 'Mais opções dos artigos: Automação editorial' }));
+  expect(screen.getByRole('menuitem', { name: 'Automação editorial' })).toHaveAttribute('aria-current', 'page');
  });
 });

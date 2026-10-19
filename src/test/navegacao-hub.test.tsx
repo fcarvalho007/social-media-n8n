@@ -8,6 +8,16 @@ import { urlRecarga } from '@/components/ErrorBoundary';
 import { AccountQueryProvider } from '@/components/AccountQueryProvider';
 
 describe('contexto coerente de navegação', () => {
+  it('torna pesquisa SEO e automação descobríveis no contexto de artigos, sem perder a pesquisa geral',()=>{
+    for(const url of ['/artigos/pesquisa','/artigos/automacao']){
+      expect(DESTINOS_NAVEGACAO.find(d=>d.url===url)?.pai).toBe('/artigos');
+      expect(SECOES_NAVEGACAO.flatMap(s=>s.urls)).toContain(url);
+      expect(DESTINOS_NAVEGACAO.filter(d=>itemNavegacaoAtivo(url,'',d.url))).toHaveLength(1);
+    }
+    expect(migalhasNavegacao('/artigos/automacao').map(m=>m.label)).toEqual(['Início','Artigos','Automação editorial']);
+    expect(migalhasNavegacao('/calendar').at(-1)?.label).toBe('Calendário social');
+    expect(DESTINOS_NAVEGACAO.find(d=>d.url==='/pesquisa')?.label).toBe('Pesquisar no Hub');
+  });
   it('campanhas preservam a lista nas migalhas e a entrada única no menu',()=>{
     expect(migalhasNavegacao('/campanhas/abc').map(m=>m.label)).toEqual(['Início','Campanhas','Detalhe da campanha']);
     expect(migalhasNavegacao('/campanhas/abc/compositor/story').at(-1)?.label).toBe('Compositor');
