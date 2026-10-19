@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, ChevronDown, LogOut, Plus, Settings } from 'lucide-react';
+import { AlertCircle, ChevronDown, LogOut, Plus, Settings, PanelsTopLeft } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
@@ -33,7 +33,7 @@ export function AppSidebar() {
     const item = DESTINOS_NAVEGACAO.find((d) => d.url === url)!;
     const ativo = itemNavegacaoAtivo(pathname, search, item.url);
     return <SidebarMenuItem key={url}>
-      <SidebarMenuButton asChild isActive={ativo} className="h-auto min-h-11 gap-3 px-3 py-2 [&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible data-[active=true]:bg-primary/10 data-[active=true]:font-semibold data-[active=true]:text-primary">
+      <SidebarMenuButton asChild isActive={ativo} className="h-auto min-h-11 gap-3 rounded-md px-3 py-2 text-[13px] [&_svg]:stroke-[1.75] [&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible data-[active=true]:bg-primary/10 data-[active=true]:font-semibold data-[active=true]:text-primary">
         <Link to={item.url} aria-current={ativo ? 'page' : undefined} onClick={() => setOpenMobile(false)}>
           <item.icon aria-hidden />
           <span className="min-w-0 flex-1 leading-5">{item.label}</span>
@@ -46,18 +46,18 @@ export function AppSidebar() {
   };
 
   return <Sidebar collapsible="offcanvas" className="hub-navigation data-[state=open]:duration-200 data-[state=closed]:duration-150 motion-reduce:animate-none" aria-label="Navegação do Hub">
-    <SidebarHeader className="gap-3 border-b px-4 pb-4 pt-3">
-      <Link to="/" onClick={() => setOpenMobile(false)} className="flex min-h-11 items-center rounded-md pr-11 text-base font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Hub de conteúdo</Link>
+    <SidebarHeader className="gap-3 border-b px-4 pb-4 pt-4">
+      <Link to="/" onClick={() => setOpenMobile(false)} className="flex min-h-11 items-center rounded-md pr-11 text-base font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="mr-2.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"><PanelsTopLeft className="size-4" aria-hidden /></span>Hub de conteúdo</Link>
       <Button asChild className="min-h-11 w-full justify-start gap-3">
         <Link to="/pending?tab=create" aria-current={itemNavegacaoAtivo(pathname, search, '/pending?tab=create') ? 'page' : undefined} onClick={() => setOpenMobile(false)}><Plus aria-hidden />Criar publicação social</Link>
       </Button>
     </SidebarHeader>
     <SidebarContent className="gap-3 py-3">
-      <nav aria-label="Menu principal" className="flex flex-col gap-5 px-3">
+      <nav aria-label="Menu principal" className="flex flex-col gap-4 px-3">
         <SidebarMenu>{ligacao('/')}</SidebarMenu>
         {SECOES_NAVEGACAO.map((secao) => <SidebarGroup key={secao.titulo} className="p-0">
-          <SidebarGroupLabel asChild><h2>{secao.titulo}</h2></SidebarGroupLabel>
-          <SidebarMenu>{secao.urls.filter(url => !DESTINOS_NAVEGACAO.find(d => d.url === url)?.pai).map(ligacao)}</SidebarMenu>
+          <SidebarGroupLabel asChild className="mb-1 text-xs font-medium text-muted-foreground"><h2>{secao.titulo}</h2></SidebarGroupLabel>
+          <SidebarMenu>{secao.urls.filter(url => {const d=DESTINOS_NAVEGACAO.find(d => d.url===url);return d&&!d.pai;}).map(ligacao)}</SidebarMenu>
         </SidebarGroup>)}
       </nav>
     </SidebarContent>

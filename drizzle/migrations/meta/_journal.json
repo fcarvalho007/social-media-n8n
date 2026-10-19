@@ -470,6 +470,13 @@
       "when": 1792362294837,
       "tag": "0066_isolamento_social",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792407829516,
+      "tag": "0067_artigos_imagens",
+      "breakpoints": true
     }
   ]
 }

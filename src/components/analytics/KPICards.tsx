@@ -33,7 +33,7 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
 
   const kpis = useMemo(() => [
     {
-      label: "Total Posts",
+      label: "Publicações",
       value: stats.totalPosts,
       previousValue: previousStats?.totalPosts,
       icon: BarChart3,
@@ -42,7 +42,7 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
       tooltip: "Número total de publicações analisadas",
     },
     {
-      label: "Total Likes",
+      label: "Gostos",
       value: stats.totalLikes,
       previousValue: previousStats?.totalLikes,
       icon: Heart,
@@ -73,8 +73,8 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
       value: stats.totalViews,
       previousValue: previousStats?.totalViews,
       icon: Eye,
-      iconBg: "bg-violet-500/10",
-      iconColor: "text-violet-500",
+      iconBg: "bg-accent",
+      iconColor: "text-primary",
       tooltip: "Total de visualizações (vídeos)",
     },
     {
@@ -108,7 +108,7 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
             <Tooltip key={kpi.label}>
               <TooltipTrigger asChild>
                 <Card 
-                  className="relative overflow-hidden border-border/50 bg-card hover:border-primary/30 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-default group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  className="relative overflow-hidden border-border bg-card hover:border-primary/30 transition-colors cursor-default group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   style={{ 
                     animationDelay: `${index * 50}ms`,
                   }}
@@ -119,7 +119,7 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
                   <CardContent className="p-4 sm:p-5">
                     {/* Header with icon and change badge */}
                     <div className="flex items-center justify-between mb-3">
-                      <div className={`p-2.5 rounded-xl ${kpi.iconBg} transition-transform group-hover:scale-110 group-hover:rotate-3`} aria-hidden="true">
+                      <div className={`p-2.5 rounded-xl ${kpi.iconBg} `} aria-hidden="true">
                         <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
                       </div>
                       {change !== null && Math.abs(change) >= 1 && (
@@ -144,7 +144,7 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
                     </div>
                     
                     {/* Value - large and bold with animation */}
-                    <p className="text-2xl sm:text-3xl font-bold tracking-tight font-mono text-foreground mb-1">
+                    <p className="text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums text-foreground mb-1">
                       <AnimatedNumber 
                         value={typeof kpi.value === "number" ? kpi.value : 0}
                         formatFn={formatCompactNumber}
@@ -152,7 +152,7 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
                     </p>
                     
                     {/* Label - uppercase tracking */}
-                    <p className="text-[10px] sm:text-xs uppercase tracking-widest text-muted-foreground font-medium">
+                    <p className="text-xs tracking-normal text-muted-foreground font-medium">
                       {kpi.label}
                     </p>
                   </CardContent>

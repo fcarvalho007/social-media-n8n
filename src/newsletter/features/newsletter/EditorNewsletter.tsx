@@ -376,7 +376,7 @@ function PhaseDivider({ numero, titulo, subtitulo }: { numero: 1 | 2; cor?: stri
       <div className="flex items-center gap-3.5">
         <span
           className="w-10 h-10 rounded-full flex items-center justify-center text-white text-base font-bold shrink-0 shadow-sm"
-          style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6, #EC4899)" }}
+          style={{ background: "hsl(var(--primary, 211 96% 43%))" }}
         >
           {numero}
         </span>

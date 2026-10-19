@@ -150,6 +150,7 @@ export default {
           },
         },
       },
+      boxShadow: { sm: 'var(--shadow-sm)', md: 'var(--shadow-md)', lg: 'var(--shadow-lg)', xl: 'var(--shadow-xl)' },
       fontFamily: {
         serif: ['Georgia', '"Times New Roman"', 'serif'],
         sans: ['Inter', 'Montserrat', 'system-ui', 'sans-serif'],

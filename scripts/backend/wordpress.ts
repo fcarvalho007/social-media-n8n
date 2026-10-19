@@ -1,3 +1,5 @@
+import { imagemWordPress, reconciliarImagemWordPress } from './wordpress-imagens';
+import { htmlMarkdownArtigo } from '../../src/features/seo/markdownArtigo';
 import { Buffer } from 'node:buffer';
 import process from 'node:process';
 import https from 'node:https';
@@ -32,11 +34,13 @@ export function credencialWordPress(site: string, env: Record<string, string | u
     return { url: u.origin, user, password };
 }
 export async function pedidoWordPress(c: CredencialWp, caminho: string, method: 'GET' | 'POST' = 'GET', dados?: unknown): Promise<unknown> {
-    if (!caminho.startsWith('/wp-json/wp/v2/') || caminho.includes('..'))
+    if ((!caminho.startsWith('/wp-json/wp/v2/')&&caminho!=='/wp-json/hub-editorial/v1/capabilities') || caminho.includes('..'))
         throw new Error('Operação WordPress inválida.');
-    const u = validarDestino(new URL(caminho, c.url).href), ip = await resolverPublico(u), body = dados === undefined ? undefined : Buffer.from(JSON.stringify(dados));
+    const u = validarDestino(new URL(caminho, c.url).href), ip = await resolverPublico(u);
+    const upload=dados as {ficheiro?:{bytes:Uint8Array;tipo:string;nome:string};campos?:Record<string,string>};let body:Buffer|undefined,contentType='application/json';
+    if(upload?.ficheiro){if(caminho!=='/wp-json/wp/v2/media'||method!=='POST'||!/^hub-[a-f0-9]{64}\.(png|jpg|webp)$/.test(upload.ficheiro.nome))throw new Error('Upload WordPress inválido.');const boundary=`hub${crypto.randomUUID().replace(/-/g,'')}`;const campos=Object.entries(upload.campos??{}).map(([k,v])=>Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));body=Buffer.concat([...campos,Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${upload.ficheiro.nome}"\r\nContent-Type: ${upload.ficheiro.tipo}\r\n\r\n`),Buffer.from(upload.ficheiro.bytes),Buffer.from(`\r\n--${boundary}--\r\n`)]);contentType=`multipart/form-data; boundary=${boundary}`;}else body=dados===undefined?undefined:Buffer.from(JSON.stringify(dados));
     return new Promise((resolve, reject) => {
-        const r = https.request(u, { method, agent: false, signal: AbortSignal.timeout(45000), timeout: 30000, family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { Authorization: `Basic ${Buffer.from(`${c.user}:${c.password}`).toString('base64')}`, Accept: 'application/json', 'Accept-Encoding': 'identity', ...(body ? { 'Content-Type': 'application/json', 'Content-Length': String(body.length) } : {}) } }, res => {
+        const r = https.request(u, { method, agent: false, signal: AbortSignal.timeout(45000), timeout: 30000, family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { Authorization: `Basic ${Buffer.from(`${c.user}:${c.password}`).toString('base64')}`, Accept: 'application/json', 'Accept-Encoding': 'identity', ...(body ? { 'Content-Type': contentType, 'Content-Length': String(body.length) } : {}) } }, res => {
             // Authentication never follows redirects to another host or path.
             if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
                 res.resume();
@@ -67,47 +71,12 @@ export async function pedidoWordPress(c: CredencialWp, caminho: string, method: 
         r.end(body);
     });
 }
-const escapar = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 export function htmlArtigo(p: PautaEditorial, marcador: string) {
     if (!p.texto)
         throw new Error('Artigo sem texto.');
-    const fonte = (s: string) => {
-        const re = /\[fonte:([^\]]+)\]|\[([^\]]{1,300})\]\((https:\/\/[^\s)]+)\)|\*\*([^*]{1,500})\*\*/g;
-        let out = '', cursor = 0;
-        for (const m of s.matchAll(re)) {
-            out += escapar(s.slice(cursor, m.index));
-            cursor = m.index! + m[0].length;
-            if (m[1]) {
-                const f = p.fontes.find(f => f.id === m[1] && f.aprovada);
-                if (!f)
-                    throw new Error('Fonte desconhecida no artigo.');
-                const u = new URL(f.url);
-                if (u.protocol !== 'https:' || u.username || u.password)
-                    throw new Error('Fonte inválida.');
-                out += `<a href="${escapar(u.href)}" rel="noopener noreferrer">${escapar(f.titulo)}</a>`;
-            }
-            else if (m[2]) {
-                const u = new URL(m[3]);
-                if (u.username || u.password)
-                    throw new Error('Ligação inválida.');
-                out += `<a href="${escapar(u.href)}" rel="noopener noreferrer">${escapar(m[2])}</a>`;
-            }
-            else
-                out += `<strong>${escapar(m[4])}</strong>`;
-        }
-        return out + escapar(s.slice(cursor));
-    };
-    const partes = p.texto.corpo.split(/\n\s*\n/).filter(x => x.trim()).map(t => {
-        const h = t.match(/^(#{1,4})\s+([^\n]+)$/);
-        if (h)
-            return `<h${Math.max(2, h[1].length)}>${fonte(h[2])}</h${Math.max(2, h[1].length)}>`;
-        const linhas = t.split('\n');
-        if (linhas.every(l => /^[-*]\s+/.test(l)))
-            return `<ul>${linhas.map(l => `<li>${fonte(l.replace(/^[-*]\s+/, ''))}</li>`).join('')}</ul>`;
-        return `<p>${fonte(t).replace(/\n/g, '<br>')}</p>`;
-    });
-    return `${partes.join('\n')}\n<!-- ${marcador} -->`;
+    return `${htmlMarkdownArtigo(p.texto.corpo,p.fontes,true)}\n<!-- ${marcador} -->`;
 }
+export function metadadosConfirmados(post:unknown,p:PautaEditorial){const m=(post as {hub_editorial?:Record<string,unknown>})?.hub_editorial,seo=p.texto?.seo;return !!m&&!!seo&&m.titulo===(seo.titulo||p.texto!.titulo)&&m.descricao===seo.descricao&&m.palavra===p.palavra&&m.schema===seo.schema;}
 const remotoZ = z.object({ id: z.number().int().positive(), link: z.string().url(), status: z.string(), modified_gmt: z.string().max(50).optional(), content: z.object({ raw: z.string().optional(), rendered: z.string().optional() }) }).passthrough();
 export class PublicadorWordPress {
     constructor(private sb: SupabaseClient, private credenciais: (site: string) => CredencialWp | null, private permitirPublicar: () => boolean, private pedir: typeof pedidoWordPress = pedidoWordPress) { }
@@ -151,14 +120,17 @@ export class PublicadorWordPress {
         const pendentes = await this.sb.from('hub_publicacoes').select('id').eq('project_id', job.project_id).eq('pauta_id',p.id).eq('site_id',s.id).in('estado',['reservado','incerto']).limit(1);
         if(pendentes.error || pendentes.data?.length)
             throw new Error('Existe um envio reservado ou incerto deste artigo. Reconcilia antes de mudar a versão ou repetir.');
-        const reserva = await this.sb.from('hub_publicacoes').insert({ project_id: job.project_id, pauta_id: p.id, site_id: s.id, versao: p.versao, assinatura, destino: a.destino, estado: 'reservado' }).select('*').single();
+        if(p.texto?.seo?.enviar){const cap=await this.pedir(c,'/wp-json/hub-editorial/v1/capabilities') as {versao?:number;metadados?:boolean};if(cap?.versao!==1||!cap.metadados)throw new Error('Verifica a ponte Hub Editorial Bridge e a compatibilidade do plugin SEO antes de aplicar os metadados.');}
+        let reserva = await this.sb.from('hub_publicacoes').insert({ project_id: job.project_id, pauta_id: p.id, site_id: s.id, versao: p.versao, assinatura, destino: a.destino, estado: 'reservado', escrita_iniciada:false }).select('*').single();
         if (reserva.error) {
             const anterior = await this.sb.from('hub_publicacoes').select('*').eq('project_id', job.project_id).eq('pauta_id', p.id).eq('site_id', s.id).eq('versao', p.versao).eq('destino', a.destino).single();
             if (!anterior.error && anterior.data?.estado === 'enviado' && anterior.data.assinatura === assinatura)
                 return { reutilizado: true, id: anterior.data.remoto_id, url: anterior.data.remoto_url };
-            throw new Error('Já existe um envio reservado ou incerto desta versão. Reconcilia antes de repetir.');
+            if(!anterior.error&&anterior.data?.estado==='falhou'&&anterior.data.escrita_iniciada===false){reserva=await this.sb.from('hub_publicacoes').update({estado:'reservado',assinatura,escrita_iniciada:false,imagem_esperada:null,atualizado_em:new Date().toISOString()}).eq('project_id',job.project_id).eq('id',anterior.data.id).eq('estado','falhou').eq('escrita_iniciada',false).select('*').single();if(reserva.error)throw new Error('O envio mudou. Atualiza antes de repetir.');}
+            else throw new Error('Já existe um envio reservado ou incerto desta versão. Reconcilia antes de repetir.');
         }
         const marcador = `hub-artigo:${job.project_id}:${p.id}:${p.versao}:${assinatura}`;
+        let postIniciado=false;
         try {
             // The remote identity survives a slug change. Never create a new article
             // merely because its current URL differs from the previous version.
@@ -184,19 +156,27 @@ export class PublicadorWordPress {
             const pausaAgora = await this.sb.from('hub_operacao').select('pausado').eq('project_id', job.project_id).single();
             if (renovada.error || renovada.data !== true || pausaAgora.error || pausaAgora.data?.pausado !== false)
                 throw new Error('Envio interrompido antes da escrita remota.');
-            const post = remotoZ.parse(await this.pedir(c, caminho, 'POST', { title: p.texto!.titulo, content: htmlArtigo(p, marcador), excerpt: p.texto!.resumo, slug: p.texto!.slug, status: a.destino, categories: a.categorias ?? [], tags: a.tags ?? [], ...(a.featuredMedia ? { featured_media: a.featuredMedia } : {}) }));
-            if (new URL(post.link).origin !== new URL(c.url).origin || post.status !== a.destino)
+            const featuredMedia=p.texto!.imagem?await imagemWordPress(this.sb,job.project_id,s.id,c,p.texto!.imagem,this.pedir):a.featuredMedia;
+            if(featuredMedia!==undefined){const recibo=await this.sb.from('hub_publicacoes').update({imagem_esperada:featuredMedia}).eq('project_id',job.project_id).eq('id',reserva.data.id).eq('estado','reservado').select('id');if(recibo.error||recibo.data?.length!==1)throw new Error('Não foi possível guardar a imagem esperada antes da escrita remota.');}
+            const meta=p.texto!.seo?.enviar?{hub_editorial:{titulo:p.texto!.seo.titulo||p.texto!.titulo,descricao:p.texto!.seo.descricao,palavra:p.palavra,schema:p.texto!.seo.schema}}:{};
+            const escrita=await this.sb.from('hub_publicacoes').update({escrita_iniciada:true}).eq('project_id',job.project_id).eq('id',reserva.data.id).eq('estado','reservado').select('id');if(escrita.error||escrita.data?.length!==1)throw new Error('Não foi possível reservar a escrita remota.');
+            postIniciado=true;
+            const post = remotoZ.parse(await this.pedir(c, caminho, 'POST', { title: p.texto!.titulo, content: htmlArtigo(p, marcador), excerpt: p.texto!.resumo, slug: p.texto!.slug, status: a.destino, categories: a.categorias ?? [], tags: a.tags ?? [], ...meta,...(featuredMedia ? { featured_media: featuredMedia } : {}) }));
+            if(p.texto!.seo?.enviar&&!metadadosConfirmados(post,p))throw new Error('O WordPress não confirmou os metadados SEO. Confirma o resultado antes de repetir.');
+            if(featuredMedia&&(post as unknown as {featured_media?:number}).featured_media!==featuredMedia)throw new Error('O WordPress não confirmou a imagem destacada.');
+            if (new URL(post.link).origin !== new URL(c.url).origin || post.status !== a.destino || !post.modified_gmt || post.content.raw?.trim()!==htmlArtigo(p,marcador).trim())
                 throw new Error('O estado remoto difere do pedido; verificar o WordPress.');
-            const q = await this.sb.from('hub_publicacoes').update({ estado: 'enviado', remoto_id: post.id, remoto_url: post.link, remoto_modificado_em: post.modified_gmt ?? null, atualizado_em: new Date().toISOString() }).eq('id', reserva.data.id).eq('estado', 'reservado').select('id');
+            const q = await this.sb.from('hub_publicacoes').update({ estado: 'enviado', evento_estado:null, remoto_id: post.id, remoto_url: post.link, remoto_modificado_em: post.modified_gmt ?? null, atualizado_em: new Date().toISOString() }).eq('id', reserva.data.id).eq('estado', 'reservado').select('id');
             if (q.error || q.data?.length !== 1)
                 throw new Error('WordPress respondeu, mas o registo local não foi confirmado.');
             return { id: post.id, url: post.link, estado: post.status };
         }
         catch (e) {
-            await this.sb.from('hub_publicacoes').update({ estado: 'incerto', atualizado_em: new Date().toISOString() }).eq('id', reserva.data.id).eq('estado', 'reservado');
+            await this.sb.from('hub_publicacoes').update({ estado: postIniciado?'incerto':'falhou', escrita_iniciada:postIniciado, evento_estado:null, atualizado_em: new Date().toISOString() }).eq('id', reserva.data.id).eq('estado', 'reservado');
             throw e;
         }
     }
+    async reconciliarImagem(projeto:string,site:string,hash:string){const c=this.credenciais(site);if(!c)throw new Error('Destino sem credenciais.');return reconciliarImagemWordPress(this.sb,projeto,site,hash,c,this.pedir);}
     async verificar(site: string) {
         const c = this.credenciais(site);
         if (!c)
@@ -214,6 +194,7 @@ export class PublicadorWordPress {
         if (r.error || !r.data)
             throw new Error('Envio não encontrado neste projeto.');
         const envio = r.data;
+        if(envio.estado==='falhou'&&envio.escrita_iniciada===false)return{confirmado:false,detalhe:'A preparação falhou antes de enviar o artigo. Corrige a causa e confirma um novo pedido no editor.'};
         if (envio.estado === 'enviado')
             return { confirmado: true, url: envio.remoto_url };
         const e = await this.sb.from('hub_editorial_estados').select('dados').eq('project_id', projeto).single();
@@ -225,10 +206,11 @@ export class PublicadorWordPress {
             throw new Error('Destino sem credenciais.');
         const posts = z.array(remotoZ).parse(await this.pedir(c, `/wp-json/wp/v2/posts?context=edit&slug=${encodeURIComponent(p.texto!.slug)}&status=draft,pending,publish,future,private&per_page=10`));
         const marcador = `hub-artigo:${projeto}:${p.id}:${p.versao}:${envio.assinatura}`;
-        const certos = posts.filter(post => post.status === envio.destino && post.modified_gmt && new URL(post.link).origin === new URL(c.url).origin && post.content.raw?.trim() === htmlArtigo(p, marcador).trim());
+        const imagemValida=(post:Record<string,unknown>)=>envio.imagem_esperada!=null?post.featured_media===envio.imagem_esperada:!p.texto?.imagem;
+        const certos = posts.filter(post => imagemValida(post) && (!p.texto?.seo?.enviar||metadadosConfirmados(post,p)) && post.status === envio.destino && post.modified_gmt && new URL(post.link).origin === new URL(c.url).origin && post.content.raw?.trim() === htmlArtigo(p, marcador).trim());
         if (certos.length !== 1)
             return { confirmado: false, detalhe: 'Não foi encontrado um resultado remoto inequívoco. O envio continua bloqueado; nenhum artigo foi reenviado.' };
-        const post = certos[0], q = await this.sb.from('hub_publicacoes').update({ estado: 'enviado', remoto_id: post.id, remoto_url: post.link, remoto_modificado_em: post.modified_gmt, atualizado_em: new Date().toISOString() }).eq('project_id', projeto).eq('id', id).eq('estado', envio.estado).select('id');
+        const post = certos[0], q = await this.sb.from('hub_publicacoes').update({ estado: 'enviado', evento_estado:null, remoto_id: post.id, remoto_url: post.link, remoto_modificado_em: post.modified_gmt, atualizado_em: new Date().toISOString() }).eq('project_id', projeto).eq('id', id).eq('estado', envio.estado).select('id');
         if (q.error || q.data?.length !== 1)
             throw new Error('O registo mudou durante a reconciliação. Atualiza o histórico.');
         return { confirmado: true, url: post.link };

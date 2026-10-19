@@ -4,6 +4,10 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { MotorDocumentos } from '../documentos/motor-local';
 import fontes from '../documentos/fontes-originais.json';
+import { operarFontes } from './fontes-documentos';
+import { tituloCandidato } from '../../src/features/documentos/tituloFonte';
+import { downloadConhecido } from '../documentos/adaptadores';
+import { Robots } from '../documentos/robots';
 import { obterPublico } from '../documentos/obter';
 import { FalhaHttp, ambitoAutorizado, exigirEscrita, uuid, type ContextoBackend } from './seguranca';
 import { extrairPdfServidor } from './pdf';
@@ -126,6 +130,11 @@ export class DocumentosNuvem {
     async operar(ctx: ContextoBackend, acao: string, a: Record<string, unknown>) {
         if (a.ambito !== undefined)
             ambitoAutorizado(ctx, a.ambito);
+        if (acao === 'documento-eliminar') {
+            exigirEscrita(ctx); if(a.confirmar!==true)throw new Error('Confirma a eliminação definitiva.');
+            const { eliminarDocumentoNuvem }=await import('./documentos-eliminar');
+            return eliminarDocumentoNuvem(this.sb,ctx,await this.obter(ctx,uuid.parse(a.id)));
+        }
         if (acao === 'capas') {
             const linhas: {
                 id: string;
@@ -215,8 +224,7 @@ export class DocumentosNuvem {
         }
         if (acao === 'legado/catalogo' || acao === 'diagnostico')
             return null;
-        if (acao === 'fontes')
-            return fontes;
+        if (['fontes','fonte-guardar','fonte-remover'].includes(acao)) return operarFontes(this.sb,ctx,acao,a);
         if (acao === 'ficheiro')
             return this.ficheiro(ctx, uuid.parse(a.id), a.capa === true);
         if (acao === 'guardar-recolha') {
@@ -235,8 +243,10 @@ export class DocumentosNuvem {
             exigirEscrita(ctx);
             const ids = z.array(z.number().int()).min(1).max(12).parse(a.ids), modo = z.enum(['diagnostico', 'recolher']).parse(a.modo);
             // A queued job is durable before this response. Browser closure does not stop it.
+            const inventario = await operarFontes(this.sb,ctx,'fontes',{}) as import('../../src/features/documentos/contratos').FonteDocumento[];
+            if(ids.some(id=>!inventario.some(f=>f.id===id&&!f.pausada)))throw new Error('Há fontes removidas ou pausadas. Atualiza a seleção.');
             const key = z.string().uuid().parse(a.pedidoId);
-            const r = await ctx.user.rpc('hub_enfileirar', { _projeto: ctx.projeto, _tipo: 'documentos_recolha', _dedup: key, _pedido: { ids, modo, userId: ctx.userId } });
+            const r = await ctx.user.rpc('hub_enfileirar', { _projeto: ctx.projeto, _tipo: 'documentos_recolha', _dedup: key, _pedido: { ids, modo, userId: ctx.userId, inventario: inventario.filter(f=>ids.includes(f.id)) } });
             if (r.error)
                 throw new Error('Não foi possível enfileirar a recolha. Confirma se a automação está ativa.');
             return { id: r.data, estado: 'fila' };
@@ -281,6 +291,33 @@ export class DocumentosNuvem {
             if (b.error || !b.data)
                 throw new Error('Ficheiro privado indisponível.');
             return b.data;
+        }
+        if (acao === 'candidato-importar' || acao === 'candidato-decidir') {
+            exigirEscrita(ctx);
+            const r = await this.sb.from('hub_jobs').select('*').eq('id',uuid.parse(a.id)).eq('project_id',ctx.projeto).eq('tipo','documentos_recolha').single();
+            if(r.error||!r.data)throw new FalhaHttp('Pesquisa não encontrada neste projeto.',404);
+            if(['fila','em_curso'].includes(r.data.estado))throw new FalhaHttp('Espera que a pesquisa termine.',409);
+            const resultado = r.data.resultado as import('../../src/features/documentos/contratos').TarefaDocumentos;
+            const item = resultado.descobertas?.find(d=>d.url===a.url&&d.tipo==='pdf');
+            if(!item)throw new Error('O PDF não pertence a esta pesquisa.');
+            if(acao==='candidato-importar'){
+                const anterior=resultado.pdfs?.find(p=>p.url===a.url&&p.documentoId);
+                if(anterior)return {ok:true};
+                const robots=new Robots();
+                const b=await obterPublico(downloadConhecido(item.url),AbortSignal.timeout(30000),{antesDeVisitar:u=>robots.verificar(u),maxBytes:32*1024*1024});
+                const salvo=await this.guardar(ctx,b.bytes,{titulo:tituloCandidato(item.titulo),origem:b.url,fonteNome:item.nomeFonte,categoria:resultado.inventario?.find(f=>f.id===item.fonteId)?.group_category,ficheiro:new URL(b.url).pathname.split('/').at(-1)});
+                resultado.pdfs=[...(resultado.pdfs??[]).filter(p=>p.hash!==salvo.documento.hash),{...item,candidatoUrl:item.url,fonteId:item.fonteId,nomeFonte:item.nomeFonte,hash:salvo.documento.hash,bytes:b.bytes.length,estado:'guardado',documentoId:salvo.documento.id,capaCriada:!!salvo.documento.capa_path}];
+                delete item.decisao;
+            }else{
+                const decisao=z.enum(['ignorar','repor','remover']).parse(a.decisao);
+                if(decisao==='remover'){
+                    const {removerCandidatoNuvem}=await import('./documentos-eliminar');
+                    return removerCandidatoNuvem(this.sb,ctx,item.url);
+                }else if(decisao==='ignorar')item.decisao='ignorado';else delete item.decisao;
+            }
+            const q=await this.sb.from('hub_jobs').update({resultado,atualizado_em:new Date().toISOString()}).eq('id',r.data.id).eq('project_id',ctx.projeto).eq('atualizado_em',r.data.atualizado_em).select('id');
+            if(q.error||q.data?.length!==1)throw new FalhaHttp('O resultado mudou. Atualiza antes de repetir; o PDF importado foi preservado.',409);
+            return {ok:true};
         }
         if (acao === 'confirmar')
             return { ok: true };

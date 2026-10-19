@@ -1,0 +1,19 @@
+import { useState } from 'react';
+import { CheckCircle2, Circle, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { apiSeo } from '../seo/api';
+import { dataSeo } from '../seo/precos';
+import { FonteDescoberta } from './NovaCampanha';
+import { requisitosFonteCampanha, type Campanha } from './modelo';
+export function RevisaoFonteCampanha({campanha:c,projetoId,podeEditar,aoGuardar,voltar}:{campanha:Campanha;projetoId:string;podeEditar:boolean;aoGuardar:(c:Campanha)=>void;voltar:()=>void}){
+ const[confirma,setConfirma]=useState(false),[busy,setBusy]=useState(false),[erro,setErro]=useState(''),bloqueios=requisitosFonteCampanha(c.fonte),feita=!!c.fonteConfirmadaEm;
+ async function guardar(){if(!confirma||busy)return;setBusy(true);setErro('');try{const nova=await apiSeo<Campanha>('campanha-fonte-confirmar',{id:c.id,versao:c.versao,confirmacao:true},{projeto:projetoId});aoGuardar(nova);setConfirma(false);}catch(e){setErro((e as Error).message);}finally{setBusy(false);}}
+ return <section aria-label="Verificar fonte da campanha" className="flex max-w-4xl flex-col gap-6 rounded-xl border bg-card p-5 sm:p-7"><header className="flex items-start gap-3">{feita?<CheckCircle2 className="mt-1 size-6 shrink-0 text-primary"/>:<Circle className="mt-1 size-6 shrink-0 text-muted-foreground"/>}<div><p className="text-xs font-medium text-primary">1. Verificação da descoberta</p><h2 className="mt-1 text-xl font-semibold">{feita?'Fonte confirmada nesta campanha':'Confirma o que esta fonte realmente diz'}</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Lê o excerto, abre o original quando disponível e confirma a autoria, o contexto e os limites. Esta etapa regista a tua revisão; não escreve o artigo nem aprova conteúdo automaticamente.</p></div></header>
+ <FonteDescoberta fonte={c.fonte}/>
+ {feita?<p role="status" className="flex items-start gap-2 rounded-lg bg-primary/5 p-4 text-sm"><CheckCircle2 className="size-5 shrink-0 text-primary"/>Revisão humana registada em {dataSeo(c.fonteConfirmadaEm!)}. As fontes específicas e o texto final do artigo são revistos no editor.</p>:<div className="flex flex-col gap-4 border-t pt-5"><h3 className="font-semibold">Antes de marcar como concluído</h3><ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground"><li>Consegues identificar de onde vem o conteúdo.</li><li>O excerto sustenta a ideia que queres desenvolver.</li><li>Estás a distinguir conclusões, opiniões e limitações da fonte.</li></ul>{bloqueios.length>0&&<Alert><AlertDescription><ul className="list-disc pl-5">{bloqueios.map(b=><li key={b}>{b}</li>)}</ul></AlertDescription></Alert>}<label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm"><Checkbox checked={confirma} disabled={busy||!podeEditar||!!bloqueios.length} onCheckedChange={v=>setConfirma(v===true)} className="mt-1"/><span>Li o excerto e confirmei a origem, o contexto e os limites da descoberta.</span></label><Button className="min-h-11 self-start" disabled={busy||!podeEditar||!confirma||!!bloqueios.length} onClick={()=>void guardar()}>{busy?'A registar…':'Marcar verificação da fonte como concluída'}</Button></div>}
+ {erro&&<Alert variant="destructive"><AlertDescription>{erro} A confirmação anterior foi preservada.</AlertDescription></Alert>}
+ <footer className="flex flex-wrap items-center justify-between gap-3 border-t pt-5"><p className="max-w-prose text-xs text-muted-foreground">Não precisas de marcar esta tarefa outra vez em cada peça. Alterações ao texto e ao design mantêm a sua revisão própria.</p><Button variant="outline" onClick={voltar}>Voltar ao plano e continuar<ArrowRight className="size-4"/></Button></footer>
+ </section>;
+}

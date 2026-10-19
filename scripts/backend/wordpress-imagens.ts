@@ -1,0 +1,22 @@
+import { createHash } from 'node:crypto';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { z } from 'zod';
+import { ImagensArtigoNuvem } from './imagens-artigo';
+import { obterPublico } from '../documentos/obter';
+import { validarImagem, MAX_IMAGEM } from '../seo/imagens';
+import type { ImagemArtigo } from '../../src/features/seo/artigoCompleto';
+import type { CredencialWp, pedidoWordPress } from './wordpress';
+const remoto=z.object({id:z.number().int().positive(),source_url:z.string().url(),slug:z.string(),alt_text:z.string(),title:z.object({raw:z.string()}),caption:z.object({raw:z.string()})}).passthrough();
+export async function imagemWordPress(sb:SupabaseClient,projeto:string,site:string,c:CredencialWp,imagem:ImagemArtigo,pedir:typeof pedidoWordPress){
+ if(!imagem.alt.trim()||!imagem.titulo.trim())throw new Error('Completa o título e o texto alternativo da imagem antes do envio.');
+ const ficheiro=imagem.id?await new ImagensArtigoNuvem(sb).ficheiro(projeto,imagem.id):await obterPublico(imagem.url,AbortSignal.timeout(20000),{maxBytes:MAX_IMAGEM});
+ const validada=validarImagem(ficheiro.bytes),hash=createHash('sha256').update(JSON.stringify([validada.hash,imagem.alt,imagem.titulo,imagem.legenda,imagem.credito])).digest('hex');
+ const antiga=await sb.from('hub_wp_imagens').select('*').eq('project_id',projeto).eq('site_id',site).eq('hash',hash).maybeSingle();if(antiga.error)throw new Error('O registo de imagens WordPress ainda não está instalado.');
+ if(antiga.data){if(antiga.data.estado==='enviado')return antiga.data.remoto_id as number;throw new Error(`A imagem tem resultado por confirmar (${hash}). Usa «Confirmar imagem» antes de repetir.`);}
+ const reserva=await sb.from('hub_wp_imagens').insert({project_id:projeto,site_id:site,hash,estado:'reservado',metadados:{alt:imagem.alt,titulo:imagem.titulo,legenda:[imagem.legenda,imagem.credito].filter(Boolean).join('\n\n')}}).select('*').single();if(reserva.error)throw new Error('Outra operação já reservou esta imagem. Atualiza antes de repetir.');
+ try{const slug=`hub-${hash}`,existentes=z.array(remoto).parse(await pedir(c,`/wp-json/wp/v2/media?context=edit&slug=${slug}&per_page=10`));if(existentes.length)throw new Error('Foi encontrada uma imagem remota sem confirmação local. Confirma o resultado antes de continuar.');
+ const r=remoto.parse(await pedir(c,'/wp-json/wp/v2/media','POST',{ficheiro:{bytes:ficheiro.bytes,tipo:validada.tipo,nome:`${slug}.${validada.ext}`},campos:{title:imagem.titulo,alt_text:imagem.alt,caption:[imagem.legenda,imagem.credito].filter(Boolean).join('\n\n'),slug}}));if(r.slug!==slug||r.alt_text!==imagem.alt||r.title.raw!==imagem.titulo||r.caption.raw!==[imagem.legenda,imagem.credito].filter(Boolean).join('\n\n'))throw new Error('O WordPress não confirmou a imagem e os seus metadados.');
+ const q=await sb.from('hub_wp_imagens').update({estado:'enviado',remoto_id:r.id,remoto_url:r.source_url,atualizado_em:new Date().toISOString()}).eq('project_id',projeto).eq('site_id',site).eq('hash',hash).eq('estado','reservado').select('hash');if(q.error||q.data?.length!==1)throw new Error('A imagem remota ficou por confirmar.');return r.id;
+ }catch(e){await sb.from('hub_wp_imagens').update({estado:'incerto'}).eq('project_id',projeto).eq('site_id',site).eq('hash',hash).eq('estado','reservado');throw e;}
+}
+export async function reconciliarImagemWordPress(sb:SupabaseClient,projeto:string,site:string,hash:string,c:CredencialWp,pedir:typeof pedidoWordPress){z.string().regex(/^[a-f0-9]{64}$/).parse(hash);const q=await sb.from('hub_wp_imagens').select('*').eq('project_id',projeto).eq('site_id',site).eq('hash',hash).single();if(q.error||!q.data)throw new Error('Imagem não encontrada neste projeto e site.');if(q.data.estado==='enviado')return{confirmado:true};const rs=z.array(remoto).parse(await pedir(c,`/wp-json/wp/v2/media?context=edit&slug=hub-${hash}&per_page=10`));if(rs.length!==1||rs[0].alt_text!==q.data.metadados?.alt||rs[0].title.raw!==q.data.metadados?.titulo||rs[0].caption.raw!==(q.data.metadados?.legenda??''))throw new Error('Não foi confirmada uma única imagem com os metadados esperados. Não foi repetido o upload.');const r=await sb.from('hub_wp_imagens').update({estado:'enviado',remoto_id:rs[0].id,remoto_url:rs[0].source_url,atualizado_em:new Date().toISOString()}).eq('project_id',projeto).eq('site_id',site).eq('hash',hash).select('hash');if(r.error)throw new Error('Não foi possível guardar a confirmação.');return{confirmado:true};}

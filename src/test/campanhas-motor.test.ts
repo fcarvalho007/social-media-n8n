@@ -56,3 +56,43 @@ it('Cloud abre composição privada sem alargar RLS nem aceitar referências do 
   await expect(s.executar(ctx,'campanha-composicao',{id:crypto.randomUUID(),tipo:'story'})).rejects.toThrow('neste projeto');
   expect(user.sb.from).not.toHaveBeenCalledWith('hub_editorial_artefactos');
 });
+
+describe('conteúdo colado: persistência, confiança e deduplicação',()=>{
+  it('guarda fonte colada, confirma responsabilidade humana e prepara o artigo sem inventar referências',async()=>{
+    const {prepararTextoCampanha}=await import('@/features/campanhas/modelo');
+    const {m,campanhas,fornecedor}=await preparar();
+    const f=await prepararTextoCampanha({titulo:'Texto próprio para desenvolver',texto,url:''});
+    const c=await campanhas.criar(f,plano,true);
+    expect(c.fonte.tipo).toBe('texto');expect(c.fonteConfirmadaEm).toBeNull();expect(c.pecas).toHaveLength(5);
+    const confirmada=await campanhas.confirmarFonte(c.id,c.versao,true);
+    const r=await campanhas.artigo(confirmada.id,confirmada.versao);
+    expect(r.pauta.origem).toBe('topico');expect(r.pauta.fontes).toEqual([]);expect(r.pauta.producaoAutomaticaAutorizada).toBe(false);expect(r.pauta.motivo).toContain('referência HTTPS');
+    expect((await m.repo.ler()).campanhas?.find(a=>a.id===c.id)?.fonte.texto).toBe(texto.trim());expect(fornecedor).not.toHaveBeenCalled();
+  });
+  it('normaliza o URL antes da assinatura e rejeita adulteração no backend',async()=>{
+    const {prepararTextoCampanha}=await import('@/features/campanhas/modelo');
+    const f=await prepararTextoCampanha({titulo:'Material fornecido para a campanha',texto,url:'https://EXAMPLE.org/referencia#secao'});
+    const mem=supabaseMemoria(),ctx={userId:'u1',projeto:'p1',escrever:true,user:mem.sb};
+    expect((await fonteCampanhaNuvem(ctx,f)).hash).toBe(f.hash);
+    await expect(fonteCampanhaNuvem(ctx,{...f,texto:`Texto alterado. ${texto}`})).rejects.toThrow('mudou');
+    expect(mem.chamadas).toHaveLength(0);
+    await expect(prepararTextoCampanha({titulo:'Título',texto,url:'https://user:secret@example.org/'})).rejects.toThrow('HTTPS');
+  });
+  it('repetir o mesmo conteúdo abre a campanha existente, incluindo após releitura do estado',async()=>{
+    const {prepararTextoCampanha}=await import('@/features/campanhas/modelo');
+    const {m,campanhas}=await preparar();
+    const dados={titulo:'Plano editorial a partir de conteúdo próprio',texto,url:''};
+    const f=await prepararTextoCampanha(dados),c=await campanhas.criar(f,plano,true);
+    const reaberta=new CampanhasEditorial(m.repo,()=>agora);
+    const repetida=await reaberta.criar(await prepararTextoCampanha(dados),plano,true);
+    expect(repetida.id).toBe(c.id);expect((await m.repo.ler()).campanhas?.filter(a=>a.fonte.tipo==='texto')).toHaveLength(1);
+  });
+});
+
+it('o mínimo de texto colado permitido na entrada pode ser confirmado sem bloquear o percurso por um limite diferente',async()=>{
+  const {prepararTextoCampanha}=await import('@/features/campanhas/modelo');
+  const {campanhas}=await preparar();
+  const f=await prepararTextoCampanha({titulo:'Uma ideia própria para desenvolver',texto:'Esta ideia é fornecida por mim para desenvolver em vários canais, com revisão de factos.',url:''});
+  const c=await campanhas.criar(f,plano,true);
+  expect((await campanhas.confirmarFonte(c.id,c.versao,true)).fonteConfirmadaEm).not.toBeNull();
+});

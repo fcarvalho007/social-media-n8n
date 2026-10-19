@@ -1,8 +1,9 @@
+import { CabecalhoPagina } from '@/components/CabecalhoPagina';
 import { useState, useCallback, useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useProjeto } from '@/contexts/ProjetoContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Inbox, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, FileText, Inbox, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -120,29 +121,8 @@ export default function Drafts() {
   const allSelected = drafts.length > 0 && selectedIds.size === drafts.length;
 
   return (
-    <div className="container max-w-5xl mx-auto py-6 px-4 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <FileText className="h-6 w-6 text-primary" />
-              Rascunhos da equipa
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {totalCount} rascunho{totalCount !== 1 ? 's' : ''} · {ctx.projeto ? ctx.projeto.name : 'todos os projetos'}
-            </p>
-          </div>
-        </div>
-        
-        <Button onClick={() => navigate('/manual-create')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Criar novo
-        </Button>
-      </div>
+    <div className="hub-page">
+      <CabecalhoPagina titulo="Rascunhos da equipa" descricao={`${totalCount} rascunho${totalCount !== 1 ? 's' : ''} · ${ctx.projeto ? ctx.projeto.name : 'todos os projetos'}`} icone={FileText} acoes={<Button onClick={() => navigate('/manual-create')}><Plus aria-hidden/>Criar novo</Button>}/>
 
       {/* Filters */}
       <DraftsFilters

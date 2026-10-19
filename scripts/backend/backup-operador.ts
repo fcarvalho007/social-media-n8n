@@ -9,7 +9,7 @@ export async function exportarCopia(sb: SupabaseClient, projeto: string, pasta: 
     await mkdir(pasta, { mode: 0o700 });
     await mkdir(path.join(pasta, 'objetos'), { mode: 0o700 });
     for (const o of b.objetos) {
-        const r = await sb.storage.from('hub-documentos').download(o.path);
+        const r = await sb.storage.from(o.bucket??'hub-documentos').download(o.path);
         if (r.error || !r.data)
             throw new Error('Cópia incompleta: falta um binário.');
         const bytes = new Uint8Array(await r.data.arrayBuffer());
@@ -25,8 +25,8 @@ export function prepararRestauro(c: CopiaHub, projeto: string, owner: string) {
     verificarBackup(c);
     if (!/^[a-f0-9-]{36}$/.test(projeto) || !/^[a-f0-9-]{36}$/.test(owner) || projeto === c.projeto)
         throw new Error('Usa um projeto de destino novo e vazio.');
-    const tabelas = structuredClone(c.tabelas), ids = new Map<string, string>();
-    for (const t of ['hub_documentos', 'hub_recolhas', 'hub_jobs', 'hub_publicacoes'])
+    const tabelas:Record<string,Record<string,unknown>[]> = {...structuredClone(c.tabelas),hub_artigo_imagens:structuredClone(c.tabelas.hub_artigo_imagens??[]),hub_wp_imagens:structuredClone(c.tabelas.hub_wp_imagens??[])}, ids = new Map<string, string>();
+    for (const t of ['hub_documentos', 'hub_recolhas', 'hub_jobs', 'hub_publicacoes','hub_artigo_imagens'])
         for (const r of tabelas[t])
             ids.set(String(r.id), randomUUID());
     for (const [t, linhas] of Object.entries(tabelas))
@@ -34,6 +34,8 @@ export function prepararRestauro(c: CopiaHub, projeto: string, owner: string) {
             r.project_id = projeto;
             if (typeof r.id === 'string' && ids.has(r.id))
                 r.id = ids.get(r.id);
+            if(t==='hub_artigo_imagens')r.caminho=String(r.caminho).replace(`${c.projeto}/`,`${projeto}/`);
+            if(t==='hub_publicacoes')r.evento_estado=r.estado;
             if (t === 'hub_documentos') {
                 r.pdf_path = String(r.pdf_path).replace(`${c.projeto}/`, `${projeto}/`);
                 if (r.capa_path)
@@ -75,6 +77,12 @@ export function prepararRestauro(c: CopiaHub, projeto: string, owner: string) {
             if (t === 'hub_operacao')
                 r.pausado = true;
             if (t === 'hub_editorial_estados') {
+                const dados=r.dados as import('../../src/features/seo/contratos').EstadoSeo;
+                if(dados.integracoes)dados.integracoes.destinos.forEach(d=>d.ativo=false);
+                for(const v of dados.eventos??[])v.entregas=[];
+                for(const p of dados.pautas)for(const t of [p.texto,p.proposta])if(t?.imagem?.id)t.imagem.id=ids.get(t.imagem.id)??t.imagem.id;
+                const refs=[...dados.pautas.flatMap(p=>[...p.fontes,...p.propostaFontes??[]]),...dados.sites.flatMap(s=>s.conhecimento?.referencias??[]),...(dados.glossarios??[]).flatMap(g=>g.fontes)];
+                for(const f of refs)if(f.documento)f.documento.id=ids.get(f.documento.id)??f.documento.id;
                 const e = r.dados as {
                     configuracao: {
                         pausado: boolean;
@@ -111,9 +119,9 @@ export async function restaurarCopia(sb: SupabaseClient, pasta: string, projeto:
     }
     for (const o of c.objetos) {
         const bytes = await readFile(path.join(pasta, 'objetos', o.hash)), destino = o.path.replace(`${c.projeto}/`, `${projeto}/`);
-        const r = await sb.storage.from('hub-documentos').upload(destino, bytes, { contentType: destino.endsWith('.pdf') ? 'application/pdf' : 'image/png', upsert: false });
+        const r = await sb.storage.from(o.bucket??'hub-documentos').upload(destino, bytes, { contentType: destino.endsWith('.pdf') ? 'application/pdf' : destino.endsWith('.jpg')?'image/jpeg':destino.endsWith('.webp')?'image/webp':'image/png', upsert: false });
         if (r.error) {
-            const anterior = await sb.storage.from('hub-documentos').download(destino);
+            const anterior = await sb.storage.from(o.bucket??'hub-documentos').download(destino);
             if (anterior.error || !anterior.data || createHash('sha256').update(new Uint8Array(await anterior.data.arrayBuffer())).digest('hex') !== o.hash)
                 throw new Error('Não foi possível confirmar todos os binários de destino.');
         }

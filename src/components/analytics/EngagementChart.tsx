@@ -27,9 +27,9 @@ interface EngagementChartProps {
 type Granularity = "daily" | "weekly" | "monthly";
 
 // Premium vibrant colors
-const LIKES_COLOR = "#F43F5E";     // Rose-500
-const COMMENTS_COLOR = "#8B5CF6"; // Violet-500
-const POSTS_COLOR = "#10B981";    // Emerald-500
+const LIKES_COLOR = "hsl(var(--chart-1))";     // Rose-500
+const COMMENTS_COLOR = "hsl(var(--chart-2))"; // Violet-500
+const POSTS_COLOR = "hsl(var(--chart-3))";    // Emerald-500
 
 export const EngagementChart = memo(function EngagementChart({ data }: EngagementChartProps) {
   const [chartType, setChartType] = useState<"line" | "area">("area");
@@ -244,14 +244,14 @@ export const EngagementChart = memo(function EngagementChart({ data }: Engagemen
                 id="show-likes"
                 checked={showLikes}
                 onCheckedChange={setShowLikes}
-                className="data-[state=checked]:bg-rose-500"
+                className="data-[state=checked]:bg-primary"
               />
               <label 
                 htmlFor="show-likes" 
                 className="text-xs font-medium flex items-center gap-1.5 cursor-pointer"
               >
-                <Heart className="h-3.5 w-3.5 text-rose-500" />
-                Likes
+                <Heart className="h-3.5 w-3.5 text-primary" />
+                Gostos
               </label>
             </div>
             <div className="flex items-center gap-2">
@@ -259,13 +259,13 @@ export const EngagementChart = memo(function EngagementChart({ data }: Engagemen
                 id="show-comments"
                 checked={showComments}
                 onCheckedChange={setShowComments}
-                className="data-[state=checked]:bg-violet-500"
+                className="data-[state=checked]:bg-[hsl(var(--chart-2))]"
               />
               <label 
                 htmlFor="show-comments" 
                 className="text-xs font-medium flex items-center gap-1.5 cursor-pointer"
               >
-                <MessageCircle className="h-3.5 w-3.5 text-violet-500" />
+                <MessageCircle className="h-3.5 w-3.5 text-[hsl(var(--chart-2))]" />
                 Comentários
               </label>
             </div>
@@ -274,14 +274,14 @@ export const EngagementChart = memo(function EngagementChart({ data }: Engagemen
                 id="show-posts"
                 checked={showPosts}
                 onCheckedChange={setShowPosts}
-                className="data-[state=checked]:bg-emerald-500"
+                className="data-[state=checked]:bg-[hsl(var(--chart-3))]"
               />
               <label 
                 htmlFor="show-posts" 
                 className="text-xs font-medium flex items-center gap-1.5 cursor-pointer"
               >
-                <BarChart3 className="h-3.5 w-3.5 text-emerald-500" />
-                Posts
+                <BarChart3 className="h-3.5 w-3.5 text-[hsl(var(--chart-3))]" />
+                Publicações
               </label>
             </div>
           </div>

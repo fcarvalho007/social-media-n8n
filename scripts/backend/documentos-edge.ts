@@ -19,8 +19,8 @@ export class DocumentosEdge extends DocumentosNuvem {
         }
         return salvo;
     }
-    private async enfileirar(projeto: string, id: string, inicio: number) {
-        const r = await this.banco.from('hub_jobs').upsert({ project_id: projeto, tipo: 'documento_preparar', dedup: `pdf:${id}:${inicio}`, pedido: { documentoId: id, inicio } }, { onConflict: 'project_id,tipo,dedup', ignoreDuplicates: true });
+    private async enfileirar(projeto: string, id: string, inicio: number, reextracaoId?: string) {
+        const r = await this.banco.from('hub_jobs').upsert({ project_id: projeto, tipo: 'documento_preparar', dedup: `${reextracaoId ? `reextrair:${reextracaoId}` : 'pdf'}:${id}:${inicio}`, pedido: { documentoId: id, inicio, ...(reextracaoId ? { reextracao: true, reextracaoId } : {}) } }, { onConflict: 'project_id,tipo,dedup', ignoreDuplicates: true });
         if (r.error)
             throw new Error('PDF preservado; não foi possível agendar a extração. Reimporta o mesmo ficheiro para retomar.');
     }
@@ -83,10 +83,9 @@ export class DocumentosEdge extends DocumentosNuvem {
         const q = await this.banco.from('hub_documentos').update({ dados, capa_path: capaPath, revisao: d.revisao + 1, atualizado_em: new Date().toISOString() }).eq('project_id', job.project_id).eq('id', id).eq('revisao', d.revisao).select('id');
         if (q.error || q.data?.length !== 1)
             throw new Error('O documento mudou durante a extração. As alterações do leitor foram preservadas.');
-        if (reextracao && parte.proxima !== null) return { paginas: inicio + parte.pdf.paginas.length, total: parte.total, continuarPedido: { ...job.pedido, inicio: parte.proxima } };
         if (!job.pedido.capa && parte.proxima !== null)
-            await this.enfileirar(job.project_id, id, parte.proxima);
-        return { paginas: dados.pdf.paginas.length, total: parte.total, concluido: parte.proxima === null };
+            await this.enfileirar(job.project_id, id, parte.proxima, reextracao ? String(job.pedido.reextracaoId || job.id) : undefined);
+        return { paginas: dados.processamento.paginas, total: parte.total, concluido: parte.proxima === null };
     }
     async operar(ctx: ContextoBackend, acao: string, a: Record<string, unknown>) {
         if (acao === 'retomar-processamento' || acao === 'reextrair-texto') {
@@ -100,7 +99,7 @@ export class DocumentosEdge extends DocumentosNuvem {
                 return { ok: true };
             const reextracao = acao === 'reextrair-texto' || d.dados.processamento?.reextracao === true;
             if (reextracao && !d.dados.pdf.paginas.length) throw new Error('Aguarda a preparação inicial do PDF.');
-            const r = await this.banco.from('hub_jobs').insert({ project_id: ctx.projeto, tipo: 'documento_preparar', dedup: crypto.randomUUID(), pedido: { documentoId: d.id, inicio: reextracao ? 0 : d.dados.pdf.paginas.length, reextracao } });
+            const r = await this.banco.from('hub_jobs').insert({ project_id: ctx.projeto, tipo: 'documento_preparar', dedup: crypto.randomUUID(), pedido: { documentoId: d.id, inicio: reextracao ? 0 : d.dados.pdf.paginas.length, reextracao, ...(reextracao ? { reextracaoId: crypto.randomUUID() } : {}) } });
             if (r.error)
                 throw new Error('Não foi possível retomar a extração.');
             await this.banco.from('hub_documentos').update({ dados: { ...d.dados, processamento: { ...d.dados.processamento, estado: 'a_processar', paginas: reextracao ? 0 : d.dados.pdf.paginas.length, reextracao } }, revisao: d.revisao + 1 }).eq('project_id', ctx.projeto).eq('id', d.id).eq('revisao', d.revisao);

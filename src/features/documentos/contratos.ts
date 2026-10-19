@@ -1,20 +1,23 @@
 export interface FonteDocumento {
   id: number; name: string; url: string; alternative_urls: string[]; group_category: string;
   region: string; priority: string; active: boolean; tags: string[]; display_order: number;
+  pausada?: boolean; motivoPausa?: string; descricao?: string; sugerida?: boolean;
 }
 export interface DescobertaDocumento {
   url: string; titulo: string; tipo: 'pdf' | 'artigo'; origem: string; publicadoEm: string | null;
+  decisao?: 'ignorado';
 }
 export interface EvidenciaFonte {
   fonteId: number; nome: string; url: string; estado: 'a_consultar' | 'concluida' | 'limitada' | 'erro' | 'bloqueada';
   paginas: number; pdfs: number; novidades: number; detalhes: string[]; finalUrl?: string;
 }
-export interface PdfRecolhido extends DescobertaDocumento { hash: string; bytes: number; fonteId: number; nomeFonte: string; categoria?: string; estado: 'descarregado' | 'guardado' | 'erro'; erro?: string; documentoId?: string; capaCriada?: boolean; capaErro?: string;legado?:import('./legado').MetadadosPdfTracker }
+export interface PdfRecolhido extends DescobertaDocumento { candidatoUrl?:string; hash: string; bytes: number; fonteId: number; nomeFonte: string; categoria?: string; estado: 'descarregado' | 'guardado' | 'erro'; erro?: string; documentoId?: string; capaCriada?: boolean; capaErro?: string;legado?:import('./legado').MetadadosPdfTracker }
 export interface TarefaDocumentos {
   id: string; ambito: string; modo: 'diagnostico' | 'recolher'; estado: 'em_curso' | 'concluida' | 'interrompida';
   iniciadaEm: string; terminadaEm?: string; atual: string; total: number; fontes: EvidenciaFonte[];
   descobertas: (DescobertaDocumento & { fonteId: number; nomeFonte: string; nova: boolean })[];
   pdfs: PdfRecolhido[]; erros: string[];
+  inventario?: FonteDocumento[];
 }
 export interface MarkupNo { textContent: string | null; getAttribute(nome: string): string | null; querySelector(s: string): MarkupNo | null; querySelectorAll(s: string): Iterable<MarkupNo>; closest?(s:string):MarkupNo|null; remove?():void }
 export type MarkupDocumento = Pick<MarkupNo, 'querySelector' | 'querySelectorAll'>;

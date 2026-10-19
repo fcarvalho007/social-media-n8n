@@ -1,7 +1,10 @@
+import { CabecalhoPagina } from '@/components/CabecalhoPagina';
+import { SEO_DISPONIVEL } from '@/features/seo/local';
+import { DOCUMENTOS_DISPONIVEL } from '@/features/documentos/modelo';
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { AlertCircle, FileText, GalleryHorizontal, KeyRound, Mail, PlusCircle, RefreshCw, Upload } from "lucide-react";
+import { AlertCircle, FileText, GalleryHorizontal, KeyRound, Mail, PlusCircle, RefreshCw, Upload, Route, BookOpen, ArrowRight, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -17,12 +20,14 @@ const dataPt = (s: string) => new Date(s).toLocaleDateString("pt-PT", { timeZone
 interface Acao { titulo: string; desc: string; icon: typeof Mail; url: string }
 const PRODUCAO: Acao[] = [
   { titulo: "Curadoria", desc: "Uma seleção para todos os formatos", icon: FileText, url: "/curadoria" },
-  { titulo: "Criar SM", desc: "Manual ou assistido por IA", icon: PlusCircle, url: "/pending?tab=create" },
+  { titulo: "Publicação social", desc: "Manual ou assistido por IA", icon: PlusCircle, url: "/pending?tab=create" },
   { titulo: "Conteúdos visuais", desc: "Meus conteúdos e carrosséis da crónica", icon: GalleryHorizontal, url: "/estudio/carrosseis" },
   { titulo: "Roteiros de Reels", desc: "Preparar a leitura e retomar roteiros", icon: FileText, url: "/estudio/roteiros" },
   { titulo: "Newsletter", desc: "Edições, crónica e arquivo", icon: Mail, url: "/newsletter" },
-  { titulo: "Artigos", desc: "Rascunhos de texto, sem publicação", icon: FileText, url: "/artigos" },
+  { titulo: "Artigos", desc: SEO_DISPONIVEL ? "Planear, escrever e rever por site" : "Escrever e guardar rascunhos", icon: FileText, url: "/artigos" },
 ];
+if (SEO_DISPONIVEL) PRODUCAO.splice(1, 0, { titulo: "Campanhas", desc: "Uma descoberta, várias peças coordenadas", icon: Route, url: "/campanhas" });
+if (DOCUMENTOS_DISPONIVEL) PRODUCAO.push({ titulo: "Documentos e relatórios", desc: "Pesquisar estudos e aproveitar páginas verificadas", icon: BookOpen, url: "/curadoria/documentos" });
 const CONFIGURACAO: Acao[] = [
   { titulo: "Ligações", desc: "Estado das chaves e serviços externos", icon: KeyRound, url: "/estudio/ligacoes" },
   { titulo: "Migração", desc: "Importar os dados da newsletter original", icon: Upload, url: "/newsletter/migracao" },
@@ -59,8 +64,8 @@ export default function Estudio() {
 
   return (
     <div className="hub-page">
-      <h1 className="sr-only">Início</h1>
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+      <CabecalhoPagina titulo="Início" descricao="Organiza as fontes, prepara conteúdos e acompanha o trabalho de cada projeto." icone={LayoutDashboard}/>
+      <div className="hub-toolbar flex flex-col justify-between gap-4 md:flex-row md:items-center">
       <section className="min-w-0 flex-1 space-y-2" aria-labelledby="para-quem">
         <Label id="para-quem" htmlFor="sel-projeto" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Para quem?</Label>
         {ctx.estado === "a_carregar" && <Skeleton className="h-10 w-full max-w-sm" />}
@@ -77,7 +82,7 @@ export default function Estudio() {
         {ctx.estado === "pronto" && (
           <>
             <Select value={ctx.projetoId ?? SEM} onValueChange={escolher} disabled={ctx.aGuardar}>
-              <SelectTrigger id="sel-projeto" className="h-12 max-w-sm rounded-2xl bg-card font-semibold"><SelectValue placeholder="Escolhe o projeto" /></SelectTrigger>
+              <SelectTrigger id="sel-projeto" className="h-11 max-w-sm bg-card font-medium"><SelectValue placeholder="Escolhe o projeto" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={SEM}>Todos os projetos</SelectItem>
                 {ctx.projetos.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
@@ -85,7 +90,77 @@ export default function Estudio() {
             </Select>
             {ctx.aGuardar && <p className="text-xs text-muted-foreground">A guardar a escolha…</p>}
             {ctx.projetos.length === 0 && <p className="text-xs text-muted-foreground">Ainda não há projetos. <Link className="underline" to="/projects">Criar projeto</Link></p>}
-            {ctx.identidades.map((i) => {
+
+          </>
+        )}
+      </section>
+      <nav className="flex flex-wrap gap-2" aria-label="Ações rápidas">
+        {PRODUCAO.filter(a => ["/curadoria", "/campanhas", "/pending?tab=create"].includes(a.url)).map((a, i) => (
+          <Button key={a.url} asChild variant={i === 0 ? "default" : "outline"} className="h-11">
+            <Link to={a.url}><a.icon className="mr-1.5 h-4 w-4" aria-hidden />{a.titulo}</Link>
+          </Button>
+        ))}
+      </nav>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+      <Bloco className="flex flex-col gap-4 lg:col-span-8">
+        <h2 id="continuar" className="text-lg font-semibold tracking-tight">Continuar onde ficaste</h2>
+        {ctx.estado === "erro" && <p className="text-sm text-muted-foreground">Disponível depois de carregar os projetos.</p>}
+        {ctx.estado !== "erro" && (resumo.estado === "a_carregar" || ctx.estado === "a_carregar") && <Skeleton className="h-16 w-full" />}
+        {resumo.estado === "erro" && (
+          <Alert variant="destructive">
+            <AlertTitle>Não foi possível carregar o resumo</AlertTitle>
+            <AlertDescription className="flex flex-wrap items-center gap-2">
+              <span>{resumo.erro}</span>
+              <Button size="sm" variant="outline" onClick={() => setTentativa((n) => n + 1)}>Tentar de novo</Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        {resumo.estado === "pronto" && resumo.dados && ctx.estado === "pronto" && (
+          <ul className="flex flex-col divide-y text-sm">
+            <li className="flex min-h-16 flex-wrap items-center justify-between gap-3 py-3">
+              <div className="text-muted-foreground">Newsletter</div>
+              {resumo.dados.ultimaEdicao
+                ? <Link className="max-w-sm text-right font-medium text-primary hover:underline" to="/newsletter">Edição #{resumo.dados.ultimaEdicao.numero} · {resumo.dados.ultimaEdicao.estado}</Link>
+                : <span>Sem edições{ctx.projetoId ? " neste projeto" : ""}</span>}
+            </li>
+            <li className="flex min-h-16 flex-wrap items-center justify-between gap-3 py-3">
+              <div className="text-muted-foreground">Rascunhos sociais</div>
+              {resumo.dados.rascunhosSociais
+                ? <Link className="max-w-sm text-right font-medium text-primary hover:underline" to="/drafts">{resumo.dados.rascunhosSociais} por concluir</Link>
+                : <span>Nenhum rascunho</span>}
+            </li>
+            <li className="flex min-h-16 flex-wrap items-center justify-between gap-3 py-3">
+              <div className="text-muted-foreground">Artigos</div>
+              {resumo.dados.ultimoArtigo
+                ? <Link className="max-w-sm text-right font-medium text-primary hover:underline" to={`/artigos?id=${resumo.dados.ultimoArtigo.id}`}>{resumo.dados.ultimoArtigo.titulo} · {dataPt(resumo.dados.ultimoArtigo.updated_at)}</Link>
+                : <span>Nenhum rascunho</span>}
+            </li>
+          </ul>
+        )}
+      </Bloco>
+      <CustosBloco />
+      <ConteudoBloco />
+      <CalendarioBloco />
+      <ProjetosBloco projetoId={ctx.estado === "pronto" ? ctx.projetoId : null} />
+      </div>
+
+      <section className="flex flex-col gap-4" aria-labelledby="fazer">
+        <h2 id="fazer" className="text-lg font-semibold tracking-tight">O que queres fazer?</h2>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3">
+          {PRODUCAO.map((a) => (
+            <Link key={a.url} to={a.url} className="hub-action-tile group">
+              <div className="flex w-full min-w-0 items-start gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-primary"><a.icon className="size-4" aria-hidden /></span>
+                <div className="min-w-0 flex-1"><div className="text-sm font-semibold leading-snug">{a.titulo}</div><div className="mt-1 text-sm leading-relaxed text-muted-foreground">{a.desc}</div></div><ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground group-hover:text-primary" aria-hidden/>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section aria-label="Associações de newsletters">            {ctx.identidades.length > 0 && <details className="pt-1"><summary className="min-h-11 cursor-pointer py-3 text-xs text-muted-foreground">Associações da newsletter ao projeto</summary><div className="flex flex-col gap-3 pb-2">{ctx.identidades.map((i) => {
               const dono = ctx.projetos.find((p) => p.id === i.project_id);
               return (
                 <div key={i.id} className="flex flex-wrap items-center gap-2 text-sm">
@@ -104,76 +179,7 @@ export default function Estudio() {
                   )}
                 </div>
               );
-            })}
-          </>
-        )}
-      </section>
-      <nav className="flex flex-wrap gap-2" aria-label="Ações rápidas">
-        {PRODUCAO.slice(0, 3).map((a, i) => (
-          <Button key={a.url} asChild variant={i === 0 ? "default" : "outline"} className="h-11 rounded-xl font-semibold">
-            <Link to={a.url}><a.icon className="mr-1.5 h-4 w-4" aria-hidden />{a.titulo}</Link>
-          </Button>
-        ))}
-      </nav>
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-      <Bloco className="flex flex-col justify-center space-y-3 lg:col-span-8">
-        <h2 id="continuar" className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">Continuar onde ficaste</h2>
-        {ctx.estado === "erro" && <p className="text-sm text-muted-foreground">Disponível depois de carregar os projetos.</p>}
-        {ctx.estado !== "erro" && (resumo.estado === "a_carregar" || ctx.estado === "a_carregar") && <Skeleton className="h-16 w-full" />}
-        {resumo.estado === "erro" && (
-          <Alert variant="destructive">
-            <AlertTitle>Não foi possível carregar o resumo</AlertTitle>
-            <AlertDescription className="flex flex-wrap items-center gap-2">
-              <span>{resumo.erro}</span>
-              <Button size="sm" variant="outline" onClick={() => setTentativa((n) => n + 1)}>Tentar de novo</Button>
-            </AlertDescription>
-          </Alert>
-        )}
-        {resumo.estado === "pronto" && resumo.dados && ctx.estado === "pronto" && (
-          <ul className="grid gap-2 text-sm sm:grid-cols-3">
-            <li className="rounded-2xl border bg-background p-4">
-              <div className="text-muted-foreground">Newsletter</div>
-              {resumo.dados.ultimaEdicao
-                ? <Link className="font-medium hover:underline" to="/newsletter">Edição #{resumo.dados.ultimaEdicao.numero} · {resumo.dados.ultimaEdicao.estado}</Link>
-                : <span>Sem edições{ctx.projetoId ? " neste projeto" : ""}</span>}
-            </li>
-            <li className="rounded-2xl border bg-background p-4">
-              <div className="text-muted-foreground">Rascunhos sociais</div>
-              {resumo.dados.rascunhosSociais
-                ? <Link className="font-medium hover:underline" to="/drafts">{resumo.dados.rascunhosSociais} por concluir</Link>
-                : <span>Nenhum rascunho</span>}
-            </li>
-            <li className="rounded-2xl border bg-background p-4">
-              <div className="text-muted-foreground">Artigos</div>
-              {resumo.dados.ultimoArtigo
-                ? <Link className="font-medium hover:underline" to={`/artigos?id=${resumo.dados.ultimoArtigo.id}`}>{resumo.dados.ultimoArtigo.titulo} · {dataPt(resumo.dados.ultimoArtigo.updated_at)}</Link>
-                : <span>Nenhum rascunho</span>}
-            </li>
-          </ul>
-        )}
-      </Bloco>
-      <CustosBloco />
-      <ConteudoBloco />
-      <CalendarioBloco />
-      <ProjetosBloco projetoId={ctx.estado === "pronto" ? ctx.projetoId : null} />
-      </div>
-
-      <section className="space-y-2" aria-labelledby="fazer">
-        <h2 id="fazer" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">O que queres fazer?</h2>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3">
-          {PRODUCAO.map((a) => (
-            <Link key={a.url} to={a.url} className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <div className="flex h-full min-h-11 items-start gap-3 rounded-2xl border bg-card p-4 transition-colors hover:border-primary">
-                <a.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
-                <div><div className="font-medium leading-tight">{a.titulo}</div><div className="mt-0.5 text-sm text-muted-foreground">{a.desc}</div></div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
+            })}</div></details>}</section>
       {admin && (
         <section className="space-y-1" aria-labelledby="configuracao">
           <h2 id="configuracao" className="text-sm font-medium text-muted-foreground">Configuração</h2>

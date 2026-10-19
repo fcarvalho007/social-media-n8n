@@ -1,0 +1,8 @@
+import { z } from 'zod';
+export const tiposEvento=['artigo.criado','artigo.atualizado','artigo.estado','artigo.proposta','artigo.aprovado','artigo.rascunho_wordpress','artigo.publicado','artigo.publicacao_incerta','glossario.atualizado'] as const;
+export const schemaEntrega=z.object({destinoId:z.string(),estado:z.enum(['pendente','a_enviar','entregue','falhou']),tentativas:z.number().int().nonnegative(),limiteTentativas:z.number().int().positive().optional(),repetirEm:z.string().nullable(),http:z.number().nullable(),erro:z.string().nullable()}).strict();
+export const schemaEvento=z.object({id:z.string(),tipo:z.enum(tiposEvento),em:z.string(),siteId:z.string(),artigoId:z.string().nullable(),versao:z.number().int(),titulo:z.string(),estado:z.string(),url:z.string().nullable(),entregas:z.array(schemaEntrega)}).strict();
+export type EventoEditorial=z.infer<typeof schemaEvento>;
+export const schemaIntegracoes=z.object({revista:z.number().int().nonnegative(),destinos:z.array(z.object({id:z.string().min(1).max(80),ativo:z.boolean(),eventos:z.array(z.enum(tiposEvento)).max(20)}).strict()).max(10)}).strict();
+export type IntegracoesEditorial=z.infer<typeof schemaIntegracoes>;
+export const nomesEvento:Record<typeof tiposEvento[number],string>={'artigo.criado':'Artigo criado','artigo.atualizado':'Artigo alterado','artigo.estado':'Estado editorial alterado','artigo.proposta':'Proposta pronta para revisão','artigo.aprovado':'Versão aprovada','artigo.rascunho_wordpress':'Rascunho confirmado no WordPress','artigo.publicado':'Publicação confirmada','artigo.publicacao_incerta':'Publicação por confirmar','glossario.atualizado':'Glossário alterado'};

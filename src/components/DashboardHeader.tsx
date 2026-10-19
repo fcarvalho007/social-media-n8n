@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Menu, PanelLeftClose, Search, Settings } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { BreadcrumbsHub } from '@/components/BreadcrumbsHub';
 export function DashboardHeader() {
   const { toggleSidebar, open, openMobile, triggerRef } = useSidebar();
   const [searchOpen, setSearchOpen] = useState(false);
+  const pesquisaRef = useRef<HTMLButtonElement>(null);
   const { pathname, search } = useLocation();
   const isMobile = useIsMobile();
   const migalhas = migalhasNavegacao(pathname, search);
@@ -29,7 +30,7 @@ export function DashboardHeader() {
           {isMobile ? <Link to="/" className="min-w-0 truncate py-3 text-sm font-semibold">Hub de conteúdo</Link> : <BreadcrumbsHub migalhas={migalhas} />}
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <Button variant="outline" onClick={() => setSearchOpen(true)} className="min-h-11 min-w-11 gap-3 px-3" aria-label="Pesquisar no Hub (Ctrl ou Cmd+K)"><Search aria-hidden="true" /><span className="hidden lg:inline">Pesquisar no Hub</span><kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-muted-foreground xl:inline">⌘ / Ctrl K</kbd></Button>
+          <Button ref={pesquisaRef} variant="outline" onClick={() => setSearchOpen(true)} className="min-h-11 min-w-11 gap-3 border-transparent bg-background px-3 text-muted-foreground shadow-none" aria-label="Pesquisar no Hub (Ctrl ou Cmd+K)"><Search aria-hidden="true" /><span className="hidden lg:inline">Pesquisar no Hub</span><kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-muted-foreground xl:inline">⌘ / Ctrl K</kbd></Button>
           <NotificationBell />
           {mostraQuotas && <><div className="hidden sm:block"><QuotaBadge /></div><div className="hidden lg:block"><AICreditsBadge /></div></>}
           <DropdownMenu>
@@ -45,7 +46,7 @@ export function DashboardHeader() {
         </div>
       </div>
       {isMobile && <div className="border-t px-4"><BreadcrumbsHub compacto migalhas={migalhas} /></div>}
-      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} gatilhoRef={pesquisaRef} />
     </header>
   );
 }

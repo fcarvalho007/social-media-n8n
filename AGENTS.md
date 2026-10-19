@@ -26,5 +26,6 @@
 - Visual system keeps direction, typography (sistema.tipografia) and palette as independent choices; absent tipografia falls back to the style's legacy pair so old documents render unchanged.
 - Subdirectories (e.g. supabase/functions/) have their own AGENTS.md; read it before changing files there.
 - Hub production may enable its public endpoint only after both native functions deploy successfully; never use local-mode aliases or edit the managed .env.
+- Owner instruction, 2026-10-19: develop and test locally on a separate branch until explicitly asked to integrate again. Do not push to the Lovable-synchronised branch, deploy, publish or spend Lovable development credits. Keep the pending integration and validation list current; dependency questions may be investigated when necessary.
 
 - Social external writes use durable social_publicacoes reservations before the provider call; do not expire uncertain attempts, fall back to another transport, or bypass 409 with invisible characters. Getlate owns its schedules; send-scheduled-posts is retired (410). incoming requires the existing N8N server secret plus explicit ownership; callback only records authenticated rejections.

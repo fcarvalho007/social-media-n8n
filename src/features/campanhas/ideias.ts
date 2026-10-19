@@ -1,0 +1,11 @@
+import { z } from 'zod';
+import { schemaFonteCampanha, schemaRascunhoNova, schemaRascunhoPeca, TIPOS_PECA } from './modelo';
+export const CAMPOS_IDEIAS=['nome','angulo','objetivo','cta','titulo','papel','texto'] as const;
+export type CampoIdeias=typeof CAMPOS_IDEIAS[number];
+export const NOMES_CAMPO_IDEIAS:Record<CampoIdeias,string>={nome:'Nome da campanha',angulo:'Contributo próprio',objetivo:'Objetivo para o leitor',cta:'Próximo passo do leitor',titulo:'Título da peça',papel:'Objetivo desta peça',texto:'Conteúdo da peça'};
+export const schemaContextoIdeias=z.object({siteId:z.string().min(1).max(80),fonte:schemaFonteCampanha,direcao:schemaRascunhoNova,campo:z.enum(CAMPOS_IDEIAS),instrucao:z.string().trim().max(1500).default(''),campanhaId:z.string().uuid().optional(),versao:z.number().int().positive().optional(),tipo:z.enum(TIPOS_PECA).optional(),peca:schemaRascunhoPeca.optional()}).strict().superRefine((v,c)=>{if(v.direcao.siteId!==v.siteId)c.addIssue({code:'custom',message:'O contexto não corresponde ao site escolhido.'});if(v.tipo){if(!v.peca||!['titulo','papel','texto','cta'].includes(v.campo))c.addIssue({code:'custom',message:'Escolhe um campo editável da peça.'});}else if(!['nome','angulo','objetivo','cta'].includes(v.campo))c.addIssue({code:'custom',message:'Escolhe um campo da direção da campanha.'});if(!!v.campanhaId!==!!v.versao)c.addIssue({code:'custom',message:'A revisão da campanha é obrigatória.'});});
+export type ContextoIdeiasCampanha=z.infer<typeof schemaContextoIdeias>;
+export function limiteIdeia(c:Pick<ContextoIdeiasCampanha,'campo'|'tipo'>){if(c.campo==='cta'&&c.tipo&&c.tipo!=='artigo'&&c.tipo!=='newsletter')return 220;if(c.campo==='texto')return c.tipo==='story'?320:c.tipo==='continuidade'?400:c.tipo==='newsletter'?1000:4000;return {nome:200,titulo:200,angulo:4000,objetivo:2000,cta:1500,papel:1000}[c.campo]??1000;}
+export function minimoIdeia(c:Pick<ContextoIdeiasCampanha,'campo'|'tipo'>){return c.campo==='angulo'?40:c.campo==='nome'?5:c.campo==='titulo'||c.tipo&&c.campo==='cta'?3:10;}
+export interface IdeiaCampanha { titulo:string;valor:string;motivo:string }
+export interface ResultadoIdeiasCampanha {ideias:IdeiaCampanha[];campo:CampoIdeias;tipo?:ContextoIdeiasCampanha['tipo'];aviso:string}

@@ -1,3 +1,4 @@
+import { Navigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, CheckCircle2, Circle, AlertCircle, MinusCircle, RefreshCw } from 'lucide-react';
@@ -19,6 +20,7 @@ export default function PercursoEditorial() {
   const q = usePercursoEditorial(), ctx = useProjeto(), [sp, setSp] = useSearchParams();
   const [termo, setTermo] = useState(''), [filtro, setFiltro] = useState('todos');
   const percursos = q.data?.percursos ?? [], id = sp.get('id');
+  if(!id&&sp.get('evidencias')!=='1')return <Navigate to="/artigos/plano" replace/>;
   const encontrados = percursos.filter(p => (!termo || normalizarPesquisaHub(`${p.titulo} ${p.dominio}`).includes(normalizarPesquisaHub(termo))) && (filtro === 'todos' || filtro === 'atencao' && p.etapas.some(e => e.estado === 'atencao') || filtro === 'revisao' && p.etapas[2].estado === 'concluida' && p.etapas[3].estado !== 'concluida' || filtro === 'publicados' && p.etapas[4].estado === 'concluida'));
   const escolhido = encontrados.find(p => p.id === id) ?? (!id ? encontrados[0] : undefined);
   function escolher(valor: string | null) { setSp(p => { const n = new URLSearchParams(p); if (valor) n.set('id', valor); else n.delete('id'); return n; }); }

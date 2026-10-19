@@ -11,15 +11,15 @@ import {
   type AmbitoPesquisa, type ResultadoGlobal,
 } from "@/features/newsletter/data";
 
-/* ─── Paleta cinematográfica do painel ─── */
+/* ─── Paleta clara do Hub ─── */
 const P = {
-  surface: "#14142B",
-  surfaceAlt: "#1B1B36",
-  line: "rgba(255,255,255,0.08)",
-  ink: "#F5F5FF",
-  muted: "rgba(245,245,255,0.62)",
-  faint: "rgba(245,245,255,0.38)",
-  grad: "linear-gradient(135deg, #6366F1, #8B5CF6, #EC4899)",
+  surface: "hsl(var(--card))",
+  surfaceAlt: "hsl(var(--background))",
+  line: "hsl(var(--border))",
+  ink: "hsl(var(--foreground))",
+  muted: "hsl(var(--muted-foreground))",
+  faint: "hsl(var(--muted-foreground))",
+  grad: "hsl(var(--primary))",
 };
 
 const AMBITOS: Array<{ id: AmbitoPesquisa | "tudo"; label: string }> = [
@@ -42,11 +42,11 @@ const TITULO_GRUPO: Record<AmbitoPesquisa, string> = {
 const ORDEM_GRUPOS: AmbitoPesquisa[] = ["edicao_actual", "pendentes", "enviadas", "ferramentas", "rejeitadas"];
 
 function seloEstado(r: ResultadoGlobal): { texto: string; bg: string; fg: string } {
-  if (r.ambito === "edicao_actual") return { texto: "Nesta edição", bg: "rgba(99,102,241,0.22)", fg: "#C7D2FE" };
-  if (r.ambito === "enviadas") return { texto: "Enviada", bg: "rgba(16,185,129,0.18)", fg: "#6EE7B7" };
-  if (r.ambito === "pendentes") return { texto: "Pendente", bg: "rgba(245,158,11,0.18)", fg: "#FCD34D" };
-  if (r.ambito === "rejeitadas") return { texto: "Rejeitada", bg: "rgba(244,63,94,0.18)", fg: "#FDA4AF" };
-  return { texto: "Ferramenta", bg: "rgba(236,72,153,0.18)", fg: "#F9A8D4" };
+  if (r.ambito === "edicao_actual") return { texto: "Nesta edição", bg: "hsl(var(--accent))", fg: "#046AD7" };
+  if (r.ambito === "enviadas") return { texto: "Enviada", bg: "rgba(16,185,129,0.18)", fg: "#087F55" };
+  if (r.ambito === "pendentes") return { texto: "Pendente", bg: "rgba(245,158,11,0.18)", fg: "#936000" };
+  if (r.ambito === "rejeitadas") return { texto: "Rejeitada", bg: "rgba(244,63,94,0.18)", fg: "#B42318" };
+  return { texto: "Ferramenta", bg: "rgba(236,72,153,0.18)", fg: "#046AD7" };
 }
 
 function iconeTipo(tipo: ResultadoGlobal["tipo"]) {
@@ -74,7 +74,7 @@ function fmtRelativo(iso: string | null): string {
 function trechoSeguro(html: string): string {
   const escapado = html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return escapado
-    .replace(/&lt;mark&gt;/g, '<mark style="background:rgba(253,224,71,0.22);color:#FDE68A;padding:0 2px;border-radius:2px;">')
+    .replace(/&lt;mark&gt;/g, '<mark style="background:rgba(253,224,71,0.22);color:#936000;padding:0 2px;border-radius:2px;">')
     .replace(/&lt;\/mark&gt;/g, "</mark>");
 }
 
@@ -283,10 +283,10 @@ export function PesquisaGlobal({
               key={a.id}
               type="button"
               onClick={() => setAmbito(a.id)}
-              className="shrink-0 h-11 md:h-8 px-3.5 rounded-full text-[13px] md:text-[12px] font-semibold whitespace-nowrap transition-colors"
+              className="shrink-0 h-11 px-3.5 rounded-full text-[13px] md:text-[12px] font-semibold whitespace-nowrap transition-colors"
               style={activoChip
-                ? { backgroundImage: P.grad, color: "#FFFFFF", border: "1px solid transparent" }
-                : { background: "rgba(255,255,255,0.05)", color: P.muted, border: `1px solid ${P.line}` }}
+                ? { background: P.grad, color: "#FFFFFF", border: "1px solid transparent" }
+                : { background: "hsl(var(--card))", color: P.muted, border: `1px solid ${P.line}` }}
               aria-pressed={activoChip}
             >
               {a.label}
@@ -315,7 +315,7 @@ export function PesquisaGlobal({
                       type="button"
                       onClick={() => { setQ(t); setDebounced(t); inputRef.current?.focus(); }}
                       className="h-9 px-3 rounded-lg text-[13px]"
-                      style={{ background: "rgba(255,255,255,0.05)", color: P.muted, border: `1px solid ${P.line}` }}
+                      style={{ background: "hsl(var(--card))", color: P.muted, border: `1px solid ${P.line}` }}
                     >
                       {t}
                     </button>
@@ -333,7 +333,7 @@ export function PesquisaGlobal({
         )}
 
         {activo && res.error && (
-          <p className="text-[13px] py-4 px-1" style={{ color: "#FDA4AF" }}>
+          <p className="text-[13px] py-4 px-1" style={{ color: "#B42318" }}>
             Não foi possível pesquisar. Tenta novamente.
           </p>
         )}
@@ -366,8 +366,8 @@ export function PesquisaGlobal({
                       onClick={() => accaoPrincipal(r)}
                       className="rounded-xl p-3 cursor-pointer transition-colors"
                       style={{
-                        background: seleccionada ? "rgba(139,92,246,0.14)" : P.surfaceAlt,
-                        border: `1px solid ${seleccionada ? "rgba(139,92,246,0.55)" : P.line}`,
+                        background: seleccionada ? "hsl(var(--accent))" : P.surfaceAlt,
+                        border: `1px solid ${seleccionada ? "hsl(var(--primary))" : P.line}`,
                       }}
                     >
                       <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -378,7 +378,7 @@ export function PesquisaGlobal({
                           {iconeTipo(r.tipo)} {selo.texto}
                         </span>
                         {r.edicao_numero != null && (
-                          <span className="text-[12px] font-bold" style={{ color: "#C7D2FE" }}>#{r.edicao_numero}</span>
+                          <span className="text-[12px] font-bold" style={{ color: "#046AD7" }}>#{r.edicao_numero}</span>
                         )}
                         {r.ambito === "enviadas" && r.edicao_data && (
                           <span className="text-[12px]" style={{ color: P.faint }}>{fmtData(r.edicao_data)}</span>
@@ -392,7 +392,7 @@ export function PesquisaGlobal({
                         {r.usada_em_numero != null && r.ambito !== "enviadas" && (
                           <span
                             className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                            style={{ background: "rgba(253,224,71,0.16)", color: "#FDE68A" }}
+                            style={{ background: "rgba(253,224,71,0.16)", color: "#936000" }}
                             title="Já foi enviada numa edição anterior"
                           >
                             Já usada na #{r.usada_em_numero}
@@ -416,8 +416,8 @@ export function PesquisaGlobal({
                           type="button"
                           onClick={(e) => { e.stopPropagation(); accaoPrincipal(r); }}
                           disabled={aPedir}
-                          className="text-[12.5px] font-bold inline-flex items-center gap-1.5 h-9 px-2 -ml-2 rounded-lg"
-                          style={{ color: "#C4B5FD" }}
+                          className="text-[12.5px] font-bold inline-flex items-center gap-1.5 h-11 px-2 -ml-2 rounded-lg"
+                          style={{ color: "#046AD7" }}
                         >
                           {aPedir
                             ? <Loader2 size={13} className="animate-spin" />
@@ -433,7 +433,7 @@ export function PesquisaGlobal({
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="text-[12.5px] font-semibold inline-flex items-center gap-1.5 h-9 px-2 rounded-lg"
+                            className="text-[12.5px] font-semibold inline-flex items-center gap-1.5 h-11 px-2 rounded-lg"
                             style={{ color: P.muted }}
                           >
                             <ExternalLink size={12} /> Link original
@@ -443,7 +443,7 @@ export function PesquisaGlobal({
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); onAbrirEdicao(r); }}
-                            className="text-[12.5px] font-semibold h-9 px-2 rounded-lg"
+                            className="text-[12.5px] font-semibold h-11 px-2 rounded-lg"
                             style={{ color: P.muted }}
                           >
                             Abrir edição

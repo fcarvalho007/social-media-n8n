@@ -24,6 +24,17 @@ export function permitidoRobots(txt: string, url: URL): boolean {
   return permitir;
 }
 export class ErroRobots extends Error {}
+// Only expose a recognised category; upstream errors may include URLs or credentials.
+function diagnosticoConsulta(e: unknown): string {
+  const erro = e as { name?: string; code?: string; message?: string; cause?: { code?: string } } | null;
+  const codigo = erro?.code ?? erro?.cause?.code;
+  if (/blocklisted|not implemented/i.test(erro?.message ?? '')) return 'O ambiente de execução não suporta uma operação de rede necessária.';
+  if (erro?.name === 'TimeoutError' || erro?.name === 'AbortError' || codigo === 'ETIMEDOUT') return 'A consulta excedeu o tempo limite.';
+  if (codigo === 'ENOTFOUND' || codigo === 'EAI_AGAIN') return 'Não foi possível resolver o domínio da fonte.';
+  if (codigo === 'ECONNRESET' || codigo === 'ECONNREFUSED') return 'A ligação à fonte foi interrompida ou recusada.';
+  if (codigo === 'CERT_HAS_EXPIRED' || codigo === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' || codigo === 'ERR_TLS_CERT_ALTNAME_INVALID') return 'Não foi possível validar o certificado HTTPS da fonte.';
+  return 'Falha de rede sem diagnóstico específico; tenta novamente mais tarde.';
+}
 export class Robots {
   private cache = new Map<string, { valor: Promise<string>; expira: number }>();
   async verificar(url: URL): Promise<void> {
@@ -42,6 +53,6 @@ export class Robots {
       const txt = r.bytes.toString('utf8');
       if (/^\s*<!doctype html|^\s*<html/i.test(txt)) throw new ErroRobots('O robots.txt devolveu uma página HTML; recolha suspensa nesta fonte.');
       return txt;
-    } catch (e) { if (e instanceof ErroRobots) throw e; throw new ErroRobots('Não foi possível consultar o robots.txt; tenta novamente mais tarde.'); }
+    } catch (e) { if (e instanceof ErroRobots) throw e; throw new ErroRobots(`Não foi possível consultar o robots.txt. ${diagnosticoConsulta(e)} A recolha permanece suspensa nesta fonte.`); }
   }
 }

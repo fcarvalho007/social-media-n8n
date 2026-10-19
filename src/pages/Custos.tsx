@@ -1,3 +1,5 @@
+import { CabecalhoPagina } from '@/components/CabecalhoPagina';
+import { Euro } from 'lucide-react';
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -51,15 +53,9 @@ export default function Custos() {
 
   return (
     <div className="hub-page">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Custos</h1>
-          <p className="text-sm text-muted-foreground">Pedidos de IA registados no servidor. Valores em euros, câmbio fixo 1 USD = 0,86 €.</p>
-        </div>
-        <ToggleGroup type="single" value={periodo} onValueChange={(v) => v && definir("p", v === "mes" ? "" : v)} className="flex-wrap justify-start gap-1 rounded-xl border bg-card p-1" aria-label="Período">
+      <CabecalhoPagina titulo="Custos" descricao="Pedidos de IA registados no servidor. Valores em euros, câmbio fixo 1 USD = 0,86 €." icone={Euro} acoes={<ToggleGroup type="single" value={periodo} onValueChange={(v) => v && definir("p", v === "mes" ? "" : v)} className="flex-wrap justify-start gap-1 rounded-xl border bg-card p-1" aria-label="Período">
           {PERIODOS.map((p) => <ToggleGroupItem key={p.id} value={p.id} className="h-9 rounded-lg px-3 text-xs">{p.nome}</ToggleGroupItem>)}
-        </ToggleGroup>
-      </header>
+        </ToggleGroup>}/>
 
       {SEO_DISPONIVEL && <ResumoCustosEditorial />}
       <div className="flex flex-col gap-2 sm:flex-row">

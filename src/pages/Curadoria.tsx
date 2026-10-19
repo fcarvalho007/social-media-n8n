@@ -1,3 +1,5 @@
+import { CabecalhoPagina } from '@/components/CabecalhoPagina';
+import { Inbox } from 'lucide-react';
 import { NoticiaEncontrada } from '@/features/percurso/NoticiaEncontrada';
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -33,15 +35,10 @@ export default function Curadoria() {
   const ativas = fontes.data?.filter(f => f.activa).length;
   return <div className="hub-page">
     <ConfirmacaoExternaHost />
-    <header className="flex flex-wrap items-start justify-between gap-4">
-      <div className="flex min-w-0 flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Curadoria</h1>
-        <p className="max-w-prose text-sm text-muted-foreground">Reúne notícias, emails e documentos. Escolhe o que vale a pena transformar em conteúdo.</p>
-        {fontes.data && <span className="text-sm text-muted-foreground">{ativas} de {fontes.data.length} fontes de notícias ativas</span>}
-        {fontes.isError && <span className="text-sm text-destructive">Não foi possível consultar as fontes.</span>}
-      </div>
-      <Button variant="outline" className="min-h-11" title="RSS, sites e newsletters de onde vêm as notícias" onClick={() => setSeparador("fontes")}>Gerir fontes</Button>
-    </header>
+    <CabecalhoPagina titulo="Curadoria" descricao="Reúne notícias, emails e documentos. Escolhe o que vale a pena transformar em conteúdo." icone={Inbox} acoes={<Button variant="outline" className="min-h-11" title="RSS, sites e newsletters de onde vêm as notícias" onClick={() => setSeparador("fontes")}>Gerir fontes</Button>}>
+      {fontes.data && <span className="text-xs text-muted-foreground">{ativas} de {fontes.data.length} fontes de notícias ativas</span>}
+      {fontes.isError && <span className="text-sm text-destructive">Não foi possível consultar as fontes.</span>}
+    </CabecalhoPagina>
     <CuradoriaNavegacao />
       {separador === "noticias" && <section aria-label="Notícias recebidas" className="flex flex-col gap-4">
         <div className="flex justify-end">

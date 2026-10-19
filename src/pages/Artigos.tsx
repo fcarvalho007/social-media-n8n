@@ -1,3 +1,5 @@
+import { CabecalhoPagina } from '@/components/CabecalhoPagina';
+import { EditorVisualArtigo } from '@/features/seo/EditorVisualArtigo';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { DOCUMENTOS_DISPONIVEL } from '@/features/documentos/modelo';
@@ -147,10 +149,7 @@ export default function Artigos() {
 
   return (
     <div className="mx-auto grid w-full min-w-0 max-w-7xl grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-      <header className="col-span-full flex min-w-0 flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Artigos</h1>
-        <p className="max-w-prose text-sm text-muted-foreground">{ctx.projeto ? `Projeto ${ctx.projeto.name}` : "Todos os projetos"} · só rascunhos, nada é publicado</p>
-      </header>
+      <CabecalhoPagina className="col-span-full" titulo="Rascunhos livres" descricao={`${ctx.projeto ? `Projeto ${ctx.projeto.name}` : "Todos os projetos"} · só rascunhos, nada é publicado`}/>
       <NavegacaoArtigos />
       <div className="flex min-w-0 flex-col gap-4">
         {fonteAcervo && !acervoImportado && <Alert><AlertTitle>Fonte do acervo disponível</AlertTitle><AlertDescription><p className="my-2 break-words">{fonteAcervo.titulo}. O texto e as referências serão colocados num novo rascunho para trabalhar.</p><Button size="sm" disabled={sujo || ocupado || !!oferta || ctx.projetoId !== fonteAcervo.projetoId} onClick={() => { const n = { titulo: fonteAcervo.titulo, resumo: '', corpo: fonteAcervo.artigo, project_id: fonteAcervo.projetoId }; setEdit(n); setBase({ ...n, titulo: '', corpo: '' }); setParams({}, { replace: true }); setAcervoImportado(true); }}>Carregar excertos no rascunho</Button>{(sujo || oferta) && <p className="mt-2">Guarda ou resolve o rascunho anterior antes de carregar a fonte.</p>}</AlertDescription></Alert>}
@@ -204,8 +203,8 @@ export default function Artigos() {
           <Textarea disabled={aApagar} id="art-resumo" rows={3} value={edit.resumo} onChange={(e) => setEdit({ ...edit, resumo: e.target.value })} />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="art-corpo">Texto do artigo</Label>
-          <Textarea disabled={aApagar} id="art-corpo" rows={18} value={edit.corpo} onChange={(e) => setEdit({ ...edit, corpo: e.target.value })} />
+          <p className="text-sm font-medium">Texto do artigo</p>
+          <fieldset disabled={aApagar}><EditorVisualArtigo disabled={aApagar} valor={edit.corpo} onChange={corpo=>setEdit(e=>({...e,corpo}))}/></fieldset>
         </div>
         {oferta && (
           <Alert>

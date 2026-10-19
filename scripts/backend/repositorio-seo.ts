@@ -1,3 +1,4 @@
+import { registarTransicoes } from '../seo/eventos';
 import process from 'node:process';
 import { setInterval, clearInterval } from 'node:timers';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -80,7 +81,7 @@ export class RepositorioSeoNuvem implements ArmazemSeo {
     }
     async ler() { await this.fila; return structuredClone((await this.lerRevisao()).estado); }
     async alterar<T>(fn: (e: EstadoSeo) => T | Promise<T>): Promise<T> {
-        const tarefa = this.fila.then(async () => { const { estado, revisao } = await this.lerRevisao(); const r = await fn(estado); await this.gravar(revisao, estado); return structuredClone(r); });
+        const tarefa = this.fila.then(async () => { const { estado, revisao } = await this.lerRevisao(); const antes=structuredClone(estado); const r = await fn(estado); registarTransicoes(antes,estado); await this.gravar(revisao, estado); return structuredClone(r); });
         this.fila = tarefa.then(() => { }, () => { });
         return tarefa;
     }

@@ -17,6 +17,7 @@ beforeAll(async () => {
     await db.query('INSERT INTO auth.users VALUES($1)', [u]);
     await db.query('INSERT INTO projects VALUES($1,$2),($3,$3)', [p, u, other]);
     await db.exec(readFileSync('drizzle/migrations/0062_hub_backend_persistente.sql', 'utf8'));
+    await db.exec(readFileSync('drizzle/migrations/0067_artigos_imagens.sql', 'utf8'));
     await db.exec(`SET test.uid='${u}'`);
 }, 30000);
 afterAll(() => db.close());

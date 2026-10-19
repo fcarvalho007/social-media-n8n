@@ -40,7 +40,8 @@ describe("Artigos — recuperação", () => {
   it("sair imediatamente (<300ms) depois de escrever conserva a cópia", async () => {
     estudio.listarArtigos.mockResolvedValue([]);
     const r = render(<MemoryRouter><Artigos /></MemoryRouter>);
-    fireEvent.change(screen.getByLabelText("Texto do artigo"), { target: { value: "texto escrito" } });
+    fireEvent.click(screen.getByRole("button",{name:"Markdown"}));
+    fireEvent.change(screen.getByLabelText("Artigo em Markdown"), { target: { value: "texto escrito" } });
     r.unmount();
     const [k] = chaves();
     expect(k).toBeDefined();
@@ -53,9 +54,10 @@ describe("Artigos — recuperação", () => {
     const g = deferred<Record<string, unknown>>();
     estudio.guardarArtigo.mockReturnValueOnce(g.promise);
     render(<MemoryRouter><Artigos /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button",{name:"Markdown"}));
     const outro = await screen.findByRole("button", { name: /Outro artigo.*Marca/ });
     fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Primeiro artigo" } });
-    fireEvent.change(screen.getByLabelText("Texto do artigo"), { target: { value: "Texto inicial" } });
+    fireEvent.change(screen.getByLabelText("Artigo em Markdown"), { target: { value: "Texto inicial" } });
     const guardar = screen.getByRole("button", { name: /Guardar rascunho/ });
     fireEvent.click(guardar);
     expect(screen.getByRole("button", { name: "Novo rascunho" })).toBeDisabled();
@@ -66,9 +68,9 @@ describe("Artigos — recuperação", () => {
     fireEvent.submit(guardar.closest("form")!);
     expect(estudio.guardarArtigo).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText("Título")).toHaveValue("Primeiro artigo");
-    fireEvent.change(screen.getByLabelText("Texto do artigo"), { target: { value: "Texto posterior" } });
+    fireEvent.change(screen.getByLabelText("Artigo em Markdown"), { target: { value: "Texto posterior" } });
     await act(async () => { g.resolve({ ...artigo, id: "primeiro", titulo: "Primeiro artigo", corpo: "Texto inicial" }); });
-    expect(screen.getByLabelText("Texto do artigo")).toHaveValue("Texto posterior");
+    expect(screen.getByLabelText("Artigo em Markdown")).toHaveValue("Texto posterior");
     expect(screen.getByText("Alterações por guardar")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Novo rascunho" })).toBeEnabled();
     expect(ler(chaves().find((k) => k.includes(":primeiro:"))!).corpo).toBe("Texto posterior");
@@ -81,6 +83,7 @@ describe("Artigos — recuperação", () => {
     const d = deferred<void>();
     estudio.apagarArtigo.mockReturnValueOnce(d.promise);
     render(<MemoryRouter initialEntries={["/artigos?id=a"]}><Artigos /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button",{name:"Markdown"}));
     await screen.findByDisplayValue("Texto de A");
     fireEvent.click(screen.getByRole("button", { name: "Apagar Artigo A" }));
     fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Apagar" }));
@@ -89,19 +92,19 @@ describe("Artigos — recuperação", () => {
     expect(outro).toBeDisabled();
     expect(screen.getByRole("button", { name: "Novo rascunho" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Apagar Artigo B" })).toBeDisabled();
-    expect(screen.getByLabelText("Texto do artigo")).toBeDisabled();
+    expect(screen.getByLabelText("Artigo em Markdown")).toBeDisabled();
     expect(screen.getByLabelText("Título")).toBeDisabled();
     const guardar = screen.getByRole("button", { name: /Guardar rascunho/ });
     expect(guardar).toBeDisabled();
     fireEvent.click(outro); fireEvent.submit(guardar.closest("form")!);
     expect(estudio.guardarArtigo).not.toHaveBeenCalled();
     expect(estudio.apagarArtigo).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText("Texto do artigo")).toHaveValue("Texto de A");
+    expect(screen.getByLabelText("Artigo em Markdown")).toHaveValue("Texto de A");
     await act(async () => { d.resolve(); });
     await waitFor(() => expect(screen.queryByRole("button", { name: "Apagar Artigo A" })).not.toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /Artigo B.*Marca/ }));
-    expect(screen.getByLabelText("Texto do artigo")).toBeEnabled();
-    expect(screen.getByLabelText("Texto do artigo")).toHaveValue("Texto de B");
+    expect(screen.getByLabelText("Artigo em Markdown")).toBeEnabled();
+    expect(screen.getByLabelText("Artigo em Markdown")).toHaveValue("Texto de B");
   });
 
   it("uma falha de eliminação desbloqueia o artigo e conserva o texto que estava no editor", async () => {
@@ -109,13 +112,14 @@ describe("Artigos — recuperação", () => {
     estudio.listarArtigos.mockResolvedValue([a]);
     const d = deferred<void>(); estudio.apagarArtigo.mockReturnValueOnce(d.promise);
     render(<MemoryRouter initialEntries={["/artigos?id=a"]}><Artigos /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button",{name:"Markdown"}));
     await screen.findByDisplayValue("Texto original");
-    fireEvent.change(screen.getByLabelText("Texto do artigo"), { target: { value: "Texto alterado sem guardar" } });
+    fireEvent.change(screen.getByLabelText("Artigo em Markdown"), { target: { value: "Texto alterado sem guardar" } });
     fireEvent.click(screen.getByRole("button", { name: "Apagar Artigo A" }));
     fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Apagar" }));
     await act(async () => { d.reject(new Error("Não eliminado")); });
-    expect(screen.getByLabelText("Texto do artigo")).toBeEnabled();
-    expect(screen.getByLabelText("Texto do artigo")).toHaveValue("Texto alterado sem guardar");
+    expect(screen.getByLabelText("Artigo em Markdown")).toBeEnabled();
+    expect(screen.getByLabelText("Artigo em Markdown")).toHaveValue("Texto alterado sem guardar");
     expect(screen.getByText("Alterações por guardar")).toBeInTheDocument();
     expect(ler(chaves().find((k) => k.includes(":a:"))!).corpo).toBe("Texto alterado sem guardar");
   });
@@ -125,12 +129,13 @@ describe("Artigos — recuperação", () => {
     const g = deferred<Record<string, unknown>>();
     estudio.guardarArtigo.mockReturnValue(g.promise);
     render(<MemoryRouter><Artigos /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button",{name:"Markdown"}));
     fireEvent.change(screen.getByLabelText("Título"), { target: { value: "T" } });
-    fireEvent.change(screen.getByLabelText("Texto do artigo"), { target: { value: "a" } });
+    fireEvent.change(screen.getByLabelText("Artigo em Markdown"), { target: { value: "a" } });
     fireEvent.click(screen.getByRole("button", { name: /Guardar rascunho/ }));
-    fireEvent.change(screen.getByLabelText("Texto do artigo"), { target: { value: "a mais" } });
+    fireEvent.change(screen.getByLabelText("Artigo em Markdown"), { target: { value: "a mais" } });
     await act(async () => { g.resolve({ id: "a1", titulo: "T", resumo: "", corpo: "a", project_id: "p1", updated_at: new Date().toISOString() }); });
-    expect((screen.getByLabelText("Texto do artigo") as HTMLTextAreaElement).value).toBe("a mais");
+    expect((screen.getByLabelText("Artigo em Markdown") as HTMLTextAreaElement).value).toBe("a mais");
     expect(screen.getByText("Alterações por guardar")).toBeTruthy();
     const k = chaves().find((x) => x.includes(":a1:"));
     expect(k && ler(k).corpo).toBe("a mais");
