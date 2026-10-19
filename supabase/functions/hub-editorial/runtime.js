@@ -94,12 +94,199 @@ var init_fontes = __esm({
   }
 });
 
+// scripts/documentos/https-deno.ts
+import { Buffer as Buffer3 } from "node:buffer";
+import { Readable } from "node:stream";
+import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
+async function httpsDeno(url, ip, signal, maxBytes, deno, maxTexto) {
+  signal.throwIfAborted();
+  const limite = AbortSignal.any([signal, AbortSignal.timeout(1e4)]);
+  let conn;
+  const cancelar = () => fechar(conn);
+  limite.addEventListener("abort", cancelar, { once: true });
+  async function esperar(p, abandonar) {
+    let abortar = () => {
+    };
+    try {
+      limite.throwIfAborted();
+      return await Promise.race([p.then((v) => {
+        if (limite.aborted) {
+          abandonar?.(v);
+          limite.throwIfAborted();
+        }
+        return v;
+      }), new Promise((_, reject) => {
+        abortar = () => reject(limite.reason);
+        limite.addEventListener("abort", abortar, { once: true });
+        if (limite.aborted) abortar();
+      })]);
+    } finally {
+      limite.removeEventListener("abort", abortar);
+    }
+  }
+  try {
+    conn = await esperar(deno.connect({ hostname: ip, port: 443 }), fechar);
+    conn = await esperar(deno.startTls(conn, { hostname: url.hostname }), fechar);
+    const request = Buffer3.from(`GET ${url.pathname}${url.search} HTTP/1.1\r
+Host: ${url.hostname}\r
+User-Agent: HubDocumentos/0.2 (owner-initiated document discovery)\r
+Accept: application/pdf,text/html,application/xml,application/rss+xml,application/atom+xml;q=0.9,*/*;q=0.5\r
+Accept-Encoding: identity\r
+Connection: close\r
+\r
+`);
+    for (let pos = 0; pos < request.length; ) {
+      const n = await esperar(conn.write(request.subarray(pos)));
+      if (n <= 0) throw erroFormato();
+      pos += n;
+    }
+    let pendente = Buffer3.alloc(0);
+    let fim = false;
+    const ler = async () => {
+      const b = Buffer3.alloc(16384);
+      const n = await esperar(conn.read(b));
+      if (n === null) {
+        fim = true;
+        return;
+      }
+      if (n <= 0) throw erroFormato();
+      pendente = Buffer3.concat([pendente, b.subarray(0, n)]);
+    };
+    async function linha(max) {
+      for (; ; ) {
+        const i = pendente.indexOf("\r\n");
+        if (i >= 0) {
+          if (i > max) throw erroFormato();
+          const s = pendente.subarray(0, i).toString("latin1");
+          pendente = pendente.subarray(i + 2);
+          return s;
+        }
+        if (pendente.length > max + 1 || fim) throw erroFormato();
+        await ler();
+      }
+    }
+    let status = 0;
+    let headers = /* @__PURE__ */ Object.create(null);
+    for (let interim = 0; interim < 6; interim++) {
+      const primeira = await linha(8192);
+      const m = /^HTTP\/1\.[01] ([1-5]\d\d)(?: [^\r\n]*)?$/.exec(primeira);
+      if (!m) throw erroFormato();
+      status = Number(m[1]);
+      headers = /* @__PURE__ */ Object.create(null);
+      let total = primeira.length;
+      for (; ; ) {
+        const s = await linha(8192);
+        total += s.length + 2;
+        if (total > 65536) throw erroFormato();
+        if (!s) break;
+        const h = /^([!#$%&'*+.^_`|~\w-]+):[ \t]*([\t\u0020-\u007e\u0080-\u00ff]*)$/.exec(s);
+        if (!h) throw erroFormato();
+        const k = h[1].toLowerCase();
+        const v = h[2].trim();
+        if (k in headers && ["content-length", "transfer-encoding", "content-encoding", "location"].includes(k)) throw erroFormato();
+        headers[k] = k in headers ? `${headers[k]},${v}` : v;
+      }
+      if (status >= 200) break;
+      if (![100, 102, 103].includes(status) || interim === 5) throw erroFormato();
+    }
+    if (status !== 200) return { status, headers, bytes: Buffer3.alloc(0) };
+    if (maxTexto && /html|xml|text\//i.test(headers["content-type"] ?? "")) maxBytes = Math.min(maxBytes, maxTexto);
+    const cl = headers["content-length"];
+    const te = headers["transfer-encoding"];
+    if (cl && !/^\d+$/.test(cl) || cl && te || te && te.toLowerCase() !== "chunked") throw erroFormato();
+    if (cl && (!Number.isSafeInteger(Number(cl)) || Number(cl) > maxBytes)) throw new Error("O ficheiro excede o limite de leitura local.");
+    let recebidos = 0;
+    async function* exatamente(n) {
+      while (n > 0) {
+        if (!pendente.length) {
+          if (fim) throw erroFormato();
+          await ler();
+          continue;
+        }
+        const t = Math.min(n, pendente.length);
+        const parte = pendente.subarray(0, t);
+        pendente = pendente.subarray(t);
+        n -= t;
+        recebidos += t;
+        if (recebidos > maxBytes) throw new Error("O ficheiro excede o limite de leitura local.");
+        yield parte;
+      }
+    }
+    async function* corpo() {
+      if (te) {
+        for (; ; ) {
+          const s = await linha(8192);
+          if (!/^[\da-f]+(?:;[\u0020-\u007e\u0080-\u00ff]*)?$/i.test(s)) throw erroFormato();
+          const n = parseInt(s.split(";")[0], 16);
+          if (!Number.isSafeInteger(n) || n > maxBytes - recebidos) throw new Error("O ficheiro excede o limite de leitura local.");
+          if (!n) {
+            let tamanho2 = 0;
+            for (; ; ) {
+              const trailer = await linha(8192);
+              tamanho2 += trailer.length + 2;
+              if (tamanho2 > 65536) throw erroFormato();
+              if (!trailer) return;
+              if (!/^[!#$%&'*+.^_`|~\w-]+:[\t\u0020-\u007e\u0080-\u00ff]*$/.test(trailer)) throw erroFormato();
+            }
+          }
+          yield* exatamente(n);
+          if (await linha(0) !== "") throw erroFormato();
+        }
+      } else if (cl) {
+        yield* exatamente(Number(cl));
+      } else {
+        for (; ; ) {
+          if (pendente.length) yield* exatamente(pendente.length);
+          if (fim) return;
+          await ler();
+        }
+      }
+    }
+    const encoding = headers["content-encoding"]?.toLowerCase();
+    const decoder = encoding === "gzip" ? createGunzip() : encoding === "br" ? createBrotliDecompress() : encoding === "deflate" ? createInflate() : null;
+    if (encoding && encoding !== "identity" && !decoder) throw new Error("O site devolveu uma compress\xE3o n\xE3o suportada.");
+    const source = Readable.from(corpo());
+    const stream = decoder ? source.pipe(decoder) : source;
+    source.on("error", (e) => decoder?.destroy(e));
+    const partes = [];
+    let tamanho = 0;
+    try {
+      for await (const parte of stream) {
+        const b = Buffer3.from(parte);
+        tamanho += b.length;
+        if (tamanho > maxBytes) throw new Error("O ficheiro excede o limite de leitura local.");
+        partes.push(b);
+      }
+    } finally {
+      source.destroy();
+      decoder?.destroy();
+    }
+    return { status, headers, bytes: Buffer3.concat(partes) };
+  } finally {
+    limite.removeEventListener("abort", cancelar);
+    fechar(conn);
+  }
+}
+var redeDeno, erroFormato, fechar;
+var init_https_deno = __esm({
+  "scripts/documentos/https-deno.ts"() {
+    redeDeno = () => globalThis.Deno;
+    erroFormato = () => new Error("A fonte devolveu uma resposta HTTP inv\xE1lida.");
+    fechar = (c) => {
+      try {
+        c?.close();
+      } catch {
+      }
+    };
+  }
+});
+
 // scripts/documentos/obter.ts
-import { Buffer as Buffer3 } from "buffer";
-import { lookup } from "dns/promises";
-import https from "https";
-import { isIP } from "net";
-import { createBrotliDecompress, createGunzip, createInflate } from "zlib";
+import { Buffer as Buffer4 } from "node:buffer";
+import { lookup } from "node:dns/promises";
+import https from "node:https";
+import { isIP } from "node:net";
+import { createBrotliDecompress as createBrotliDecompress2, createGunzip as createGunzip2, createInflate as createInflate2 } from "node:zlib";
 function validarDestino(bruto) {
   if (typeof bruto !== "string" || bruto.length > 2e3) throw new Error("Endere\xE7o inv\xE1lido.");
   const u = new URL(bruto);
@@ -125,6 +312,19 @@ async function obterPublico(bruto, signal, opcoes = {}) {
     await opcoes.antesDeVisitar?.(u);
     const ip = await resolverPublico(u);
     signal.throwIfAborted();
+    const deno = redeDeno();
+    if (deno) {
+      const r2 = await httpsDeno(u, ip.address, signal, opcoes.maxBytes ?? MAX_PDF, deno, opcoes.maxBytes ? void 0 : MAX_HTML);
+      if ([301, 302, 303, 307, 308].includes(r2.status)) {
+        if (!r2.headers.location) throw new Error("O site redirecionou sem indicar um destino.");
+        u = validarDestino(new URL(r2.headers.location, u).href);
+        continue;
+      }
+      if (r2.status !== 200 && !opcoes.aceitarErroHttp) throw new Error(`O site respondeu HTTP ${r2.status}. N\xE3o foi guardado nenhum PDF.`);
+      const tipo = (r2.headers["content-type"] ?? "").split(";")[0].toLowerCase();
+      if (!opcoes.maxBytes && /html|xml|text\//.test(tipo) && r2.bytes.length > MAX_HTML) throw new Error("O ficheiro excede o limite de leitura local.");
+      return { bytes: r2.bytes, tipo, status: r2.status, url: u.href, etag: r2.headers.etag, modificadoEm: r2.headers["last-modified"], xRobotsTag: r2.headers["x-robots-tag"] };
+    }
     const r = await new Promise((resolve, reject) => {
       const req = https.get(u, {
         signal,
@@ -157,7 +357,7 @@ async function obterPublico(bruto, signal, opcoes = {}) {
           return;
         }
         const encoding = res.headers["content-encoding"];
-        const decoder = encoding === "gzip" ? createGunzip() : encoding === "br" ? createBrotliDecompress() : encoding === "deflate" ? createInflate() : null;
+        const decoder = encoding === "gzip" ? createGunzip2() : encoding === "br" ? createBrotliDecompress2() : encoding === "deflate" ? createInflate2() : null;
         if (encoding && encoding !== "identity" && !decoder) {
           res.destroy();
           reject(new Error("O site devolveu uma compress\xE3o n\xE3o suportada."));
@@ -173,7 +373,7 @@ async function obterPublico(bruto, signal, opcoes = {}) {
             res.destroy();
           } else partes.push(chunk);
         });
-        stream.on("end", () => resolve({ bytes: Buffer3.concat(partes), tipo, status, etag: res.headers.etag, modificadoEm: res.headers["last-modified"], xRobotsTag: Array.isArray(res.headers["x-robots-tag"]) ? res.headers["x-robots-tag"].join(",") : res.headers["x-robots-tag"] }));
+        stream.on("end", () => resolve({ bytes: Buffer4.concat(partes), tipo, status, etag: res.headers.etag, modificadoEm: res.headers["last-modified"], xRobotsTag: Array.isArray(res.headers["x-robots-tag"]) ? res.headers["x-robots-tag"].join(",") : res.headers["x-robots-tag"] }));
         stream.on("error", (e) => {
           res.destroy();
           reject(e);
@@ -195,13 +395,14 @@ var MAX_PDF, MAX_HTML;
 var init_obter = __esm({
   "scripts/documentos/obter.ts"() {
     init_fontes();
+    init_https_deno();
     MAX_PDF = 50 * 1024 * 1024;
     MAX_HTML = 8 * 1024 * 1024;
   }
 });
 
 // scripts/documentos/robots.ts
-import { Buffer as Buffer9 } from "buffer";
+import { Buffer as Buffer10 } from "node:buffer";
 function permitidoRobots(txt2, url) {
   const grupos = [];
   let atual = null;
@@ -229,7 +430,7 @@ function permitidoRobots(txt2, url) {
   for (const r of aplicaveis.flatMap((g) => g.regras)) {
     const pattern = r.caminho.split("*").map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*").replace(/\\\$$/, "$");
     if (!new RegExp(`^${pattern}`).test(caminho)) continue;
-    const tamanho = Buffer9.byteLength(r.caminho.replace(/[*$]/g, ""));
+    const tamanho = Buffer10.byteLength(r.caminho.replace(/[*$]/g, ""));
     if (tamanho > melhor || tamanho === melhor && r.permitir) {
       melhor = tamanho;
       permitir = r.permitir;
@@ -521,7 +722,7 @@ __export(ler_artigo_exports, {
   extrairArtigoPublico: () => extrairArtigoPublico
 });
 import { JSDOM as JSDOM3, VirtualConsole as VirtualConsole3 } from "jsdom";
-import { createHash as createHash11 } from "crypto";
+import { createHash as createHash11 } from "node:crypto";
 async function extrairArtigoPublico(url, item) {
   const robots2 = new Robots(), r = await obterPublico(url, AbortSignal.timeout(3e4), { antesDeVisitar: (u) => robots2.verificar(u) });
   const dom = new JSDOM3(r.bytes.toString("utf8"), { virtualConsole: new VirtualConsole3() });
@@ -543,8 +744,8 @@ var init_ler_artigo = __esm({
 init_seguranca();
 
 // scripts/seo/ideias-campanha.ts
-import { Buffer as Buffer2 } from "buffer";
-import { createHash } from "crypto";
+import { Buffer as Buffer2 } from "node:buffer";
+import { createHash } from "node:crypto";
 import { z as z4 } from "zod";
 
 // supabase/functions/_shared/deepseek-direto.ts
@@ -806,7 +1007,7 @@ function recuperarIdeiasCampanha(e, id) {
 }
 
 // scripts/seo/eventos.ts
-import { createHash as createHash2 } from "crypto";
+import { createHash as createHash2 } from "node:crypto";
 function emitirEvento(e, dados, chave, agora = /* @__PURE__ */ new Date()) {
   const id = createHash2("sha256").update(chave).digest("hex");
   if (e.eventos?.some((v) => v.id === id)) return;
@@ -837,13 +1038,13 @@ function registarTransicoes(antes, depois) {
 
 // scripts/backend/imagens-artigo.ts
 init_obter();
-import { Buffer as Buffer5 } from "buffer";
-import { randomUUID as randomUUID2 } from "crypto";
+import { Buffer as Buffer6 } from "node:buffer";
+import { randomUUID as randomUUID2 } from "node:crypto";
 import { z as z12 } from "zod";
 
 // scripts/seo/imagens.ts
-import { createHash as createHash3, randomUUID } from "crypto";
-import { Buffer as Buffer4 } from "buffer";
+import { createHash as createHash3, randomUUID } from "node:crypto";
+import { Buffer as Buffer5 } from "node:buffer";
 import { z as z11 } from "zod";
 
 // src/features/seo/eventos.ts
@@ -994,9 +1195,9 @@ function falhasGlossario(g, termoId) {
 }
 
 // scripts/seo/persistencia.ts
-import process from "process";
-import { mkdir, open, readFile, rename, unlink } from "fs/promises";
-import path from "path";
+import process from "node:process";
+import { mkdir, open, readFile, rename, unlink } from "node:fs/promises";
+import path from "node:path";
 
 // src/features/seo/catalogo.ts
 var CONFIG_INICIAL = { revista: 1, pausado: true, automacaoPausada: true, mensalMicro: 5e6, diarioMicro: 1e6, pedidoMicro: 15e4, cambio: 0.86, cambioData: "2026-10-18", cacheDias: 7 };
@@ -1280,9 +1481,9 @@ var RepositorioSeo = class {
 // scripts/seo/imagens.ts
 var MAX_IMAGEM = 8 * 1024 * 1024;
 function validarImagem(bytes) {
-  const b = Buffer4.from(bytes);
+  const b = Buffer5.from(bytes);
   if (b.length < 24 || b.length > MAX_IMAGEM) throw new Error("Escolhe uma imagem at\xE9 8 MB.");
-  const tipo = b.subarray(0, 8).equals(Buffer4.from([137, 80, 78, 71, 13, 10, 26, 10])) ? "image/png" : b[0] === 255 && b[1] === 216 && b[2] === 255 ? "image/jpeg" : b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP" ? "image/webp" : null;
+  const tipo = b.subarray(0, 8).equals(Buffer5.from([137, 80, 78, 71, 13, 10, 26, 10])) ? "image/png" : b[0] === 255 && b[1] === 216 && b[2] === 255 ? "image/jpeg" : b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP" ? "image/webp" : null;
   if (!tipo) throw new Error("Usa PNG, JPEG ou WebP. O conte\xFAdo do ficheiro n\xE3o corresponde a uma imagem suportada.");
   let largura = 0, altura = 0;
   if (tipo === "image/png" && b.length >= 33 && b.toString("ascii", 12, 16) === "IHDR") {
@@ -1298,7 +1499,7 @@ function validarImagem(bytes) {
       const bits = b.readUInt32LE(21);
       largura = (bits & 16383) + 1;
       altura = (bits >>> 14 & 16383) + 1;
-    } else if (formato === "VP8 " && b.length >= 30 && b.subarray(23, 26).equals(Buffer4.from([157, 1, 42]))) {
+    } else if (formato === "VP8 " && b.length >= 30 && b.subarray(23, 26).equals(Buffer5.from([157, 1, 42]))) {
       largura = b.readUInt16LE(26) & 16383;
       altura = b.readUInt16LE(28) & 16383;
     }
@@ -1328,7 +1529,7 @@ function validarImagem(bytes) {
 function lerImagemPedido(bruto) {
   const v = z11.object({ nome: z11.string().min(1).max(250), base64: z11.string().min(20).max(Math.ceil(MAX_IMAGEM * 4 / 3) + 4) }).strict().parse(bruto);
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(v.base64)) throw new Error("O ficheiro n\xE3o foi recebido corretamente.");
-  const bytes = Buffer4.from(v.base64, "base64");
+  const bytes = Buffer5.from(v.base64, "base64");
   return { ...v, bytes, ...validarImagem(bytes) };
 }
 
@@ -1357,7 +1558,7 @@ var ImagensArtigoNuvem = class {
   async importar(ctx, url) {
     exigirEscrita(ctx);
     const r = await obterPublico(url, AbortSignal.timeout(2e4), { maxBytes: 8388608 });
-    return this.guardar(ctx, { nome: new URL(r.url).pathname.split("/").at(-1) || "imagem", base64: Buffer5.from(r.bytes).toString("base64") });
+    return this.guardar(ctx, { nome: new URL(r.url).pathname.split("/").at(-1) || "imagem", base64: Buffer6.from(r.bytes).toString("base64") });
   }
   async assinar(v) {
     const r = await this.sb.storage.from("hub-artigos").createSignedUrl(String(v.caminho), 900);
@@ -1389,9 +1590,9 @@ var ImagensArtigoNuvem = class {
 
 // scripts/seo/integracoes.ts
 init_obter();
-import { createHmac } from "crypto";
-import https2 from "https";
-import { Buffer as Buffer6 } from "buffer";
+import { createHmac } from "node:crypto";
+import https2 from "node:https";
+import { Buffer as Buffer7 } from "node:buffer";
 import { z as z13 } from "zod";
 function lerDestinosWebhook(bruto) {
   if (!bruto) return [];
@@ -1416,7 +1617,7 @@ function assinarWebhook(segredo, tempo, body) {
 async function postWebhook(d, body, tempo) {
   const u = validarDestino(d.url), ip = await resolverPublico(u);
   return new Promise((resolve, reject) => {
-    const req = https2.request(u, { method: "POST", agent: false, signal: AbortSignal.timeout(1e4), family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { "Content-Type": "application/json", "Content-Length": String(Buffer6.byteLength(body)), "X-Hub-Timestamp": tempo, "X-Hub-Signature": `sha256=${assinarWebhook(d.segredo, tempo, body)}`, "Idempotency-Key": JSON.parse(body).id, "User-Agent": "HubEditorial/1.0" } }, (res) => {
+    const req = https2.request(u, { method: "POST", agent: false, signal: AbortSignal.timeout(1e4), family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { "Content-Type": "application/json", "Content-Length": String(Buffer7.byteLength(body)), "X-Hub-Timestamp": tempo, "X-Hub-Signature": `sha256=${assinarWebhook(d.segredo, tempo, body)}`, "Idempotency-Key": JSON.parse(body).id, "User-Agent": "HubEditorial/1.0" } }, (res) => {
       res.resume();
       resolve(res.statusCode ?? 0);
     });
@@ -1512,13 +1713,13 @@ var schemaImagemArtigo = z14.object({ id: z14.string().uuid().optional(), url: z
 var schemaSeoArtigo = z14.object({ enviar: z14.boolean().optional(), titulo: z14.string().max(200).optional(), descricao: z14.string().max(320), schema: z14.enum(["Article", "BlogPosting", "nenhum"]) }).strict();
 
 // scripts/seo/editorial.ts
-import { Buffer as Buffer8 } from "buffer";
-import { createHash as createHash5 } from "crypto";
+import { Buffer as Buffer9 } from "node:buffer";
+import { createHash as createHash5 } from "node:crypto";
 import { z as z16 } from "zod";
 
 // scripts/seo/dataforseo.ts
-import { Buffer as Buffer7 } from "buffer";
-import { createHash as createHash4 } from "crypto";
+import { Buffer as Buffer8 } from "node:buffer";
+import { createHash as createHash4 } from "node:crypto";
 
 // src/features/seo/contratos.ts
 import { z as z15 } from "zod";
@@ -1649,9 +1850,9 @@ function exemploPesquisa(p) {
 }
 async function pedirDataforseo(p, cred, f = fetch) {
   const host = p.modo === "sandbox" ? "sandbox.dataforseo.com" : "api.dataforseo.com";
-  const r = await f(`https://${host}/v3/${OPERACOES_SEO[p.operacao].endpoint}`, { method: "POST", redirect: "error", headers: { "Content-Type": "application/json", Authorization: `Basic ${Buffer7.from(`${cred.login}:${cred.password}`).toString("base64")}` }, body: JSON.stringify([corpoDataforseo(p)]), signal: AbortSignal.timeout(45e3) });
+  const r = await f(`https://${host}/v3/${OPERACOES_SEO[p.operacao].endpoint}`, { method: "POST", redirect: "error", headers: { "Content-Type": "application/json", Authorization: `Basic ${Buffer8.from(`${cred.login}:${cred.password}`).toString("base64")}` }, body: JSON.stringify([corpoDataforseo(p)]), signal: AbortSignal.timeout(45e3) });
   const text = await r.text();
-  if (Buffer7.byteLength(text) > 16 * 1024 * 1024) throw new Error("A resposta excedeu o limite local. Confirma o custo no painel do fornecedor antes de repetir.");
+  if (Buffer8.byteLength(text) > 16 * 1024 * 1024) throw new Error("A resposta excedeu o limite local. Confirma o custo no painel do fornecedor antes de repetir.");
   let raw;
   try {
     raw = objeto(JSON.parse(text));
@@ -1696,7 +1897,7 @@ function promptEditorial(p, s, etapa = "texto", refinamento) {
 }
 function estimarTexto(p, s, etapa = "texto", refinamento) {
   const prompt = promptEditorial(p, s, etapa, refinamento);
-  const input = Buffer8.byteLength(JSON.stringify(corpoDeepSeek(prompt)), "utf8") + 512;
+  const input = Buffer9.byteLength(JSON.stringify(corpoDeepSeek(prompt)), "utf8") + 512;
   const tarifa = PRECOS_DEEPSEEK[MODELO_DEEPSEEK].pico;
   const linhas = [{ descricao: "Entrada \xB7 limite conservador de tokens, sem cache, tarifa de pico", quantidade: input, unitarioMicro: tarifa.cacheMiss, totalMicro: Math.ceil(input * tarifa.cacheMiss) }, { descricao: `Sa\xEDda \xB7 m\xE1ximo de ${prompt.maxTokens} tokens, tarifa de pico`, quantidade: prompt.maxTokens, unitarioMicro: tarifa.saida, totalMicro: Math.ceil(prompt.maxTokens * tarifa.saida) }];
   return { linhas, total: linhas.reduce((a, l) => a + l.totalMicro, 0) };
@@ -1757,7 +1958,7 @@ function vetorChoices(raw) {
 }
 
 // scripts/seo/glossarios.ts
-import { createHash as createHash6, randomUUID as randomUUID3 } from "crypto";
+import { createHash as createHash6, randomUUID as randomUUID3 } from "node:crypto";
 var GlossariosEditorial = class {
   constructor(repo) {
     this.repo = repo;
@@ -1837,7 +2038,7 @@ ${t.exemplo}${rel.length ? `
 };
 
 // scripts/seo/planeamento.ts
-import { createHash as createHash7, randomUUID as randomUUID4 } from "crypto";
+import { createHash as createHash7, randomUUID as randomUUID4 } from "node:crypto";
 import { z as z17 } from "zod";
 var schemaNovoPlano = z17.object({
   id: z17.string().uuid(),
@@ -1904,7 +2105,7 @@ async function bibliotecaPesquisas(repo) {
 // scripts/seo/inventario.ts
 init_obter();
 init_robots();
-import { randomUUID as randomUUID5 } from "crypto";
+import { randomUUID as randomUUID5 } from "node:crypto";
 import { JSDOM, VirtualConsole } from "jsdom";
 var InventarioEditorial = class {
   constructor(repo, obter = obterPublico, robots2 = new Robots(), agora = () => /* @__PURE__ */ new Date()) {
@@ -2042,7 +2243,7 @@ var InventarioEditorial = class {
 };
 
 // scripts/seo/lotes.ts
-import { randomUUID as randomUUID6, createHash as createHash8 } from "crypto";
+import { randomUUID as randomUUID6, createHash as createHash8 } from "node:crypto";
 var LotesEditorial = class {
   constructor(motor, agora = () => /* @__PURE__ */ new Date()) {
     this.motor = motor;
@@ -2122,7 +2323,7 @@ var LotesEditorial = class {
 };
 
 // scripts/backend/seo.ts
-import process2 from "process";
+import process2 from "node:process";
 import { z as z22 } from "zod";
 
 // src/features/seo/configuracaoSite.ts
@@ -2157,7 +2358,7 @@ function politicaComDefinicao(p, d) {
 }
 
 // scripts/seo/campanhas.ts
-import { randomUUID as randomUUID7 } from "crypto";
+import { randomUUID as randomUUID7 } from "node:crypto";
 
 // supabase/functions/_shared/documento-grafico/formatos.ts
 var FORMATOS_CONTEUDO = ["carrossel", "post", "story"];
@@ -2665,9 +2866,9 @@ ${p.texto}`).join("\n\n");
 }
 
 // scripts/seo/motor-local.ts
-import { Buffer as Buffer10 } from "buffer";
+import { Buffer as Buffer11 } from "node:buffer";
 import { z as z20 } from "zod";
-import { randomUUID as randomUUID8 } from "crypto";
+import { randomUUID as randomUUID8 } from "node:crypto";
 var erro = (m) => {
   throw new Error(m);
 };
@@ -3242,7 +3443,7 @@ var MotorSeo = class {
   async verificarLigacao() {
     const c = this.credenciais();
     if (!c.login || !c.password) throw new Error("Configura DATAFORSEO_LOGIN e DATAFORSEO_PASSWORD em .env.seo.local.");
-    const r = await this.f("https://api.dataforseo.com/v3/appendix/user_data", { redirect: "error", headers: { Authorization: `Basic ${Buffer10.from(`${c.login}:${c.password}`).toString("base64")}` }, signal: AbortSignal.timeout(2e4) });
+    const r = await this.f("https://api.dataforseo.com/v3/appendix/user_data", { redirect: "error", headers: { Authorization: `Basic ${Buffer11.from(`${c.login}:${c.password}`).toString("base64")}` }, signal: AbortSignal.timeout(2e4) });
     const j = objeto(await r.json()), t = objeto(vetor(j.tasks)[0]), info = objeto(vetor(t.result)[0]);
     if (!r.ok || j.status_code !== 2e4 || t.status_code !== 2e4) throw new Error("A DataForSEO recusou a liga\xE7\xE3o. Confere o acesso API e a liga\xE7\xE3o, sem publicar credenciais.");
     return this.repo.alterar((e) => {
@@ -3399,7 +3600,7 @@ var MotorSeo = class {
 };
 
 // scripts/backend/repositorio-seo.ts
-import { setInterval, clearInterval } from "timers";
+import { setInterval, clearInterval } from "node:timers";
 var RepositorioSeoNuvem = class {
   constructor(sb, projeto) {
     this.sb = sb;
@@ -3847,21 +4048,21 @@ var ServicoSeo = class {
 };
 
 // scripts/backend/documentos-edge.ts
-import { createHash as createHash13 } from "crypto";
+import { createHash as createHash13 } from "node:crypto";
 
 // scripts/backend/documentos.ts
-import { Buffer as Buffer14 } from "buffer";
-import { createHash as createHash12 } from "crypto";
+import { Buffer as Buffer15 } from "node:buffer";
+import { createHash as createHash12 } from "node:crypto";
 import { z as z26 } from "zod";
 
 // scripts/documentos/motor-local.ts
 init_descoberta();
-import { Buffer as Buffer11 } from "buffer";
+import { Buffer as Buffer12 } from "node:buffer";
 import * as jsdom from "jsdom";
-import { createHash as createHash9, randomUUID as randomUUID9 } from "crypto";
-import { mkdir as mkdir2, readFile as readFile2, readdir, rename as rename2, unlink as unlink2, writeFile } from "fs/promises";
-import path2 from "path";
-import { gunzipSync } from "zlib";
+import { createHash as createHash9, randomUUID as randomUUID9 } from "node:crypto";
+import { mkdir as mkdir2, readFile as readFile2, readdir, rename as rename2, unlink as unlink2, writeFile } from "node:fs/promises";
+import path2 from "node:path";
+import { gunzipSync } from "node:zlib";
 
 // src/features/documentos/contratos.ts
 var MAX_BYTES_PDF_NUVEM = 32 * 1024 * 1024;
@@ -4009,7 +4210,7 @@ var MotorDocumentos = class {
     const existente = j.pdfs.find((p2) => (p2.candidatoUrl ?? p2.url) === url);
     if (existente) return existente;
     const r = await obterPublico(downloadConhecido(url), AbortSignal.timeout(3e4), { antesDeVisitar: (u) => robots.verificar(u), maxBytes: 50 * 1024 * 1024 });
-    if (!r.bytes.subarray(0, 1024).includes(Buffer11.from("%PDF-"))) throw new Error("A liga\xE7\xE3o n\xE3o devolveu um PDF. Pode exigir um formul\xE1rio ou login.");
+    if (!r.bytes.subarray(0, 1024).includes(Buffer12.from("%PDF-"))) throw new Error("A liga\xE7\xE3o n\xE3o devolveu um PDF. Pode exigir um formul\xE1rio ou login.");
     const hash = createHash9("sha256").update(r.bytes).digest("hex");
     const igual = j.pdfs.find((p2) => p2.hash === hash);
     if (igual) return igual;
@@ -4145,7 +4346,7 @@ var MotorDocumentos = class {
         ev.paginas++;
         ev.finalUrl ??= r.url;
         let itens;
-        if (r.bytes.subarray(0, 1024).includes(Buffer11.from("%PDF-"))) itens = { itens: [{ url: r.url, titulo: f.name, tipo: "pdf", origem: url, publicadoEm: null }], seguir: [], feeds: [] };
+        if (r.bytes.subarray(0, 1024).includes(Buffer12.from("%PDF-"))) itens = { itens: [{ url: r.url, titulo: f.name, tipo: "pdf", origem: url, publicadoEm: null }], seguir: [], feeds: [] };
         else {
           let bytes = r.bytes;
           if (bytes[0] === 31 && bytes[1] === 139) bytes = gunzipSync(bytes, { maxOutputLength: 2 * 1024 * 1024 });
@@ -4196,7 +4397,7 @@ var MotorDocumentos = class {
           try {
             const restante = LIMITES_RECOLHA.bytesPorTarefa - j.pdfs.reduce((n, p2) => n + p2.bytes, 0);
             const r = await obterPublico(downloadConhecido(p.url), AbortSignal.timeout(3e4), { antesDeVisitar: (u) => robots.verificar(u), maxBytes: Math.min(restante, 50 * 1024 * 1024) });
-            if (!r.bytes.subarray(0, 1024).includes(Buffer11.from("%PDF-"))) throw new Error("A liga\xE7\xE3o devolveu HTML ou outro ficheiro; n\xE3o \xE9 um PDF.");
+            if (!r.bytes.subarray(0, 1024).includes(Buffer12.from("%PDF-"))) throw new Error("A liga\xE7\xE3o devolveu HTML ou outro ficheiro; n\xE3o \xE9 um PDF.");
             const hash = createHash9("sha256").update(r.bytes).digest("hex");
             if (!j.pdfs.some((x) => x.hash === hash)) {
               const destino = path2.join(this.pasta, "pdfs", `${hash}.pdf`);
@@ -5629,14 +5830,14 @@ init_obter();
 init_seguranca();
 
 // scripts/backend/pdf.ts
-import { Buffer as Buffer12 } from "buffer";
-import process3 from "process";
-import { execFile } from "child_process";
-import { promisify } from "util";
-import { mkdtemp, writeFile as writeFile2, readFile as readFile3, rm } from "fs/promises";
-import { tmpdir } from "os";
-import path3 from "path";
-import { createHash as createHash10 } from "crypto";
+import { Buffer as Buffer13 } from "node:buffer";
+import process3 from "node:process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { mkdtemp, writeFile as writeFile2, readFile as readFile3, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path3 from "node:path";
+import { createHash as createHash10 } from "node:crypto";
 var executar = promisify(execFile);
 var ferramenta = (nome) => {
   const pasta = process3.env.HUB_POPPLER_DIR;
@@ -5645,7 +5846,7 @@ var ferramenta = (nome) => {
   return pasta ? path3.join(pasta, nome) : nome;
 };
 async function extrairPdfServidor(bytes, nome) {
-  if (bytes.byteLength < 8 || bytes.byteLength > 50 * 1024 * 1024 || !Buffer12.from(bytes.subarray(0, 1024)).includes(Buffer12.from("%PDF-")))
+  if (bytes.byteLength < 8 || bytes.byteLength > 50 * 1024 * 1024 || !Buffer13.from(bytes.subarray(0, 1024)).includes(Buffer13.from("%PDF-")))
     throw new Error("O ficheiro n\xE3o \xE9 um PDF v\xE1lido at\xE9 50 MB.");
   const pasta = await mkdtemp(path3.join(tmpdir(), "hub-pdf-"));
   const original = path3.join(pasta, "original.pdf");
@@ -5679,7 +5880,7 @@ async function extrairPdfServidor(bytes, nome) {
 }
 
 // scripts/backend/documentos-preparacao.ts
-import { Buffer as Buffer13 } from "buffer";
+import { Buffer as Buffer14 } from "node:buffer";
 import { z as z24 } from "zod";
 var pagina = z24.object({ n: z24.number().int().min(1).max(600), estado: z24.enum(["texto", "sem_texto_com_imagem", "vazia", "erro"]), texto: z24.string().max(2e5), paragrafos: z24.array(z24.string().max(2e5)).max(2e4) }).strict();
 var schema = z24.object({ pdf: z24.object({ hash: z24.string().regex(/^[a-f0-9]{64}$/), bytes: z24.number().int().positive(), ficheiro: z24.string().max(200), titulo: z24.string().max(250).optional(), paginas: z24.array(pagina).min(1).max(600) }).strict(), capa: z24.string().max(28e5) }).strict();
@@ -5688,7 +5889,7 @@ function validarPreparacaoPdf(bruto, hash, bytes) {
   const p = schema.parse(bruto);
   if (p.pdf.hash !== hash || p.pdf.bytes !== bytes || p.pdf.paginas.some((v, i) => v.n !== i + 1)) throw new Error("A prepara\xE7\xE3o n\xE3o corresponde ao PDF original.");
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(p.capa)) throw new Error("Capa PNG inv\xE1lida.");
-  const capa = Buffer13.from(p.capa, "base64");
+  const capa = Buffer14.from(p.capa, "base64");
   if (capa.length < 33 || capa.length > 2e6 || capa.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a" || capa.toString("ascii", 12, 16) !== "IHDR") throw new Error("Capa PNG inv\xE1lida.");
   const w = capa.readUInt32BE(16), h = capa.readUInt32BE(20);
   if (!w || !h || w > 2e3 || h > 2e3 || w * h > 2e6) throw new Error("Capa fora do limite.");
@@ -5745,7 +5946,7 @@ var DocumentosNuvem = class {
   }
   async guardar(ctx, bytes, meta2) {
     exigirEscrita(ctx);
-    if (bytes.byteLength > 50 * 1024 * 1024 || !Buffer14.from(bytes.subarray(0, 1024)).includes(Buffer14.from("%PDF-")))
+    if (bytes.byteLength > 50 * 1024 * 1024 || !Buffer15.from(bytes.subarray(0, 1024)).includes(Buffer15.from("%PDF-")))
       throw new Error("O ficheiro n\xE3o \xE9 um PDF at\xE9 50 MB.");
     const hash = createHash12("sha256").update(bytes).digest("hex");
     const existente = await this.encontrar(ctx, hash);
@@ -6182,10 +6383,10 @@ var DocumentosEdge = class extends DocumentosNuvem {
 };
 
 // scripts/backend/pdf-wasm.ts
-import { Buffer as Buffer15 } from "buffer";
+import { Buffer as Buffer16 } from "node:buffer";
 import { init } from "@embedpdf/pdfium";
 import { encode } from "fast-png";
-import { createHash as createHash14 } from "crypto";
+import { createHash as createHash14 } from "node:crypto";
 var PdfNuvem = class {
   constructor(wasm, lado = 600, diagnostico) {
     this.wasm = wasm;
@@ -6201,7 +6402,7 @@ var PdfNuvem = class {
     });
   }
   async parte(bytes, nome, inicio = 0, lote = 5, comCapa = true) {
-    if (bytes.length > 32 * 1024 * 1024 || !Buffer15.from(bytes.subarray(0, 1024)).includes(Buffer15.from("%PDF-")))
+    if (bytes.length > 32 * 1024 * 1024 || !Buffer16.from(bytes.subarray(0, 1024)).includes(Buffer16.from("%PDF-")))
       throw new Error("O processamento na nuvem aceita PDFs at\xE9 32 MB. O original permanece preservado.");
     if (!Number.isInteger(inicio) || inicio < 0 || !Number.isInteger(lote) || lote < 1 || lote > 5)
       throw new Error("Intervalo de p\xE1ginas inv\xE1lido.");
@@ -6289,7 +6490,7 @@ var PdfNuvem = class {
 };
 
 // scripts/backend/wordpress-imagens.ts
-import { createHash as createHash15 } from "crypto";
+import { createHash as createHash15 } from "node:crypto";
 import { z as z27 } from "zod";
 init_obter();
 var remoto = z27.object({ id: z27.number().int().positive(), source_url: z27.string().url(), slug: z27.string(), alt_text: z27.string(), title: z27.object({ raw: z27.string() }), caption: z27.object({ raw: z27.string() }) }).passthrough();
@@ -6422,9 +6623,9 @@ function htmlMarkdownArtigo(corpo, fontes, exigirFontes = false) {
 
 // scripts/backend/wordpress.ts
 init_obter();
-import { Buffer as Buffer16 } from "buffer";
-import process4 from "process";
-import https3 from "https";
+import { Buffer as Buffer17 } from "node:buffer";
+import process4 from "node:process";
+import https3 from "node:https";
 import { z as z28 } from "zod";
 var DOMINIOS = { sms: "smsonline.pt", teletrabalho: "teletrabalhoweb.com", digitalfc: "digitalfc.pt", frederico: "fredericocarvalho.pt", digitalsprint: "digitalsprint.pt", academia: "academiamarketing.pt", certificacao: "certificacaomarketing.pt", auditoria: "auditoriaseo.pt" };
 function credencialWordPress(site2, env = process4.env) {
@@ -6453,22 +6654,22 @@ async function pedidoWordPress(c, caminho, method = "GET", dados) {
   if (upload?.ficheiro) {
     if (caminho !== "/wp-json/wp/v2/media" || method !== "POST" || !/^hub-[a-f0-9]{64}\.(png|jpg|webp)$/.test(upload.ficheiro.nome)) throw new Error("Upload WordPress inv\xE1lido.");
     const boundary = `hub${crypto.randomUUID().replace(/-/g, "")}`;
-    const campos = Object.entries(upload.campos ?? {}).map(([k, v]) => Buffer16.from(`--${boundary}\r
+    const campos = Object.entries(upload.campos ?? {}).map(([k, v]) => Buffer17.from(`--${boundary}\r
 Content-Disposition: form-data; name="${k}"\r
 \r
 ${v}\r
 `));
-    body = Buffer16.concat([...campos, Buffer16.from(`--${boundary}\r
+    body = Buffer17.concat([...campos, Buffer17.from(`--${boundary}\r
 Content-Disposition: form-data; name="file"; filename="${upload.ficheiro.nome}"\r
 Content-Type: ${upload.ficheiro.tipo}\r
 \r
-`), Buffer16.from(upload.ficheiro.bytes), Buffer16.from(`\r
+`), Buffer17.from(upload.ficheiro.bytes), Buffer17.from(`\r
 --${boundary}--\r
 `)]);
     contentType = `multipart/form-data; boundary=${boundary}`;
-  } else body = dados === void 0 ? void 0 : Buffer16.from(JSON.stringify(dados));
+  } else body = dados === void 0 ? void 0 : Buffer17.from(JSON.stringify(dados));
   return new Promise((resolve, reject) => {
-    const r = https3.request(u, { method, agent: false, signal: AbortSignal.timeout(45e3), timeout: 3e4, family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { Authorization: `Basic ${Buffer16.from(`${c.user}:${c.password}`).toString("base64")}`, Accept: "application/json", "Accept-Encoding": "identity", ...body ? { "Content-Type": contentType, "Content-Length": String(body.length) } : {} } }, (res) => {
+    const r = https3.request(u, { method, agent: false, signal: AbortSignal.timeout(45e3), timeout: 3e4, family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { Authorization: `Basic ${Buffer17.from(`${c.user}:${c.password}`).toString("base64")}`, Accept: "application/json", "Accept-Encoding": "identity", ...body ? { "Content-Type": contentType, "Content-Length": String(body.length) } : {} } }, (res) => {
       if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
         res.resume();
         reject(new Error(`WordPress respondeu HTTP ${res.statusCode ?? 0}. Confere o resultado antes de repetir.`));
@@ -6486,7 +6687,7 @@ Content-Type: ${upload.ficheiro.tipo}\r
       res.on("error", reject);
       res.on("end", () => {
         try {
-          resolve(JSON.parse(Buffer16.concat(chunks).toString("utf8")));
+          resolve(JSON.parse(Buffer17.concat(chunks).toString("utf8")));
         } catch {
           reject(new Error("Resposta WordPress inv\xE1lida."));
         }
@@ -6658,9 +6859,9 @@ var PublicadorWordPress = class {
 };
 
 // scripts/backend/worker.ts
-import { setInterval as setInterval2, clearInterval as clearInterval2 } from "timers";
-import path4 from "path";
-import { mkdir as mkdir3, rm as rm2 } from "fs/promises";
+import { setInterval as setInterval2, clearInterval as clearInterval2 } from "node:timers";
+import path4 from "node:path";
+import { mkdir as mkdir3, rm as rm2 } from "node:fs/promises";
 var WorkerHub = class {
   constructor(sb, seo, documentos, pasta, publicar, automaticoWp = () => false, prepararDocumento) {
     this.sb = sb;
@@ -6862,16 +7063,16 @@ var WorkerHub = class {
 // scripts/backend/servidor.ts
 init_obter();
 init_seguranca();
-import { Buffer as Buffer17 } from "buffer";
-import process5 from "process";
-import { setInterval as setInterval4, clearInterval as clearInterval4 } from "timers";
-import { createServer } from "http";
+import { Buffer as Buffer18 } from "node:buffer";
+import process5 from "node:process";
+import { setInterval as setInterval4, clearInterval as clearInterval4 } from "node:timers";
+import { createServer } from "node:http";
 import { z as z31 } from "zod";
 
 // scripts/backend/backup.ts
-import { setInterval as setInterval3, clearInterval as clearInterval3 } from "timers";
+import { setInterval as setInterval3, clearInterval as clearInterval3 } from "node:timers";
 import { z as z29 } from "zod";
-import { createHash as createHash16 } from "crypto";
+import { createHash as createHash16 } from "node:crypto";
 var BASE = ["hub_editorial_estados", "hub_editorial_artefactos", "hub_documentos", "hub_recolhas", "hub_operacao", "hub_jobs", "hub_publicacoes"];
 var TABELAS = [...BASE, "hub_artigo_imagens", "hub_wp_imagens"];
 var assinaturaBytes = (bytes) => createHash16("sha256").update(bytes).digest("hex");
@@ -7151,13 +7352,13 @@ async function lerCorpo(req, limite) {
   const partes = [];
   let total = 0;
   for await (const c of req) {
-    const b = Buffer17.isBuffer(c) ? c : Buffer17.from(c);
+    const b = Buffer18.isBuffer(c) ? c : Buffer18.from(c);
     total += b.length;
     if (total > limite)
       throw new FalhaHttp("O ficheiro ou pedido excede o limite permitido.", 413);
     partes.push(b);
   }
-  return Buffer17.concat(partes);
+  return Buffer18.concat(partes);
 }
 function criarServidor(config, servicos) {
   const limites = /* @__PURE__ */ new Map();
@@ -7262,7 +7463,7 @@ function criarServidor(config, servicos) {
       else if (caminho[1] === "seo" && caminho[2] === "imagem-detalhe") resultado = await new ImagensArtigoNuvem(servicos.sb).detalhe(ctx, z31.string().uuid().parse(a.id));
       else if (caminho[1] === "seo" && caminho[2] === "imagem-exportar") {
         const i = a.id ? await new ImagensArtigoNuvem(servicos.sb).ficheiro(ctx.projeto, z31.string().uuid().parse(a.id)) : await obterPublico(z31.string().url().max(2e3).parse(a.url), AbortSignal.timeout(2e4), { maxBytes: 8388608 });
-        resultado = { tipo: validarImagem(i.bytes).tipo, base64: Buffer17.from(i.bytes).toString("base64") };
+        resultado = { tipo: validarImagem(i.bytes).tipo, base64: Buffer18.from(i.bytes).toString("base64") };
       } else if (caminho[1] === "seo" && caminho[2] === "imagem-importar") resultado = await new ImagensArtigoNuvem(servicos.sb).importar(ctx, z31.string().url().max(2e3).parse(a.url));
       else if (caminho[1] === "seo" && caminho[2] === "imagem-guardar") resultado = await new ImagensArtigoNuvem(servicos.sb).guardar(ctx, a.imagem);
       else if (caminho[1] === "seo")
@@ -7274,7 +7475,7 @@ function criarServidor(config, servicos) {
         if (resultado instanceof Blob) {
           await concluirEscrita();
           res.setHeader("Content-Type", resultado.type || "application/octet-stream");
-          res.end(Buffer17.from(await resultado.arrayBuffer()));
+          res.end(Buffer18.from(await resultado.arrayBuffer()));
           return;
         }
         if (caminho[2] === "obter") {
@@ -7361,7 +7562,7 @@ async function operarServico(sb, ctx, acao, a) {
 }
 
 // scripts/backend/adaptador-web.ts
-import { Readable } from "stream";
+import { Readable as Readable2 } from "node:stream";
 function adaptarWeb(servidor) {
   return async (req) => {
     const headers = {};
@@ -7385,7 +7586,7 @@ function adaptarWeb(servidor) {
         reader.releaseLock();
       }
     }
-    const entrada = Object.assign(Readable.from(corpo()), { method: req.method, url: url.pathname + url.search, headers });
+    const entrada = Object.assign(Readable2.from(corpo()), { method: req.method, url: url.pathname + url.search, headers });
     return new Promise((resolve) => {
       const cabecalhos = new Headers();
       let codigo = 200;

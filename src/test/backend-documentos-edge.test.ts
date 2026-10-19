@@ -50,3 +50,23 @@ it('recupera todas as páginas por tarefas independentes e não duplica continua
   expect(d.dados.processamento).toMatchObject({ estado: 'concluido', paginas: 12, total: 12 });
   expect(m.chamadas.some(c => c.nome === 'hub_job_adiar')).toBe(false);
 });
+
+it('retoma um job incerto sem repetir uma tarefa ativa nem apagar texto existente', async () => {
+  const projeto = crypto.randomUUID(), userId = crypto.randomUUID();
+  const m = supabaseMemoria({ hub_operacao: [{ project_id: projeto, pausado: false }] });
+  const ctx = { projeto, userId, escrever: true, user: m.sb };
+  const docs = new DocumentosEdge(m.sb, {} as PdfNuvem);
+  const salvo = await docs.guardar(ctx, Buffer.from('%PDF-1.7\noriginal'), { titulo: 'Relatório', ficheiro: 'fonte.pdf' });
+  const d = m.tabelas.hub_documentos[0] as unknown as DocumentoNuvem;
+  d.dados.pdf.paginas = [{ n: 1, estado: 'texto', texto: 'Texto preservado', paragrafos: ['Texto preservado'] }];
+  d.dados.processamento = { estado: 'a_processar', paginas: 1, total: 2, reextracao: true };
+  m.tabelas.hub_jobs.forEach(j => { j.estado = 'incerto'; });
+  const antes = m.tabelas.hub_jobs.length;
+  await docs.operar(ctx, 'reextrair-texto', { id: salvo.documento.id });
+  expect(m.tabelas.hub_jobs).toHaveLength(antes + 1);
+  expect(m.tabelas.hub_jobs.at(-1)?.pedido).toMatchObject({ documentoId: salvo.documento.id, inicio: 0, reextracao: true });
+  m.tabelas.hub_jobs.at(-1)!.estado = 'fila';
+  await docs.operar(ctx, 'reextrair-texto', { id: salvo.documento.id });
+  expect(m.tabelas.hub_jobs).toHaveLength(antes + 1);
+  expect(d.dados.pdf.paginas[0].texto).toBe('Texto preservado');
+});
