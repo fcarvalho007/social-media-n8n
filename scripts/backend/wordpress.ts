@@ -6,6 +6,7 @@ import https from 'node:https';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { resolverPublico, validarDestino } from '../documentos/obter';
+import { httpsDeno, redeDeno } from '../documentos/https-deno';
 import { assinaturaPauta } from '../seo/editorial';
 import { triagemPublicacao, exigeRevisao } from '../../src/features/seo/politicas';
 import type { EstadoSeo, PautaEditorial } from '../../src/features/seo/contratos';
@@ -39,6 +40,14 @@ export async function pedidoWordPress(c: CredencialWp, caminho: string, method: 
     const u = validarDestino(new URL(caminho, c.url).href), ip = await resolverPublico(u);
     const upload=dados as {ficheiro?:{bytes:Uint8Array;tipo:string;nome:string};campos?:Record<string,string>};let body:Buffer|undefined,contentType='application/json';
     if(upload?.ficheiro){if(caminho!=='/wp-json/wp/v2/media'||method!=='POST'||!/^hub-[a-f0-9]{64}\.(png|jpg|webp)$/.test(upload.ficheiro.nome))throw new Error('Upload WordPress inválido.');const boundary=`hub${crypto.randomUUID().replace(/-/g,'')}`;const campos=Object.entries(upload.campos??{}).map(([k,v])=>Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));body=Buffer.concat([...campos,Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${upload.ficheiro.nome}"\r\nContent-Type: ${upload.ficheiro.tipo}\r\n\r\n`),Buffer.from(upload.ficheiro.bytes),Buffer.from(`\r\n--${boundary}--\r\n`)]);contentType=`multipart/form-data; boundary=${boundary}`;}else body=dados===undefined?undefined:Buffer.from(JSON.stringify(dados));
+    const headers = { Authorization: `Basic ${Buffer.from(`${c.user}:${c.password}`).toString('base64')}`, Accept: 'application/json', 'Accept-Encoding': 'identity', ...(body ? { 'Content-Type': contentType } : {}) };
+    const deno = redeDeno();
+    if (deno) {
+        const r = await httpsDeno(u, ip.address, AbortSignal.timeout(45000), 8 * 1024 * 1024, deno, undefined, { method, headers, body, timeoutMs: 45000 });
+        // Never forward authentication or repeat a write after a redirect/failure.
+        if (r.status < 200 || r.status >= 300) throw new Error(`WordPress respondeu HTTP ${r.status}. Confere o resultado antes de repetir.`);
+        try { return JSON.parse(r.bytes.toString('utf8')); } catch { throw new Error('Resposta WordPress inválida.'); }
+    }
     return new Promise((resolve, reject) => {
         const r = https.request(u, { method, agent: false, signal: AbortSignal.timeout(45000), timeout: 30000, family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { Authorization: `Basic ${Buffer.from(`${c.user}:${c.password}`).toString('base64')}`, Accept: 'application/json', 'Accept-Encoding': 'identity', ...(body ? { 'Content-Type': contentType, 'Content-Length': String(body.length) } : {}) } }, res => {
             // Authentication never follows redirects to another host or path.

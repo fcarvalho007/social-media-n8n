@@ -6,6 +6,8 @@ import { httpsDeno, type RedeDeno } from '../../scripts/documentos/https-deno';
 vi.mock('node:dns/promises', () => ({ lookup: vi.fn() }));
 import { lookup } from 'node:dns/promises';
 import { obterPublico } from '../../scripts/documentos/obter';
+import { pedidoWordPress } from '../../scripts/backend/wordpress';
+import { assinarWebhook, postWebhook } from '../../scripts/seo/integracoes';
 
 function rede(bruto: string | Buffer, fragmento = 7) {
   const raw = Buffer.from(bruto); let pos = 0; const enviado: Buffer[] = [];
@@ -60,4 +62,25 @@ it('na via Deno revalida DNS e robots em cada redirect, sem chamar uma rede priv
   const { d } = rede('HTTP/1.1 302 Found\r\nLocation: https://redirect.example.org/file.pdf\r\n\r\n'); vi.stubGlobal('Deno', d);
   vi.mocked(lookup).mockResolvedValueOnce([{ address: '1.1.1.1', family: 4 }] as never).mockResolvedValueOnce([{ address: '127.0.0.1', family: 4 }] as never);
   const verificar = vi.fn(async () => {}); await expect(obterPublico(url.href, AbortSignal.timeout(1000), { antesDeVisitar: verificar })).rejects.toThrow('privada'); expect(d.connect).toHaveBeenCalledTimes(1); expect(verificar).toHaveBeenCalledTimes(2);
+});
+
+it('WordPress usa TLS e autenticação só no destino exato; aceita JSON 201 e envia o corpo uma vez', async () => {
+  const { d, pedido } = rede('HTTP/1.1 201 Created\r\nContent-Length: 8\r\n\r\n{"id":7}'); vi.stubGlobal('Deno', d);
+  vi.mocked(lookup).mockResolvedValue([{ address: '1.1.1.1', family: 4 }] as never);
+  expect(await pedidoWordPress({ url: url.origin, user: 'fixture', password: 'test-only' }, '/wp-json/wp/v2/posts', 'POST', { title: 'Ensaio' })).toEqual({ id: 7 });
+  expect(pedido()).toContain('POST /wp-json/wp/v2/posts HTTP/1.1'); expect(pedido()).toContain(`authorization: Basic ${Buffer.from('fixture:test-only').toString('base64')}`);
+  expect(pedido()).toContain(`Content-Length: ${Buffer.byteLength(JSON.stringify({ title: 'Ensaio' }))}`); expect(pedido().split('\r\n\r\n')[1]).toBe(JSON.stringify({ title: 'Ensaio' })); expect(d.connect).toHaveBeenCalledOnce();
+});
+it('WordPress não segue redirects autenticados, nem repete escritas incertas', async () => {
+  const { d } = rede('HTTP/1.1 302 Found\r\nLocation: https://other.example.org/\r\n\r\n'); vi.stubGlobal('Deno', d); vi.mocked(lookup).mockResolvedValue([{ address: '1.1.1.1', family: 4 }] as never);
+  await expect(pedidoWordPress({ url: url.origin, user: 'fixture', password: 'test-only' }, '/wp-json/wp/v2/posts', 'POST', { title: 'Ensaio' })).rejects.toThrow('HTTP 302'); expect(d.connect).toHaveBeenCalledOnce();
+});
+it('webhook conserva HMAC, identificador e bytes; não segue redirects nem usa uma rede privada', async () => {
+  const { d, pedido } = rede('HTTP/1.1 204 No Content\r\n\r\n'); vi.stubGlobal('Deno', d); vi.mocked(lookup).mockResolvedValue([{ address: '1.1.1.1', family: 4 }] as never);
+  const destino = { id: 'fixture', nome: 'Teste', projeto: 'p', url: url.origin, segredo: 'fixture-only-secret' }; const body = JSON.stringify({ id: 'evento-1', titulo: 'ação' });
+  expect(await postWebhook(destino, body, '123')).toBe(204); expect(pedido()).toContain(`x-hub-signature: sha256=${assinarWebhook(destino.segredo, '123', body)}`); expect(pedido()).toContain('idempotency-key: evento-1'); expect(pedido().split('\r\n\r\n')[1]).toBe(body); expect(pedido()).not.toContain(destino.segredo);
+  vi.mocked(lookup).mockResolvedValueOnce([{ address: '127.0.0.1', family: 4 }] as never); await expect(postWebhook(destino, body, '123')).rejects.toThrow('privada'); expect(d.connect).toHaveBeenCalledOnce();
+});
+it.each([{ Host: 'other.example.org' }, { Authorization: 'token\r\nHost: other.example.org' }, { 'Content-Length': '0' }])('recusa cabeçalhos que possam mudar o destino ou enquadramento: %s', async headers => {
+  const { d } = rede(''); await expect(httpsDeno(url, '1.1.1.1', AbortSignal.timeout(1000), 100, d, undefined, { headers })).rejects.toThrow('Cabeçalho');
 });

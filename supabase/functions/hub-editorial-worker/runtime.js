@@ -98,9 +98,9 @@ var init_fontes = __esm({
 import { Buffer as Buffer3 } from "node:buffer";
 import { Readable } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
-async function httpsDeno(url, ip, signal, maxBytes, deno, maxTexto) {
+async function httpsDeno(url, ip, signal, maxBytes, deno, maxTexto, opcoes = {}) {
   signal.throwIfAborted();
-  const limite = AbortSignal.any([signal, AbortSignal.timeout(1e4)]);
+  const limite = AbortSignal.any([signal, AbortSignal.timeout(opcoes.timeoutMs ?? 1e4)]);
   let conn;
   const cancelar = () => fechar(conn);
   limite.addEventListener("abort", cancelar, { once: true });
@@ -127,14 +127,20 @@ async function httpsDeno(url, ip, signal, maxBytes, deno, maxTexto) {
   try {
     conn = await esperar(deno.connect({ hostname: ip, port: 443 }), fechar);
     conn = await esperar(deno.startTls(conn, { hostname: url.hostname }), fechar);
-    const request = Buffer3.from(`GET ${url.pathname}${url.search} HTTP/1.1\r
+    const h = { "user-agent": "HubDocumentos/0.2 (owner-initiated document discovery)", accept: "application/pdf,text/html,application/xml,application/rss+xml,application/atom+xml;q=0.9,*/*;q=0.5", "accept-encoding": "identity" };
+    for (const [k, v] of Object.entries(opcoes.headers ?? {})) {
+      if (!/^[!#$%&'*+.^_`|~\w-]+$/.test(k) || /[\r\n]/.test(v) || !/^[\t\u0020-\u007e\u0080-\u00ff]*$/.test(v) || /^(host|connection|transfer-encoding|content-length|upgrade|expect|proxy-authorization)$/i.test(k)) throw new Error("Cabe\xE7alho de integra\xE7\xE3o inv\xE1lido.");
+      h[k.toLowerCase()] = v;
+    }
+    if (opcoes.body && opcoes.body.length > 16 * 1024 * 1024) throw new Error("O pedido excede o limite de envio.");
+    const prefixo = Buffer3.from(`${opcoes.method ?? "GET"} ${url.pathname}${url.search} HTTP/1.1\r
 Host: ${url.hostname}\r
-User-Agent: HubDocumentos/0.2 (owner-initiated document discovery)\r
-Accept: application/pdf,text/html,application/xml,application/rss+xml,application/atom+xml;q=0.9,*/*;q=0.5\r
-Accept-Encoding: identity\r
-Connection: close\r
+${Object.entries(h).map(([k, v]) => `${k}: ${v}\r
+`).join("")}${opcoes.body ? `Content-Length: ${opcoes.body.length}\r
+` : ""}Connection: close\r
 \r
 `);
+    const request = opcoes.body ? Buffer3.concat([prefixo, opcoes.body]) : prefixo;
     for (let pos = 0; pos < request.length; ) {
       const n = await esperar(conn.write(request.subarray(pos)));
       if (n <= 0) throw erroFormato();
@@ -179,17 +185,17 @@ Connection: close\r
         total += s.length + 2;
         if (total > 65536) throw erroFormato();
         if (!s) break;
-        const h = /^([!#$%&'*+.^_`|~\w-]+):[ \t]*([\t\u0020-\u007e\u0080-\u00ff]*)$/.exec(s);
-        if (!h) throw erroFormato();
-        const k = h[1].toLowerCase();
-        const v = h[2].trim();
+        const h2 = /^([!#$%&'*+.^_`|~\w-]+):[ \t]*([\t\u0020-\u007e\u0080-\u00ff]*)$/.exec(s);
+        if (!h2) throw erroFormato();
+        const k = h2[1].toLowerCase();
+        const v = h2[2].trim();
         if (k in headers && ["content-length", "transfer-encoding", "content-encoding", "location"].includes(k)) throw erroFormato();
         headers[k] = k in headers ? `${headers[k]},${v}` : v;
       }
       if (status >= 200) break;
       if (![100, 102, 103].includes(status) || interim === 5) throw erroFormato();
     }
-    if (status !== 200) return { status, headers, bytes: Buffer3.alloc(0) };
+    if (status < 200 || status >= 300 || status === 204 || opcoes.soStatus) return { status, headers, bytes: Buffer3.alloc(0) };
     if (maxTexto && /html|xml|text\//i.test(headers["content-type"] ?? "")) maxBytes = Math.min(maxBytes, maxTexto);
     const cl = headers["content-length"];
     const te = headers["transfer-encoding"];
@@ -1590,6 +1596,7 @@ var ImagensArtigoNuvem = class {
 
 // scripts/seo/integracoes.ts
 init_obter();
+init_https_deno();
 import { createHmac } from "node:crypto";
 import https2 from "node:https";
 import { Buffer as Buffer7 } from "node:buffer";
@@ -1616,6 +1623,8 @@ function assinarWebhook(segredo, tempo, body) {
 }
 async function postWebhook(d, body, tempo) {
   const u = validarDestino(d.url), ip = await resolverPublico(u);
+  const deno = redeDeno();
+  if (deno) return (await httpsDeno(u, ip.address, AbortSignal.timeout(1e4), 512e3, deno, void 0, { method: "POST", body: Buffer7.from(body), soStatus: true, headers: { "Content-Type": "application/json", "X-Hub-Timestamp": tempo, "X-Hub-Signature": `sha256=${assinarWebhook(d.segredo, tempo, body)}`, "Idempotency-Key": JSON.parse(body).id, "User-Agent": "HubEditorial/1.0" } })).status;
   return new Promise((resolve, reject) => {
     const req = https2.request(u, { method: "POST", agent: false, signal: AbortSignal.timeout(1e4), family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { "Content-Type": "application/json", "Content-Length": String(Buffer7.byteLength(body)), "X-Hub-Timestamp": tempo, "X-Hub-Signature": `sha256=${assinarWebhook(d.segredo, tempo, body)}`, "Idempotency-Key": JSON.parse(body).id, "User-Agent": "HubEditorial/1.0" } }, (res) => {
       res.resume();
@@ -6623,6 +6632,7 @@ function htmlMarkdownArtigo(corpo, fontes, exigirFontes = false) {
 
 // scripts/backend/wordpress.ts
 init_obter();
+init_https_deno();
 import { Buffer as Buffer17 } from "node:buffer";
 import process4 from "node:process";
 import https3 from "node:https";
@@ -6668,6 +6678,17 @@ Content-Type: ${upload.ficheiro.tipo}\r
 `)]);
     contentType = `multipart/form-data; boundary=${boundary}`;
   } else body = dados === void 0 ? void 0 : Buffer17.from(JSON.stringify(dados));
+  const headers = { Authorization: `Basic ${Buffer17.from(`${c.user}:${c.password}`).toString("base64")}`, Accept: "application/json", "Accept-Encoding": "identity", ...body ? { "Content-Type": contentType } : {} };
+  const deno = redeDeno();
+  if (deno) {
+    const r = await httpsDeno(u, ip.address, AbortSignal.timeout(45e3), 8 * 1024 * 1024, deno, void 0, { method, headers, body, timeoutMs: 45e3 });
+    if (r.status < 200 || r.status >= 300) throw new Error(`WordPress respondeu HTTP ${r.status}. Confere o resultado antes de repetir.`);
+    try {
+      return JSON.parse(r.bytes.toString("utf8"));
+    } catch {
+      throw new Error("Resposta WordPress inv\xE1lida.");
+    }
+  }
   return new Promise((resolve, reject) => {
     const r = https3.request(u, { method, agent: false, signal: AbortSignal.timeout(45e3), timeout: 3e4, family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { Authorization: `Basic ${Buffer17.from(`${c.user}:${c.password}`).toString("base64")}`, Accept: "application/json", "Accept-Encoding": "identity", ...body ? { "Content-Type": contentType, "Content-Length": String(body.length) } : {} } }, (res) => {
       if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {

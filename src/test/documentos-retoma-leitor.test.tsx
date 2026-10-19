@@ -3,6 +3,10 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { LeitorDocumento } from '@/features/documentos/LeitorDocumento';
 import type { DocumentoAcervo } from '@/features/documentos/modelo';
 
+// Reader recovery does not parse PDFs. Keep the browser worker asset out of
+// this UI-only test (the Cloud test runner forbids assets outside its root).
+vi.mock('@/lib/carregarPdfJs', () => ({ carregarPdfJs: vi.fn(() => { throw new Error('Este ensaio do leitor não deve iniciar PDF.js.'); }) }));
+
 afterEach(cleanup);
 it('permite recuperar preparação interrompida que ainda tem estado a_processar', () => {
   Element.prototype.scrollIntoView = vi.fn();
