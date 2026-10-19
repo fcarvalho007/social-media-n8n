@@ -10,7 +10,7 @@ async function chamar({ origem = 'https://hub.example', metodo = 'POST', url = '
     const mem = supabaseMemoria({ hub_leases: privado ? [{ project_id: projeto, recurso: 'backup', ate: '2999-01-01', token: 'lease' }] : [] });
     let libertada = false;
     const rpc = mem.sb.rpc.bind(mem.sb);
-    mem.sb.rpc = (async (nome: string, args: Record<string, unknown>) => { if (nome === 'hub_lease_libertar') { if (libertacaoLenta) await new Promise(r => setTimeout(r, 30)); libertada = true; } return rpc(nome, args); }) as typeof mem.sb.rpc;
+    mem.sb.rpc = (async (nome: string, args: Record<string, unknown>) => { if (nome === 'hub_lease_libertar') { if (libertacaoLenta) await new Promise(r => setTimeout(r, 30)); libertada = true; } return rpc(nome, args); }) as unknown as typeof mem.sb.rpc;
     const operar = vi.fn(async () => ({ ok: true })), autorizar = vi.fn(async () => {
         if (!autenticado)
             throw new FalhaHttp('Sessão expirada.', 401);
