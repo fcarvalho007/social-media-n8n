@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 
 interface BibliotecasConteudoTabsProps {
   ativa: "meus" | "cronica";
@@ -12,18 +11,8 @@ const ABAS = [
 
 export function BibliotecasConteudoTabs({ ativa }: BibliotecasConteudoTabsProps) {
   return (
-    <nav aria-label="Bibliotecas de conteúdos" className="flex w-full gap-1 overflow-x-auto rounded-lg border bg-card p-1 sm:w-fit">
-      {ABAS.map((aba) => (
-        <Button
-          key={aba.id}
-          asChild
-          size="sm"
-          variant={ativa === aba.id ? "default" : "ghost"}
-          className="min-h-10 flex-1 whitespace-nowrap sm:flex-none"
-        >
-          <Link to={aba.url} aria-current={ativa === aba.id ? "page" : undefined}>{aba.nome}</Link>
-        </Button>
-      ))}
+    <nav aria-label="Bibliotecas de conteúdos" className="hub-section-nav flex-wrap">
+      {ABAS.map((aba) => <Link key={aba.id} to={aba.url} className="hub-section-link" aria-current={ativa === aba.id ? "page" : undefined}>{aba.nome}</Link>)}
     </nav>
   );
 }

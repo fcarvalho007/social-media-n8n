@@ -19,6 +19,15 @@ describe("demonstração local da plataforma", () => {
     fetchSpy.mockRestore();
   });
 
+  it("consulta a biblioteca social local vazia com filtro de projeto sem chamadas externas", async () => {
+    const client = criarClienteHubLocal();
+    for (const tabela of ['instagram_analytics','instagram_profiles']) {
+      expect(await client.from(tabela).select('*').eq('user_id',DEMO_USER_ID).filter('project_id','eq',DEMO_PROJECT_ID)).toMatchObject({data:[],error:null});
+    }
+    expect((await client.from('posts').select('*').filter('project_id','eq','outro-projeto')).data).toEqual([]);
+    expect((await client.functions.invoke('import-instagram-data',{body:{posts:[]}})).error?.code).toBe('LOCAL_ONLY');
+  });
+
   it("persiste só as alterações permitidas no armazenamento da demonstração", async () => {
     const values = new Map<string, string>();
     const storage = { getItem: (k: string) => values.get(k) ?? null, setItem: (k: string, v: string) => { values.set(k, v); } };

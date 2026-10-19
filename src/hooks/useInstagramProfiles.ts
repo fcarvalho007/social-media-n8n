@@ -154,6 +154,7 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
     isLoading, isFetching, refetch,
     error,
     importProfiles: importMutation.mutate,
+    importProfilesAsync: importMutation.mutateAsync,
     isImporting: importMutation.isPending,
     deleteProfiles: deleteMutation.mutate,
     isDeleting: deleteMutation.isPending,

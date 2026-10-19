@@ -68,7 +68,7 @@ O cabeçalho partilhado tem altura mínima de 64px. O conteúdo normal fica numa
 
 A navegação, os títulos e as migalhas usam o catálogo único em `src/lib/navegacao.ts`. O painel inicial é `/`; a divulgação da newsletter tem a sua entrada própria. No telemóvel, o cabeçalho reduz as migalhas sem esconder a página atual. Grelhas de texto usam colunas com mínimo zero para permitir quebra de conteúdo e impedir que o formulário empurre a página para fora do ecrã.
 
-A proposta da branch local `codex/hub-navegacao-simples-local` apresenta o menu lateral aberto inicialmente a partir de 1024px. Pode ser recolhido; abaixo de 768px abre num painel com fecho explícito. As tarefas estão agrupadas em Recolher conteúdo, Criar conteúdo, Rever e publicar nas redes, Organizar e Resultados e custos. Documentos e relatórios é filho visível de Curadoria; Divulgação da newsletter é filha visível de Newsletter, sem novos acordeões. Criar publicação social tem acesso direto; Definições e conta fica num menu separado no rodapé. A pesquisa mostra texto no computador e conserva o atalho de teclado. Esta proposta está em revisão local e ainda não foi publicada.
+A navegação instalada apresenta o menu lateral aberto inicialmente a partir de 1024px. Pode ser recolhido; abaixo de 768px abre num painel com fecho explícito. As tarefas estão agrupadas em Recolher conteúdo, Criar conteúdo, Rever e publicar nas redes, Organizar e Resultados e custos. Documentos e relatórios é filho visível de Curadoria; Divulgação da newsletter é filha visível de Newsletter, sem novos acordeões. Artigos reúne Plano, Pesquisa SEO, Perfis dos sites, Séries e calendário e Automação editorial. Calendário social distingue as publicações de redes das séries de artigos. Criar publicação social tem acesso direto; Definições e conta fica num menu separado no rodapé. A pesquisa mostra texto no computador e conserva o atalho de teclado. Menu, pesquisa global e breadcrumbs usam o mesmo catálogo.
 
 O ritmo habitual é de 8, 16, 24 e 32px. Os controlos de navegação, pesquisa, fecho e notificação revistos nesta ronda têm área de interação de pelo menos 44px. Os primitivos legados incluem ainda tamanhos de 36 e 40px; esta documentação não declara que toda a aplicação já foi adaptada a 44px.
 
@@ -93,6 +93,8 @@ Campos têm rótulo associado, foco visível e estado desativado quando a opera�
 ### Listas, cartões e estados
 
 Carregamento, lista vazia e erro são estados diferentes. Usar skeleton ou mensagem de carregamento; mostrar o erro com possibilidade de repetir; apresentar uma lista vazia apenas depois de uma leitura bem-sucedida. Estatísticas indisponíveis não devem aparecer como zero. Em cartões com várias ações, a área de abertura e os botões de eliminação têm alvos separados.
+
+No painel inicial, um conteúdo sem ficheiro tem um estado compacto «Sem imagem associada»; não usa uma grande área cinzenta sem explicação. Uma falha de imagem mantém o conteúdo visível e permite recarregar a pré-visualização. PDFs sem capa são identificados como documentos, e capas ou posters disponíveis são preservados. Texto e ações devem caber também em cartões estreitos.
 
 ### Diálogos e notificações
 
@@ -131,3 +133,9 @@ Inspiração autorizada: cores, clareza e organização modular das referências
 - O cabeçalho da Newsletter usa a banda de ação azul e uma faixa de validação clara. O código é alterado na origem inerte e regenerado. Só os controlos autenticados partilham o tema; email, edição pública, carrossel e Story conservam a sua direção editorial.
 
 A atualização é local e reversível. As verificações e limites desta ronda constam de `docs/auditoria-visual-iconosquare-2026-10-19.md`.
+
+## Estúdio e resultados sociais · refinamento local de 19/10/2026
+
+Os controlos de `.mc-estudio` herdam os tokens e a tipografia do Hub; apenas palco, raios e duração próprios permanecem. Cabeçalho, navegação de biblioteca e cartões acompanham a direção azul. O desenho do documento gráfico é independente e preservado.
+
+Resultados sociais agrupa Instagram importado, Sugestões editoriais e Comparar contas, com os mesmos nomes no menu e breadcrumbs. A origem e data dos dados, o projeto e os limites da medição são visíveis. Comparações usam amostra e período explícitos, sem um score composto. Não mostrar seguidores ausentes como zero nem estimar frequência assumindo 30 dias. Sugestões distinguem observação dos ficheiros, hipótese para campanha e aprendizagem agregada do servidor. SEO fica separado em Artigos.

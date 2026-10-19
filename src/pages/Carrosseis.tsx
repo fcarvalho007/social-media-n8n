@@ -22,6 +22,8 @@ import { etiquetaTeste, eProva } from "@/features/motor/biblioteca";
 export { etiquetaTeste, eProva };
 import type { Medidor } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { paraPacote } from "../../supabase/functions/_shared/motor/proposta";
+import { MODO_HUB_LOCAL } from "@/lib/backendHub";
+import { CabecalhoPagina } from "@/components/CabecalhoPagina";
 import { BibliotecasConteudoTabs } from "@/components/conteudos/BibliotecasConteudoTabs";
 
 export const NOME_ESTADO: Record<EstadoTrabalho, string> = {
@@ -54,6 +56,7 @@ export default function Carrosseis() {
   useEffect(() => {
     let vivo = true;
     setItens(null); setErro(null); setCapas({});
+    if (MODO_HUB_LOCAL) return () => { vivo = false; };
     listarTrabalhos(projetoId).then((r) => {
       if (!vivo) return;
       setItens(r);
@@ -109,17 +112,20 @@ export default function Carrosseis() {
   return (
     <div className="mc-estudio min-h-[calc(100dvh-4rem)]">
       <div className="hub-page">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Conteúdos visuais</h1>
-            <p className="text-sm text-muted-foreground">{estadoProj === "pronto" ? (projetoId ? nomeProjeto(projetoId) : "Todos os projetos") : "A carregar projetos…"}</p>
-          </div>
-          <Button asChild className="h-11 px-5"><Link to="/estudio/carrosseis/novo"><Plus className="mr-1.5 h-4 w-4" />Novo conteúdo</Link></Button>
-        </header>
+        <CabecalhoPagina titulo="Conteúdos visuais" icone={Layers}
+          descricao="Transforma uma ideia num carrossel, Story ou publicação. Revê a narrativa e edita o design antes de enviar para aprovação."
+          acoes={<Button asChild><Link to="/estudio/carrosseis/novo"><Plus className="mr-2 h-4 w-4" />Novo conteúdo</Link></Button>}>
+          <span className="text-xs font-medium text-muted-foreground">{estadoProj === "pronto" ? (projetoId ? nomeProjeto(projetoId) : "Todos os projetos") : "A carregar projetos…"}</span>
+        </CabecalhoPagina>
         <BibliotecasConteudoTabs ativa="meus" />
 
-        {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
-        {!itens && !erro && <p className="flex items-center text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A carregar…</p>}
+        {MODO_HUB_LOCAL && <section className="rounded-xl border bg-card p-6 sm:p-8 space-y-4">
+          <h2 className="text-xl font-semibold">A biblioteca visual é guardada no Cloud</h2>
+          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">Esta pré-visualização local permite rever a interface. Não consulta os teus carrosséis nem executa criação com IA. Os conteúdos guardados permanecem na aplicação Cloud.</p>
+          <ol className="grid gap-5 pt-2 text-sm sm:grid-cols-3"><li><strong className="text-primary">1. Ideia e objetivo</strong><p className="mt-2 text-muted-foreground">Define o público, o tema e o que o leitor deve fazer.</p></li><li><strong className="text-primary">2. Narrativa e design</strong><p className="mt-2 text-muted-foreground">Revê o texto e personaliza as composições no editor.</p></li><li><strong className="text-primary">3. Revisão e publicação</strong><p className="mt-2 text-muted-foreground">Guarda um rascunho e confirma o envio no canal escolhido.</p></li></ol>
+        </section>}
+        {erro && <div role="alert" className="rounded-xl border border-destructive/30 bg-card p-6 space-y-3"><p className="text-sm text-destructive">{erro}</p><Button variant="outline" onClick={() => setTentativa(n => n+1)}>Tentar novamente</Button></div>}
+        {!MODO_HUB_LOCAL && !itens && !erro && <p className="flex items-center text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A carregar…</p>}
 
         {itens && (
           <div className="space-y-2">
@@ -160,7 +166,7 @@ export default function Carrosseis() {
         )}
 
         {visiveis && visiveis.length === 0 && estados && aba === "publicados" && reais && reais.length > 0 && (
-          <div className="mc-entrar max-w-lg space-y-4 py-16">
+          <div className="mc-entrar rounded-xl border bg-card p-6 sm:p-10 space-y-4">
             <Layers className="h-6 w-6 text-muted-foreground" aria-hidden />
             <p className="text-lg font-medium">Ainda não há publicações confirmadas{projetoId ? " neste projeto" : ""}.</p>
             <p className="text-sm text-muted-foreground">Um conteúdo só aparece aqui quando a rede confirma a publicação da versão atual. Publicações antigas sem essa ligação não são contadas.</p>
@@ -171,10 +177,10 @@ export default function Carrosseis() {
           </div>
         )}
         {visiveis && visiveis.length === 0 && !(estados && aba === "publicados" && reais && reais.length > 0) && (
-          <div className="mc-entrar max-w-lg space-y-4 py-16">
+          <div className="mc-entrar rounded-xl border bg-card p-6 sm:p-10 space-y-4">
             <Layers className="h-6 w-6 text-muted-foreground" aria-hidden />
             <p className="text-lg font-medium">{estados && reais && reais.length > 0 ? "Nada por publicar" : nProvas > 0 && !verProvas ? "Ainda não há conteúdos reais" : "Ainda não há conteúdos"}{projetoId ? " neste projeto" : ""}.</p>
-            <p className="text-sm text-muted-foreground">Cola um texto, escolhe o objetivo e o estúdio propõe a narrativa e duas composições.</p>
+            <p className="text-sm text-muted-foreground">Começa por um texto teu ou uma descoberta da Curadoria. Escolhe o objetivo, revê a narrativa e personaliza as composições no editor. A criação com IA mostra os custos antes de avançar.</p>
             <div className="flex flex-wrap gap-2">
               <Button asChild className="h-11"><Link to="/estudio/carrosseis/novo">Criar primeiro conteúdo</Link></Button>
               <Button asChild variant="ghost" className="h-11 text-muted-foreground"><Link to="/estudio/carrosseis/novo?demo=1"><FlaskConical className="mr-1.5 h-4 w-4" />Ver exemplo de demonstração</Link></Button>
@@ -183,7 +189,7 @@ export default function Carrosseis() {
         )}
 
         {visiveis && visiveis.length > 0 && (
-          <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-5" aria-label="Biblioteca de conteúdos">
+          <ul className="grid grid-cols-1 gap-5 min-[460px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" aria-label="Biblioteca de conteúdos">
             {visiveis.map((t) => {
               const capa = capas[t.id];
               const config = CONFIG_FORMATOS[t.formato ?? "carrossel"];
@@ -192,7 +198,7 @@ export default function Carrosseis() {
               const falhou = t.estado === "erro" || t.estado === "desconhecido";
               const ep = estados?.[t.id];
               return (
-                <li key={t.id} className="mc-entrar relative">
+                <li key={t.id} className="mc-entrar relative rounded-xl border bg-card p-3">
                   <div className="absolute left-2 top-2 z-10 flex rounded-md bg-background/90 p-1 shadow-sm backdrop-blur">
                     <Checkbox checked={selecionados.has(t.id)} onCheckedChange={(checked) => selecionar(t.id, checked === true)} aria-label={`Selecionar ${titulo}`} />
                   </div>
