@@ -66,6 +66,10 @@ A execução terminou já em 19 de outubro. Saldo Lovable observado antes do ped
 
 A revisão técnica principal confirmou o erro dos emails resolvido; uma confirmação adicional do mesmo pedido terminou com zero erros de execução ou respostas 500. O último ajuste visual foi importado pelo GitHub e a atualização de preview acionada. A interface pública não foi republicada. A ligação do PDF Tracker no preview permanece pendente da autorização específica já pedida. Não foi enviada nova tentativa de configuração nem feita alteração equivalente para contornar a revisão automática.
 
+## Atualização de 19 de outubro: pré-visualização ligada
+
+Após a autorização específica do proprietário, a ligação foi concluída e testada no navegador: 99 fontes, pesquisa funcional, biblioteca vazia e histórico vazio no projeto DIGITALSPRINT. Foram configuradas apenas as origens exatas das duas pré-visualizações deste projeto, preservando as anteriores, autenticação e isolamento. O detalhe, verificações e custo de 3 créditos constam do aditamento em [Instalação do pacote](instalacao-pacote-2026-10-18.md#ligação-da-pré-visualização-concluída--19-de-outubro-de-2026). O bloqueio de ligação descrito acima ficou resolvido; a importação do acervo e a execução permanente continuam por concluir.
+
 O último ajuste do painel de ferramentas foi verificado com **três testes dirigidos aprovados** e novo build aprovado. A bateria completa de 1 120 testes refere-se à revisão imediatamente anterior; não foi repetida integralmente por esta correção de apresentação.
 
 ## Referências técnicas
