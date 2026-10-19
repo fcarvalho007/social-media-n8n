@@ -117,8 +117,8 @@ export default {
             foreground: "hsl(var(--sidebar-muted-foreground))",
           },
           accent: {
-            DEFAULT: "hsl(var(--sidebar-muted))",
-            foreground: "hsl(var(--sidebar-foreground))",
+            DEFAULT: "hsl(var(--sidebar-accent))",
+            foreground: "hsl(var(--sidebar-accent-foreground))",
           },
           primary: {
             DEFAULT: "hsl(var(--sidebar-accent))",

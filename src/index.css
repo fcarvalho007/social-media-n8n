@@ -216,6 +216,7 @@ All colors MUST be HSL.
     --sidebar-muted: 218 18% 23%; /* #303745 */
     --sidebar-muted-foreground: 214 32% 84%; /* #CBD5E1 */
     --sidebar-accent: 137 19% 30%; /* #3E5B46 */
+    --sidebar-accent-foreground: 220 38% 97%;
     --sidebar-ring: 214 32% 84%; /* #CBD5E1 */
 
     /* Template A */
@@ -332,6 +333,7 @@ All colors MUST be HSL.
     --sidebar-muted: 218 18% 23%;
     --sidebar-muted-foreground: 214 32% 84%;
     --sidebar-accent: 137 19% 30%;
+    --sidebar-accent-foreground: 220 38% 97%;
     --sidebar-ring: 214 32% 84%;
 
     --border: 217 33% 22%;
