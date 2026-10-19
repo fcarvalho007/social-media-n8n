@@ -18,12 +18,15 @@ Para eliminar os alertas restantes de navegação e os críticos das ferramentas
 
 A auditoria final **de produção** apresentou zero alertas em todas as gravidades. Isto é uma medição npm, não uma prova de ausência de vulnerabilidades. O relatório completo, incluindo ferramentas de desenvolvimento, é acompanhado separadamente; não se oculta dívida de tooling.
 
-Npm e Bun ficam alinhados pelas versões resolvidas. O Bun textual foi regenerado a partir do package-lock; o binário antigo redundante foi retirado automaticamente pela conversão oficial. Não foram executados scripts de instalação dos pacotes atualizados. O teste usa o motor real de leitura Excel para XLSX, XLS antigo, cabeçalhos, português, zeros e folha vazia.
+O relatório completo mantém 13 alertas de ferramentas (8 moderados e 5 altos; zero críticos), nas famílias Tailwind/typography, drizzle-kit e lovable-tagger. A migração dessas ferramentas exige uma ronda própria. Não são ocultados pela medição de produção.
+
+Npm e Bun ficam alinhados pelas versões resolvidas. A instalação real revelou Bun 1.3.14 na Cloud, incapaz de ler o lockfile v2 gerado pelo Bun 1.4.3. O lockfile foi regenerado com o Bun **1.3.14**, a partir do package-lock. Uma instalação limpa em diretório temporário com `--frozen-lockfile --ignore-scripts` terminou com código 0 (650 pacotes). O binário antigo redundante foi retirado automaticamente pela conversão oficial. Não foram executados scripts de instalação dos pacotes atualizados. O teste usa o motor real de leitura Excel para XLSX, XLS antigo, cabeçalhos, português, zeros e folha vazia.
 
 ## Validação local desta integração
 
 - Antes das atualizações: 1 277 testes aprovados e dois opcionais ignorados.
 - Após as correções: **1 280 testes aprovados**, dois opcionais ignorados, 204 ficheiros aprovados e um opcional ignorado; processo terminou com código 0.
+- Após a compatibilidade Cloud e retoma: **1 299 testes aprovados**, dois opcionais ignorados (206 ficheiros aprovados e um ignorado); tipos da interface/backend, build, arranque isolado e grafo Edge novamente aprovados. 31 testes dirigidos cobrem os downloads/transportes e a recuperação de PDFs.
 - Tipos da interface e backend e compilação de produção aprovados após as atualizações.
 - Grafo Edge: 255 ficheiros alcançáveis verificados.
 - Arranque Deno isolado: API/worker sem sessão 401, origem alheia 403, leituras autenticadas simuladas 200; sem pedidos externos reais.
@@ -35,7 +38,20 @@ Na pré-visualização existente: projeto DIGITALSPRINT com 30 documentos e conf
 
 ## Instalação e ensaios Cloud
 
-Em curso. Não considerar esta secção como comprovativo de instalação antes de registar os resultados reais.
+A PR 13 foi integrada na branch sincronizada do Lovable. O projeto confirmou HEAD `06fd242b` e a árvore exata `a0d59606de8f971e9062a1163b7ed69e3a888430`. A migração 0067 e ambas as funções nativas foram instaladas; a 0068 regista os comentários do catálogo, depois de criar o bucket pela ferramenta Storage. O código da 0067 não foi reescrito. Tipos gerados e metadados de migração foram reconciliados localmente.
+
+Resultados do ensaio Cloud de instalação: build aprovado, 129 testes dirigidos em 14 ficheiros aprovados; leituras autenticadas SEO, custos, integrações, imagens, 30 documentos e 99 fontes devolveram 200. Sem sessão: 401; Origin alheio: 403; worker anónimo: 401. Ficheiros OCR devolvem 200 com MIME correto. O bucket `hub-artigos` é privado, limite 8 MB PNG/JPEG/WebP; imagens e recibos WordPress têm RLS e escrita exclusiva pelo serviço.
+
+A auditoria de isolamento usou transação revertida: duas contas/projetos veem apenas documentos, artigos, analítica, imagens e recibos próprios; conta sem papel vê zero; escritas diretas ou alheias são recusadas. Não foram criadas contas reais nem alteradas políticas, credenciais ou cadências.
+
+No navegador Cloud foi criada a campanha identificada **TESTE CLOUD · Integração 19 outubro**, apenas com Artigo e Story. A reabertura preservou os formatos, o texto, a verificação da fonte e a composição. O Story foi editado, guardado e reaberto no compositor, preservando o fundo `#15395b`. Artigo ligado criado sem IA paga, com focus keyword editável. São rascunhos internos, sem envio ou publicação.
+
+Dois problemas adicionais encontrados nos ensaios foram corrigidos localmente para a instalação final:
+
+- O PDF histórico State of Search permanecia em `a_processar` com uma tarefa `incerto`, sem botão de recuperação. O leitor passa a mostrar **Verificar e retomar extração**, preservando texto e OCR; o servidor deduplica tentativas quando já existe tarefa ativa. Testes de interface e serviço cobrem a retoma.
+- A recolha APAN falhava antes da ligação porque o Supabase Edge 1.77 (Deno 2.1.4) não implementa `node:https ClientRequest.options.lookup`. O diagnóstico efémero confirmou DNS normal, `lookup` não suportado e ligação nativa `Deno.connect` + `Deno.startTls` funcional. A via Edge liga ao IP previamente validado, verifica TLS/SNI no domínio original e implementa HTTP/1.1 limitado, sem pool/redirect automático. Mantém robots e revalidação DNS por salto, recusa redes privadas e respostas ambíguas, limita headers, bytes e descompressão, e fecha em erro/cancelamento. A via Node local mantém o lookup fixado existente. O robots.txt público APAN respondeu 200/427 bytes com o novo transporte em ensaio Deno local.
+
+A publicação final e a comprovação da recolha/retoma com o pacote final são registadas depois dos ensaios; esta secção não declara concluídos esses dois testes antes de os executar.
 
 Saldo inicial desta ronda: 3 654,219970703125 créditos do plano; zero diários. A medição anterior de 3 654,85 pertence à ronda interrompida e não é usada como débito desta instalação. Valor indicado pelo proprietário: 0,30 €/crédito. Infraestrutura Cloud e fornecedores são custos separados.
 

@@ -4,6 +4,7 @@ import https from 'node:https';
 import { isIP } from 'node:net';
 import { createBrotliDecompress, createGunzip, createInflate } from 'node:zlib';
 import { ipBloqueado, pareceIp } from '../../supabase/functions/_shared/motor/fontes';
+import { httpsDeno, redeDeno } from './https-deno';
 
 export const MAX_PDF = 50 * 1024 * 1024;
 const MAX_HTML = 8 * 1024 * 1024;
@@ -37,6 +38,18 @@ export async function obterPublico(bruto: string, signal: AbortSignal, opcoes: O
     await opcoes.antesDeVisitar?.(u);
     const ip = await resolverPublico(u);
     signal.throwIfAborted();
+    const deno = redeDeno();
+    if (deno) {
+      const r = await httpsDeno(u, ip.address, signal, opcoes.maxBytes ?? MAX_PDF, deno, opcoes.maxBytes ? undefined : MAX_HTML);
+      if ([301, 302, 303, 307, 308].includes(r.status)) {
+        if (!r.headers.location) throw new Error('O site redirecionou sem indicar um destino.');
+        u = validarDestino(new URL(r.headers.location, u).href); continue;
+      }
+      if (r.status !== 200 && !opcoes.aceitarErroHttp) throw new Error(`O site respondeu HTTP ${r.status}. Não foi guardado nenhum PDF.`);
+      const tipo = (r.headers['content-type'] ?? '').split(';')[0].toLowerCase();
+      if (!opcoes.maxBytes && /html|xml|text\//.test(tipo) && r.bytes.length > MAX_HTML) throw new Error('O ficheiro excede o limite de leitura local.');
+      return { bytes: r.bytes, tipo, status: r.status, url: u.href, etag: r.headers.etag, modificadoEm: r.headers['last-modified'], xRobotsTag: r.headers['x-robots-tag'] };
+    }
     const r = await new Promise<Partial<RespostaPublica> & { redirecionar?: string }>((resolve, reject) => {
       const req = https.get(u, {
         signal, timeout: 10000, agent: false, family: ip.family,
