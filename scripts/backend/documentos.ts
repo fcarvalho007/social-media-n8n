@@ -68,15 +68,39 @@ export class DocumentosNuvem {
     }
     async listar(ctx: ContextoBackend, tabela: 'documentos' | 'recolhas') {
         const linhas: Record<string, unknown>[] = [];
+        if (tabela === 'documentos') {
+            // PostgREST serialises every page's text/OCR. A 100-row aggregate
+            // timed out on the real 31-document corpus. Bound each database
+            // response, with a stable UUID cursor rather than shifting offsets.
+            let tamanho = 8, ultimo: string | undefined;
+            for (;;) {
+                let q = this.sb.from('hub_documentos').select('id,hash,dados,capa_path,revisao').eq('project_id', ctx.projeto).order('id').limit(tamanho);
+                if (ultimo) q = q.gt('id', ultimo);
+                const r = await q;
+                if (r.error) {
+                    // Retrying a smaller read has no external write side effect.
+                    // Never mistake an error for the end of the library.
+                    if (r.error.code === '57014' && tamanho > 1) { tamanho = Math.max(1, Math.floor(tamanho / 2)); continue; }
+                    throw new Error('Não foi possível ler todo o acervo privado. Tenta abrir novamente.');
+                }
+                const pagina = r.data ?? [];
+                linhas.push(...pagina);
+                if (pagina.length < tamanho) break;
+                const seguinte = pagina[pagina.length - 1]?.id;
+                if (typeof seguinte !== 'string' || seguinte === ultimo) throw new Error('A paginação do acervo não avançou. Tenta abrir novamente.');
+                ultimo = seguinte;
+            }
+            return Promise.all(linhas.map(d => this.assinar(d as unknown as DocumentoNuvem)));
+        }
         for (let offset = 0;; offset += 100) {
-            const r = await this.sb.from(tabela === 'documentos' ? 'hub_documentos' : 'hub_recolhas').select('*').eq('project_id', ctx.projeto).order('criado_em', { ascending: false }).order('id').range(offset, offset + 99);
+            const r = await this.sb.from('hub_recolhas').select('*').eq('project_id', ctx.projeto).order('criado_em', { ascending: false }).order('id').range(offset, offset + 99);
             if (r.error)
                 throw new Error('Não foi possível ler todo o acervo privado.');
             linhas.push(...(r.data ?? []));
             if ((r.data ?? []).length < 100)
                 break;
         }
-        return tabela === 'documentos' ? Promise.all(linhas.map(d => this.assinar(d as unknown as DocumentoNuvem))) : linhas;
+        return linhas;
     }
     protected async assinar(d: DocumentoNuvem) {
         if (!d.capa_path)
