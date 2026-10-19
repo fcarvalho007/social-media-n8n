@@ -5,7 +5,7 @@ import { carregarPdfJs } from '@/lib/carregarPdfJs';
 import { LIMITES_PDF, type EstadoPagina, type MetaPdf, type PaginaPdf } from "../../../supabase/functions/_shared/motor/fontes";
 import { normalizarFonte } from "../../../supabase/functions/_shared/motor/proposta";
 
-export interface PaginaLida { n: number; estado: EstadoPagina; texto: string; paragrafos: string[] }
+export interface PaginaLida { n: number; estado: EstadoPagina; texto: string; paragrafos: string[]; ocr?: import('../documentos/ocr-modelo').ProvenienciaOcr }
 export interface PdfLido { ficheiro: string; hash: string; bytes: number; paginas: PaginaLida[]; titulo?: string }
 
 export class ErroPdf extends Error {}

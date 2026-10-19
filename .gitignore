@@ -39,3 +39,6 @@ dist-backend/
 # Private design evidence; only the reusable design-system sidecar is versioned.
 .impeccable/*
 !.impeccable/design.json
+
+# Reproducible OCR assets from pinned npm dependencies
+public/ocr/

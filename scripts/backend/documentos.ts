@@ -8,6 +8,9 @@ import { obterPublico } from '../documentos/obter';
 import { FalhaHttp, ambitoAutorizado, exigirEscrita, uuid, type ContextoBackend } from './seguranca';
 import { extrairPdfServidor } from './pdf';
 import type { DocumentoAcervo } from '../../src/features/documentos/modelo';
+import { validarPreparacaoPdf } from './documentos-preparacao';
+import { paginaComOcr, resultadoOcrSchema } from '../../src/features/documentos/ocr-modelo';
+import { estadoLeitura } from '../../src/features/documentos/legado';
 const hashZ = z.string().regex(/^[a-f0-9]{64}$/), texto = z.string().trim().min(1).max(250);
 export interface DocumentoNuvem {
     id: string;
@@ -36,19 +39,19 @@ export class DocumentosNuvem {
         if (bytes.byteLength > 50 * 1024 * 1024 || !Buffer.from(bytes.subarray(0, 1024)).includes(Buffer.from('%PDF-')))
             throw new Error('O ficheiro não é um PDF até 50 MB.');
         const hash = createHash('sha256').update(bytes).digest('hex');
+        const existente = await this.encontrar(ctx, hash);
+        if (existente) return { documento: existente, duplicado: true };
+        const preparado = meta.preparacao === undefined ? null : validarPreparacaoPdf(meta.preparacao, hash, bytes.length);
         // Keep the verified binary durable before CPU-intensive text/cover extraction.
         await this.binario(`${ctx.projeto}/${hash}/original.pdf`, bytes, 'application/pdf');
-        const { pdf, capa, capaErro } = await this.extrair(bytes, typeof meta.ficheiro === 'string' ? meta.ficheiro : 'documento.pdf');
-        const existente = await this.encontrar(ctx, pdf.hash);
-        if (existente)
-            return { documento: existente, duplicado: true };
+        const { pdf, capa, capaErro } = preparado ? { ...preparado, capaErro: undefined } : await this.extrair(bytes, typeof meta.ficheiro === 'string' ? meta.ficheiro : 'documento.pdf');
         const id = crypto.randomUUID(), pdf_path = `${ctx.projeto}/${pdf.hash}/original.pdf`;
         const capa_path = capa ? `${ctx.projeto}/${pdf.hash}/capa-${createHash('sha256').update(capa).digest('hex')}.png` : null;
-        await this.binario(pdf_path, bytes, 'application/pdf');
         if (capa && capa_path)
             await this.binario(capa_path, capa, 'image/png');
         const origem = typeof meta.origem === 'string' ? z.string().url().max(2000).parse(meta.origem) : null;
         const dados = { id, ambito: JSON.stringify([ctx.userId, ctx.projeto]), titulo: texto.parse(meta.titulo ?? pdf.titulo ?? pdf.ficheiro), origem, recolhidoEm: new Date().toISOString(), publicadoEm: null, pdf, leitura: 'por_ler', capaErro,
+            ...(preparado ? { processamento: { estado: 'concluido', paginas: pdf.paginas.length, total: pdf.paginas.length }, extracao: { motor: 'pdfjs-4.10.38', origem: 'navegador', em: new Date().toISOString() } } : {}),
             ...(typeof meta.fonteNome === 'string' ? { fonteNome: meta.fonteNome.slice(0, 250) } : {}), ...(typeof meta.categoria === 'string' ? { categoria: meta.categoria.slice(0, 100) } : {}) };
         const r = await this.sb.from('hub_documentos').insert({ id, project_id: ctx.projeto, hash: pdf.hash, dados, pdf_path, capa_path, criado_por: ctx.userId }).select('*').single();
         if (r.error) {
@@ -173,15 +176,43 @@ export class DocumentosNuvem {
             exigirEscrita(ctx);
             const d = await this.obter(ctx, uuid.parse(a.id));
             const legado = z.object({ projeto: z.string().max(300), exportadoEm: z.string().max(100), objeto: z.string().max(500), orfao: z.boolean(), registos: z.array(z.object({ id: z.number().int(), title: z.string().max(1000), url: z.string().max(2000), tags: z.array(z.string().max(200)).max(100) }).passthrough()).max(100) }).parse(a.legado);
-            const r = await this.sb.from('hub_documentos').update({ dados: { ...d.dados, legado }, revisao: d.revisao + 1, atualizado_em: new Date().toISOString() }).eq('id', d.id).eq('project_id', ctx.projeto).eq('revisao', z.number().int().parse(a.revisao)).select('*').single();
+            const unido = { ...legado, registos: [...new Map([...(d.dados.legado?.registos ?? []), ...legado.registos].map(r => [r.id, r])).values()] } as NonNullable<DocumentoAcervo['legado']>;
+            const leitura = d.dados.legado ? d.dados.leitura : d.dados.leitura === 'por_ler' ? estadoLeitura({ legado: unido }) : d.dados.leitura;
+            const r = await this.sb.from('hub_documentos').update({ dados: { ...d.dados, legado: unido, leitura }, revisao: d.revisao + 1, atualizado_em: new Date().toISOString() }).eq('id', d.id).eq('project_id', ctx.projeto).eq('revisao', z.number().int().parse(a.revisao)).select('*').single();
             if (r.error || !r.data)
                 throw new FalhaHttp('O documento mudou. Atualiza os metadados.', 409);
+            return this.assinar(r.data as DocumentoNuvem);
+        }
+        if (acao === 'ocr-pagina') {
+            exigirEscrita(ctx);
+            const d = await this.obter(ctx, uuid.parse(a.id));
+            if (hashZ.parse(a.hash) !== d.hash) throw new FalhaHttp('O original do documento mudou.', 409);
+            const resultado = resultadoOcrSchema.parse(a.pagina);
+            const pagina = d.dados.pdf.paginas.find(p => p.n === resultado.n);
+            if (!pagina) throw new FalhaHttp('A página ainda não foi extraída.', 409);
+            if (pagina.ocr && pagina.texto === resultado.texto.replace(/\0/g, '').trim()) return this.assinar(d);
+            const nova = paginaComOcr(pagina, resultado);
+            const dados = { ...d.dados, pdf: { ...d.dados.pdf, paginas: d.dados.pdf.paginas.map(p => p.n === nova.n ? nova : p) } };
+            const r = await this.sb.from('hub_documentos').update({ dados, revisao: d.revisao + 1, atualizado_em: new Date().toISOString() }).eq('project_id', ctx.projeto).eq('id', d.id).eq('revisao', d.revisao).select('*').single();
+            if (r.error || !r.data) throw new FalhaHttp('O documento mudou durante o OCR. As alterações foram preservadas; retoma a leitura.', 409);
             return this.assinar(r.data as DocumentoNuvem);
         }
         if (acao === 'encontrar')
             return this.encontrar(ctx, hashZ.parse(a.hash));
         if (acao === 'alterar')
             return this.alterar(ctx, a);
+        if (acao === 'legado-resumo') {
+            const r = await this.sb.from('hub_editorial_artefactos').select('dados').eq('project_id', ctx.projeto).eq('tipo', 'resposta').eq('chave', 'pdftracker-importacao').maybeSingle();
+            if (r.error) throw new Error('Não foi possível ler a conferência da importação.');
+            return r.data?.dados ?? null;
+        }
+        if (acao === 'legado-relatorio') {
+            exigirEscrita(ctx);
+            const relatorio = z.object({ exportadoEm: z.string().max(100), registos: z.number().int().min(0).max(2000), objetos: z.number().int().min(0).max(2000), hashes: z.array(hashZ).max(2000), pendencias: z.array(z.object({ titulo: z.string().max(1000), ids: z.array(z.number().int()).max(100), erro: z.string().max(3000) }).strict()).max(2000) }).strict().parse(a.relatorio);
+            const r = await this.sb.from('hub_editorial_artefactos').upsert({ project_id: ctx.projeto, tipo: 'resposta', chave: 'pdftracker-importacao', dados: relatorio }, { onConflict: 'project_id,tipo,chave' });
+            if (r.error) throw new Error('Não foi possível guardar a conferência da importação.');
+            return { ok: true };
+        }
         if (acao === 'legado/catalogo' || acao === 'diagnostico')
             return null;
         if (acao === 'fontes')

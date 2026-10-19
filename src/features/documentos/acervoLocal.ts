@@ -94,3 +94,19 @@ export async function guardarLeituraDocumento(id:string,ambito:string,leitura:No
   if(!['por_ler','lido','arquivado'].includes(leitura))throw new Error('Estado de leitura inválido.');
   const db=await abrir();return new Promise((resolve,reject)=>{const tx=db.transaction('documentos','readwrite');const store=tx.objectStore('documentos');const r=store.get(id);r.onsuccess=()=>{const d=r.result as DocumentoAcervo|undefined;if(!d||d.ambito!==ambito){tx.abort();return;}store.put({...d,leitura});};tx.oncomplete=()=>resolve();tx.onabort=()=>reject(new Error('O estado de leitura não foi guardado.'));});
 }
+
+export async function guardarOcrLocal(documento: DocumentoAcervo, pagina: import('./ocr-modelo').ResultadoOcr): Promise<DocumentoAcervo> {
+  const { paginaComOcr } = await import('./ocr-modelo');
+  const db = await abrir();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('documentos', 'readwrite'), store = tx.objectStore('documentos'), r = store.get(documento.id);
+    let atualizado: DocumentoAcervo;
+    r.onsuccess = () => {
+      const d = r.result as DocumentoAcervo | undefined;
+      if (!d || d.ambito !== documento.ambito || d.pdf.hash !== documento.pdf.hash) { tx.abort(); return; }
+      const anterior = d.pdf.paginas.find(p => p.n === pagina.n); if (!anterior) { tx.abort(); return; }
+      try { atualizado = { ...d, pdf: { ...d.pdf, paginas: d.pdf.paginas.map(p => p.n === pagina.n ? paginaComOcr(anterior, pagina) : p) } }; store.put(atualizado); } catch { tx.abort(); }
+    };
+    tx.oncomplete = () => resolve(atualizado); tx.onabort = () => reject(new Error('A página mudou. O texto existente foi preservado; atualiza o documento.'));
+  });
+}

@@ -86,7 +86,7 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
                 for (const [k, v] of limites)
                     if (v.fim <= agora)
                         limites.delete(k);
-            const leitura = { seo: ['estado', 'resultado', 'ciclo', 'campanha-fonte', 'campanha-composicao'], documentos: ['capas', 'documento', 'versoes', 'acervo', 'recolhas', 'encontrar', 'ficheiro', 'fontes', 'diagnostico', 'legado/catalogo', 'tarefas', 'ler'], operacao: ['estado', 'percurso', 'pesquisa'], wordpress: ['verificar', 'estado'] } as Record<string, string[]>;
+            const leitura = { seo: ['estado', 'resultado', 'ciclo', 'campanha-fonte', 'campanha-composicao'], documentos: ['capas', 'documento', 'versoes', 'acervo', 'recolhas', 'encontrar', 'ficheiro', 'fontes', 'diagnostico', 'legado/catalogo', 'legado-resumo', 'tarefas', 'ler'], operacao: ['estado', 'percurso', 'pesquisa'], wordpress: ['verificar', 'estado'] } as Record<string, string[]>;
             if (!leitura[caminho[1]].includes(caminho[2]) && !(caminho[1] === 'operacao' && caminho[2] === 'backup')) {
                 const copia = await servicos.sb.from('hub_leases').select('token').eq('project_id', ctx.projeto).eq('recurso', 'backup').gt('ate', new Date().toISOString()).maybeSingle();
                 if (copia.error)

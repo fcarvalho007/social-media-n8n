@@ -2606,9 +2606,9 @@ var ServicoSeo = class {
 import { createHash as createHash7 } from "crypto";
 
 // scripts/backend/documentos.ts
-import { Buffer as Buffer9 } from "buffer";
+import { Buffer as Buffer10 } from "buffer";
 import { createHash as createHash6 } from "crypto";
-import { z as z12 } from "zod";
+import { z as z14 } from "zod";
 
 // scripts/documentos/motor-local.ts
 init_descoberta();
@@ -4157,9 +4157,56 @@ async function extrairPdfServidor(bytes, nome) {
   }
 }
 
+// scripts/backend/documentos-preparacao.ts
+import { Buffer as Buffer9 } from "buffer";
+import { z as z12 } from "zod";
+var pagina = z12.object({ n: z12.number().int().min(1).max(600), estado: z12.enum(["texto", "sem_texto_com_imagem", "vazia", "erro"]), texto: z12.string().max(2e5), paragrafos: z12.array(z12.string().max(2e5)).max(2e4) }).strict();
+var schema = z12.object({ pdf: z12.object({ hash: z12.string().regex(/^[a-f0-9]{64}$/), bytes: z12.number().int().positive(), ficheiro: z12.string().max(200), titulo: z12.string().max(250).optional(), paginas: z12.array(pagina).min(1).max(600) }).strict(), capa: z12.string().max(28e5) }).strict();
+function validarPreparacaoPdf(bruto, hash, bytes) {
+  if (JSON.stringify(bruto).length > 8e6) throw new Error("A prepara\xE7\xE3o do PDF \xE9 demasiado grande.");
+  const p = schema.parse(bruto);
+  if (p.pdf.hash !== hash || p.pdf.bytes !== bytes || p.pdf.paginas.some((v, i) => v.n !== i + 1)) throw new Error("A prepara\xE7\xE3o n\xE3o corresponde ao PDF original.");
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(p.capa)) throw new Error("Capa PNG inv\xE1lida.");
+  const capa = Buffer9.from(p.capa, "base64");
+  if (capa.length < 33 || capa.length > 2e6 || capa.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a" || capa.toString("ascii", 12, 16) !== "IHDR") throw new Error("Capa PNG inv\xE1lida.");
+  const w = capa.readUInt32BE(16), h = capa.readUInt32BE(20);
+  if (!w || !h || w > 2e3 || h > 2e3 || w * h > 2e6) throw new Error("Capa fora do limite.");
+  const paginas = p.pdf.paginas.map((v) => {
+    const texto3 = v.texto.replace(/\0/g, "").trim();
+    return { ...v, texto: texto3, estado: texto3 ? "texto" : v.estado === "texto" ? "sem_texto_com_imagem" : v.estado, paragrafos: texto3 ? texto3.split(/\n\s*\n/).map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean) : [] };
+  });
+  return { pdf: { ...p.pdf, paginas }, capa };
+}
+
+// src/features/documentos/ocr-modelo.ts
+import { z as z13 } from "zod";
+var resultadoOcrSchema = z13.object({
+  n: z13.number().int().min(1).max(600),
+  texto: z13.string().max(2e5),
+  confianca: z13.number().finite().min(0).max(100)
+}).strict();
+function paginaComOcr(pagina2, resultado) {
+  const r = resultadoOcrSchema.parse(resultado);
+  if (pagina2.n !== r.n || pagina2.texto.trim() || pagina2.estado === "texto")
+    throw new Error("O OCR s\xF3 pode preencher uma p\xE1gina sem texto. O texto existente foi preservado.");
+  const texto3 = r.texto.replace(/\0/g, "").trim();
+  return {
+    ...pagina2,
+    texto: texto3,
+    estado: texto3 ? "texto" : pagina2.estado,
+    paragrafos: texto3 ? texto3.split(/\n\s*\n/).map((p) => p.replace(/\s+/g, " ").trim()).filter(Boolean) : [],
+    ocr: { motor: "tesseract-7", idiomas: "por+eng", confianca: r.confianca, em: (/* @__PURE__ */ new Date()).toISOString() }
+  };
+}
+
+// src/features/documentos/legado.ts
+function estadoLeitura(d) {
+  return d.leitura ?? (d.legado?.registos.length && d.legado.registos.filter((r) => !r.deleted_at).every((r) => r.status === "archived") ? "arquivado" : "por_ler");
+}
+
 // scripts/backend/documentos.ts
-var hashZ = z12.string().regex(/^[a-f0-9]{64}$/);
-var texto2 = z12.string().trim().min(1).max(250);
+var hashZ = z14.string().regex(/^[a-f0-9]{64}$/);
+var texto2 = z14.string().trim().min(1).max(250);
 var DocumentosNuvem = class {
   constructor(sb, pasta, extrair = extrairPdfServidor) {
     this.sb = sb;
@@ -4177,20 +4224,19 @@ var DocumentosNuvem = class {
   }
   async guardar(ctx, bytes, meta2) {
     exigirEscrita(ctx);
-    if (bytes.byteLength > 50 * 1024 * 1024 || !Buffer9.from(bytes.subarray(0, 1024)).includes(Buffer9.from("%PDF-")))
+    if (bytes.byteLength > 50 * 1024 * 1024 || !Buffer10.from(bytes.subarray(0, 1024)).includes(Buffer10.from("%PDF-")))
       throw new Error("O ficheiro n\xE3o \xE9 um PDF at\xE9 50 MB.");
     const hash = createHash6("sha256").update(bytes).digest("hex");
+    const existente = await this.encontrar(ctx, hash);
+    if (existente) return { documento: existente, duplicado: true };
+    const preparado = meta2.preparacao === void 0 ? null : validarPreparacaoPdf(meta2.preparacao, hash, bytes.length);
     await this.binario(`${ctx.projeto}/${hash}/original.pdf`, bytes, "application/pdf");
-    const { pdf, capa, capaErro } = await this.extrair(bytes, typeof meta2.ficheiro === "string" ? meta2.ficheiro : "documento.pdf");
-    const existente = await this.encontrar(ctx, pdf.hash);
-    if (existente)
-      return { documento: existente, duplicado: true };
+    const { pdf, capa, capaErro } = preparado ? { ...preparado, capaErro: void 0 } : await this.extrair(bytes, typeof meta2.ficheiro === "string" ? meta2.ficheiro : "documento.pdf");
     const id = crypto.randomUUID(), pdf_path = `${ctx.projeto}/${pdf.hash}/original.pdf`;
     const capa_path = capa ? `${ctx.projeto}/${pdf.hash}/capa-${createHash6("sha256").update(capa).digest("hex")}.png` : null;
-    await this.binario(pdf_path, bytes, "application/pdf");
     if (capa && capa_path)
       await this.binario(capa_path, capa, "image/png");
-    const origem = typeof meta2.origem === "string" ? z12.string().url().max(2e3).parse(meta2.origem) : null;
+    const origem = typeof meta2.origem === "string" ? z14.string().url().max(2e3).parse(meta2.origem) : null;
     const dados = {
       id,
       ambito: JSON.stringify([ctx.userId, ctx.projeto]),
@@ -4201,6 +4247,7 @@ var DocumentosNuvem = class {
       pdf,
       leitura: "por_ler",
       capaErro,
+      ...preparado ? { processamento: { estado: "concluido", paginas: pdf.paginas.length, total: pdf.paginas.length }, extracao: { motor: "pdfjs-4.10.38", origem: "navegador", em: (/* @__PURE__ */ new Date()).toISOString() } } : {},
       ...typeof meta2.fonteNome === "string" ? { fonteNome: meta2.fonteNome.slice(0, 250) } : {},
       ...typeof meta2.categoria === "string" ? { categoria: meta2.categoria.slice(0, 100) } : {}
     };
@@ -4267,9 +4314,9 @@ var DocumentosNuvem = class {
   }
   async alterar(ctx, a) {
     exigirEscrita(ctx);
-    const d = await this.obter(ctx, uuid.parse(a.id)), versao = z12.number().int().positive().parse(a.revisao);
-    const campo = z12.enum(["titulo", "leitura"]).parse(a.campo);
-    const valor = campo === "titulo" ? texto2.parse(a.valor) : z12.enum(["por_ler", "lido", "arquivado"]).parse(a.valor);
+    const d = await this.obter(ctx, uuid.parse(a.id)), versao = z14.number().int().positive().parse(a.revisao);
+    const campo = z14.enum(["titulo", "leitura"]).parse(a.campo);
+    const valor = campo === "titulo" ? texto2.parse(a.valor) : z14.enum(["por_ler", "lido", "arquivado"]).parse(a.valor);
     const r = await this.sb.from("hub_documentos").update({ dados: { ...d.dados, [campo]: valor }, revisao: versao + 1, atualizado_em: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", d.id).eq("project_id", ctx.projeto).eq("revisao", versao).select("id");
     if (r.error || r.data?.length !== 1)
       throw new FalhaHttp("O documento mudou noutro separador. Atualiza antes de guardar.", 409);
@@ -4324,16 +4371,44 @@ var DocumentosNuvem = class {
     if (acao === "legado") {
       exigirEscrita(ctx);
       const d = await this.obter(ctx, uuid.parse(a.id));
-      const legado = z12.object({ projeto: z12.string().max(300), exportadoEm: z12.string().max(100), objeto: z12.string().max(500), orfao: z12.boolean(), registos: z12.array(z12.object({ id: z12.number().int(), title: z12.string().max(1e3), url: z12.string().max(2e3), tags: z12.array(z12.string().max(200)).max(100) }).passthrough()).max(100) }).parse(a.legado);
-      const r = await this.sb.from("hub_documentos").update({ dados: { ...d.dados, legado }, revisao: d.revisao + 1, atualizado_em: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", d.id).eq("project_id", ctx.projeto).eq("revisao", z12.number().int().parse(a.revisao)).select("*").single();
+      const legado = z14.object({ projeto: z14.string().max(300), exportadoEm: z14.string().max(100), objeto: z14.string().max(500), orfao: z14.boolean(), registos: z14.array(z14.object({ id: z14.number().int(), title: z14.string().max(1e3), url: z14.string().max(2e3), tags: z14.array(z14.string().max(200)).max(100) }).passthrough()).max(100) }).parse(a.legado);
+      const unido = { ...legado, registos: [...new Map([...d.dados.legado?.registos ?? [], ...legado.registos].map((r2) => [r2.id, r2])).values()] };
+      const leitura = d.dados.legado ? d.dados.leitura : d.dados.leitura === "por_ler" ? estadoLeitura({ legado: unido }) : d.dados.leitura;
+      const r = await this.sb.from("hub_documentos").update({ dados: { ...d.dados, legado: unido, leitura }, revisao: d.revisao + 1, atualizado_em: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", d.id).eq("project_id", ctx.projeto).eq("revisao", z14.number().int().parse(a.revisao)).select("*").single();
       if (r.error || !r.data)
         throw new FalhaHttp("O documento mudou. Atualiza os metadados.", 409);
+      return this.assinar(r.data);
+    }
+    if (acao === "ocr-pagina") {
+      exigirEscrita(ctx);
+      const d = await this.obter(ctx, uuid.parse(a.id));
+      if (hashZ.parse(a.hash) !== d.hash) throw new FalhaHttp("O original do documento mudou.", 409);
+      const resultado = resultadoOcrSchema.parse(a.pagina);
+      const pagina2 = d.dados.pdf.paginas.find((p) => p.n === resultado.n);
+      if (!pagina2) throw new FalhaHttp("A p\xE1gina ainda n\xE3o foi extra\xEDda.", 409);
+      if (pagina2.ocr && pagina2.texto === resultado.texto.replace(/\0/g, "").trim()) return this.assinar(d);
+      const nova = paginaComOcr(pagina2, resultado);
+      const dados = { ...d.dados, pdf: { ...d.dados.pdf, paginas: d.dados.pdf.paginas.map((p) => p.n === nova.n ? nova : p) } };
+      const r = await this.sb.from("hub_documentos").update({ dados, revisao: d.revisao + 1, atualizado_em: (/* @__PURE__ */ new Date()).toISOString() }).eq("project_id", ctx.projeto).eq("id", d.id).eq("revisao", d.revisao).select("*").single();
+      if (r.error || !r.data) throw new FalhaHttp("O documento mudou durante o OCR. As altera\xE7\xF5es foram preservadas; retoma a leitura.", 409);
       return this.assinar(r.data);
     }
     if (acao === "encontrar")
       return this.encontrar(ctx, hashZ.parse(a.hash));
     if (acao === "alterar")
       return this.alterar(ctx, a);
+    if (acao === "legado-resumo") {
+      const r = await this.sb.from("hub_editorial_artefactos").select("dados").eq("project_id", ctx.projeto).eq("tipo", "resposta").eq("chave", "pdftracker-importacao").maybeSingle();
+      if (r.error) throw new Error("N\xE3o foi poss\xEDvel ler a confer\xEAncia da importa\xE7\xE3o.");
+      return r.data?.dados ?? null;
+    }
+    if (acao === "legado-relatorio") {
+      exigirEscrita(ctx);
+      const relatorio = z14.object({ exportadoEm: z14.string().max(100), registos: z14.number().int().min(0).max(2e3), objetos: z14.number().int().min(0).max(2e3), hashes: z14.array(hashZ).max(2e3), pendencias: z14.array(z14.object({ titulo: z14.string().max(1e3), ids: z14.array(z14.number().int()).max(100), erro: z14.string().max(3e3) }).strict()).max(2e3) }).strict().parse(a.relatorio);
+      const r = await this.sb.from("hub_editorial_artefactos").upsert({ project_id: ctx.projeto, tipo: "resposta", chave: "pdftracker-importacao", dados: relatorio }, { onConflict: "project_id,tipo,chave" });
+      if (r.error) throw new Error("N\xE3o foi poss\xEDvel guardar a confer\xEAncia da importa\xE7\xE3o.");
+      return { ok: true };
+    }
     if (acao === "legado/catalogo" || acao === "diagnostico")
       return null;
     if (acao === "fontes")
@@ -4342,7 +4417,7 @@ var DocumentosNuvem = class {
       return this.ficheiro(ctx, uuid.parse(a.id), a.capa === true);
     if (acao === "guardar-recolha") {
       exigirEscrita(ctx);
-      const r = z12.object({ id: uuid, url: z12.string().max(2e3), em: z12.string(), estado: z12.string().max(30), detalhe: z12.string().max(3e3), documentoId: uuid.optional(), ambito: z12.string() }).strict().parse(a.recolha);
+      const r = z14.object({ id: uuid, url: z14.string().max(2e3), em: z14.string(), estado: z14.string().max(30), detalhe: z14.string().max(3e3), documentoId: uuid.optional(), ambito: z14.string() }).strict().parse(a.recolha);
       ambitoAutorizado(ctx, r.ambito);
       const anterior = await this.sb.from("hub_recolhas").select("id").eq("id", r.id).eq("project_id", ctx.projeto).maybeSingle();
       if (anterior.error)
@@ -4354,8 +4429,8 @@ var DocumentosNuvem = class {
     }
     if (acao === "iniciar") {
       exigirEscrita(ctx);
-      const ids = z12.array(z12.number().int()).min(1).max(12).parse(a.ids), modo = z12.enum(["diagnostico", "recolher"]).parse(a.modo);
-      const key = z12.string().uuid().parse(a.pedidoId);
+      const ids = z14.array(z14.number().int()).min(1).max(12).parse(a.ids), modo = z14.enum(["diagnostico", "recolher"]).parse(a.modo);
+      const key = z14.string().uuid().parse(a.pedidoId);
       const r = await ctx.user.rpc("hub_enfileirar", { _projeto: ctx.projeto, _tipo: "documentos_recolha", _dedup: key, _pedido: { ids, modo, userId: ctx.userId } });
       if (r.error)
         throw new Error("N\xE3o foi poss\xEDvel enfileirar a recolha. Confirma se a automa\xE7\xE3o est\xE1 ativa.");
@@ -4363,7 +4438,7 @@ var DocumentosNuvem = class {
     }
     if (acao === "obter") {
       exigirEscrita(ctx);
-      return obterPublico(z12.string().url().max(2e3).parse(a.url), AbortSignal.timeout(35e3));
+      return obterPublico(z14.string().url().max(2e3).parse(a.url), AbortSignal.timeout(35e3));
     }
     if (acao === "tarefas" || acao === "ler") {
       let q = this.sb.from("hub_jobs").select("*").eq("project_id", ctx.projeto).eq("tipo", "documentos_recolha").order("criado_em", { ascending: false }).limit(20);
@@ -4417,7 +4492,7 @@ var DocumentosNuvem = class {
     }
     if (acao === "artigo") {
       const r = await this.sb.from("hub_jobs").select("resultado").eq("id", uuid.parse(a.id)).eq("project_id", ctx.projeto).single();
-      const url = z12.string().url().max(2e3).parse(a.url);
+      const url = z14.string().url().max(2e3).parse(a.url);
       const item = r.data?.resultado?.descobertas?.find((d) => d.url === url && d.tipo === "artigo");
       if (r.error || !item)
         throw new FalhaHttp("Refer\xEAncia n\xE3o encontrada nesta recolha.", 404);
@@ -4538,7 +4613,7 @@ var DocumentosEdge = class extends DocumentosNuvem {
 };
 
 // scripts/backend/pdf-wasm.ts
-import { Buffer as Buffer10 } from "buffer";
+import { Buffer as Buffer11 } from "buffer";
 import { init } from "@embedpdf/pdfium";
 import { encode } from "fast-png";
 import { createHash as createHash8 } from "crypto";
@@ -4557,7 +4632,7 @@ var PdfNuvem = class {
     });
   }
   async parte(bytes, nome, inicio = 0, lote = 5, comCapa = true) {
-    if (bytes.length > 32 * 1024 * 1024 || !Buffer10.from(bytes.subarray(0, 1024)).includes(Buffer10.from("%PDF-")))
+    if (bytes.length > 32 * 1024 * 1024 || !Buffer11.from(bytes.subarray(0, 1024)).includes(Buffer11.from("%PDF-")))
       throw new Error("O processamento na nuvem aceita PDFs at\xE9 32 MB. O original permanece preservado.");
     if (!Number.isInteger(inicio) || inicio < 0 || !Number.isInteger(lote) || lote < 1 || lote > 5)
       throw new Error("Intervalo de p\xE1ginas inv\xE1lido.");
@@ -4579,11 +4654,11 @@ var PdfNuvem = class {
       const paginas = [];
       let capa = null;
       for (let n = inicio; n < Math.min(total, inicio + lote); n++) {
-        const pagina = m.FPDF_LoadPage(doc, n);
-        if (!pagina)
+        const pagina2 = m.FPDF_LoadPage(doc, n);
+        if (!pagina2)
           throw new Error(`N\xE3o foi poss\xEDvel abrir a p\xE1gina ${n + 1}.`);
         try {
-          const textoPagina = m.FPDFText_LoadPage(pagina);
+          const textoPagina = m.FPDFText_LoadPage(pagina2);
           let texto3 = "";
           if (textoPagina)
             try {
@@ -4605,7 +4680,7 @@ var PdfNuvem = class {
           paginas.push({ n: n + 1, estado: texto3 ? "texto" : "sem_texto_com_imagem", texto: texto3, paragrafos: texto3 ? texto3.split(/\r?\n\s*\r?\n/).map((s) => s.replace(/\s+/g, " ").trim()).filter(Boolean) : [] });
           this.diagnostico?.("texto");
           if (n === 0 && comCapa) {
-            const w = m.FPDF_GetPageWidthF(pagina), h = m.FPDF_GetPageHeightF(pagina);
+            const w = m.FPDF_GetPageWidthF(pagina2), h = m.FPDF_GetPageHeightF(pagina2);
             if (!Number.isFinite(w + h) || w <= 0 || h <= 0 || w / h > 20 || h / w > 20)
               throw new Error("Dimens\xF5es de p\xE1gina inv\xE1lidas.");
             const escala = this.lado / Math.max(w, h), width = Math.max(1, Math.round(w * escala)), height = Math.max(1, Math.round(h * escala)), bitmap = m.FPDFBitmap_Create(width, height, 1);
@@ -4613,7 +4688,7 @@ var PdfNuvem = class {
               throw new Error("Mem\xF3ria para a capa indispon\xEDvel.");
             try {
               m.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 4294967295);
-              m.FPDF_RenderPageBitmap(bitmap, pagina, 0, 0, width, height, 0, 1);
+              m.FPDF_RenderPageBitmap(bitmap, pagina2, 0, 0, width, height, 0, 1);
               this.diagnostico?.("render");
               const buffer = m.FPDFBitmap_GetBuffer(bitmap), stride = m.FPDFBitmap_GetStride(bitmap), rgba = new Uint8Array(width * height * 4);
               for (let y = 0; y < height; y++)
@@ -4631,7 +4706,7 @@ var PdfNuvem = class {
             }
           }
         } finally {
-          m.FPDF_ClosePage(pagina);
+          m.FPDF_ClosePage(pagina2);
         }
       }
       const pdf = { hash: createHash8("sha256").update(bytes).digest("hex"), bytes: bytes.length, ficheiro: nome.replace(/[\0\r\n/\\]/g, "-").slice(0, 200), paginas };
@@ -4646,10 +4721,10 @@ var PdfNuvem = class {
 
 // scripts/backend/wordpress.ts
 init_obter();
-import { Buffer as Buffer11 } from "buffer";
+import { Buffer as Buffer12 } from "buffer";
 import process3 from "process";
 import https2 from "https";
-import { z as z13 } from "zod";
+import { z as z15 } from "zod";
 var DOMINIOS = { sms: "smsonline.pt", teletrabalho: "teletrabalhoweb.com", digitalfc: "digitalfc.pt", frederico: "fredericocarvalho.pt", digitalsprint: "digitalsprint.pt", academia: "academiamarketing.pt", certificacao: "certificacaomarketing.pt", auditoria: "auditoriaseo.pt" };
 function credencialWordPress(site2, env = process3.env) {
   const dominio = DOMINIOS[site2];
@@ -4671,9 +4746,9 @@ function credencialWordPress(site2, env = process3.env) {
 async function pedidoWordPress(c, caminho, method = "GET", dados) {
   if (!caminho.startsWith("/wp-json/wp/v2/") || caminho.includes(".."))
     throw new Error("Opera\xE7\xE3o WordPress inv\xE1lida.");
-  const u = validarDestino(new URL(caminho, c.url).href), ip = await resolverPublico(u), body = dados === void 0 ? void 0 : Buffer11.from(JSON.stringify(dados));
+  const u = validarDestino(new URL(caminho, c.url).href), ip = await resolverPublico(u), body = dados === void 0 ? void 0 : Buffer12.from(JSON.stringify(dados));
   return new Promise((resolve, reject) => {
-    const r = https2.request(u, { method, agent: false, signal: AbortSignal.timeout(45e3), timeout: 3e4, family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { Authorization: `Basic ${Buffer11.from(`${c.user}:${c.password}`).toString("base64")}`, Accept: "application/json", "Accept-Encoding": "identity", ...body ? { "Content-Type": "application/json", "Content-Length": String(body.length) } : {} } }, (res) => {
+    const r = https2.request(u, { method, agent: false, signal: AbortSignal.timeout(45e3), timeout: 3e4, family: ip.family, lookup: (_h, o, cb) => o.all ? cb(null, [ip]) : cb(null, ip.address, ip.family), headers: { Authorization: `Basic ${Buffer12.from(`${c.user}:${c.password}`).toString("base64")}`, Accept: "application/json", "Accept-Encoding": "identity", ...body ? { "Content-Type": "application/json", "Content-Length": String(body.length) } : {} } }, (res) => {
       if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
         res.resume();
         reject(new Error(`WordPress respondeu HTTP ${res.statusCode ?? 0}. Confere o resultado antes de repetir.`));
@@ -4691,7 +4766,7 @@ async function pedidoWordPress(c, caminho, method = "GET", dados) {
       res.on("error", reject);
       res.on("end", () => {
         try {
-          resolve(JSON.parse(Buffer11.concat(chunks).toString("utf8")));
+          resolve(JSON.parse(Buffer12.concat(chunks).toString("utf8")));
         } catch {
           reject(new Error("Resposta WordPress inv\xE1lida."));
         }
@@ -4742,7 +4817,7 @@ function htmlArtigo(p, marcador) {
   return `${partes.join("\n")}
 <!-- ${marcador} -->`;
 }
-var remotoZ = z13.object({ id: z13.number().int().positive(), link: z13.string().url(), status: z13.string(), modified_gmt: z13.string().max(50).optional(), content: z13.object({ raw: z13.string().optional(), rendered: z13.string().optional() }) }).passthrough();
+var remotoZ = z15.object({ id: z15.number().int().positive(), link: z15.string().url(), status: z15.string(), modified_gmt: z15.string().max(50).optional(), content: z15.object({ raw: z15.string().optional(), rendered: z15.string().optional() }) }).passthrough();
 var PublicadorWordPress = class {
   constructor(sb, credenciais, permitirPublicar, pedir = pedidoWordPress) {
     this.sb = sb;
@@ -4761,7 +4836,7 @@ var PublicadorWordPress = class {
     }
   }
   async executarReservado(job, token) {
-    const a = z13.object({ pautaId: z13.string().uuid(), versao: z13.number().int().positive(), destino: z13.enum(["draft", "publish"]), confirmar: z13.literal(true), userId: z13.string().uuid().optional(), featuredMedia: z13.number().int().nonnegative().optional(), categorias: z13.array(z13.number().int().positive()).max(30).optional(), tags: z13.array(z13.number().int().positive()).max(30).optional() }).strict().parse(job.pedido);
+    const a = z15.object({ pautaId: z15.string().uuid(), versao: z15.number().int().positive(), destino: z15.enum(["draft", "publish"]), confirmar: z15.literal(true), userId: z15.string().uuid().optional(), featuredMedia: z15.number().int().nonnegative().optional(), categorias: z15.array(z15.number().int().positive()).max(30).optional(), tags: z15.array(z15.number().int().positive()).max(30).optional() }).strict().parse(job.pedido);
     const e = await this.sb.from("hub_editorial_estados").select("dados").eq("project_id", job.project_id).single();
     if (e.error || !e.data)
       throw new Error("Plano editorial indispon\xEDvel.");
@@ -4801,7 +4876,7 @@ var PublicadorWordPress = class {
       const anteriores = await this.sb.from("hub_publicacoes").select("*").eq("project_id", job.project_id).eq("pauta_id", p.id).eq("site_id", s.id).eq("estado", "enviado").order("versao", { ascending: false }).limit(1);
       if (anteriores.error) throw new Error("N\xE3o foi poss\xEDvel verificar o hist\xF3rico de publica\xE7\xE3o.");
       const conhecido = anteriores.data?.[0];
-      const existentes = conhecido?.remoto_id ? [remotoZ.parse(await this.pedir(c, `/wp-json/wp/v2/posts/${conhecido.remoto_id}?context=edit`))] : z13.array(remotoZ).parse(await this.pedir(c, `/wp-json/wp/v2/posts?context=edit&slug=${encodeURIComponent(p.texto.slug)}&status=draft,pending,publish,future,private&per_page=10`));
+      const existentes = conhecido?.remoto_id ? [remotoZ.parse(await this.pedir(c, `/wp-json/wp/v2/posts/${conhecido.remoto_id}?context=edit`))] : z15.array(remotoZ).parse(await this.pedir(c, `/wp-json/wp/v2/posts?context=edit&slug=${encodeURIComponent(p.texto.slug)}&status=draft,pending,publish,future,private&per_page=10`));
       let caminho = "/wp-json/wp/v2/posts";
       if (existentes.length) {
         if (existentes.length !== 1)
@@ -4840,7 +4915,7 @@ var PublicadorWordPress = class {
     return { site: site2, autenticado: true, verificadoEm: (/* @__PURE__ */ new Date()).toISOString() };
   }
   async reconciliar(projeto, id) {
-    z13.string().uuid().parse(id);
+    z15.string().uuid().parse(id);
     const r = await this.sb.from("hub_publicacoes").select("*").eq("project_id", projeto).eq("id", id).single();
     if (r.error || !r.data)
       throw new Error("Envio n\xE3o encontrado neste projeto.");
@@ -4854,7 +4929,7 @@ var PublicadorWordPress = class {
     const c = this.credenciais(s.id);
     if (!c)
       throw new Error("Destino sem credenciais.");
-    const posts = z13.array(remotoZ).parse(await this.pedir(c, `/wp-json/wp/v2/posts?context=edit&slug=${encodeURIComponent(p.texto.slug)}&status=draft,pending,publish,future,private&per_page=10`));
+    const posts = z15.array(remotoZ).parse(await this.pedir(c, `/wp-json/wp/v2/posts?context=edit&slug=${encodeURIComponent(p.texto.slug)}&status=draft,pending,publish,future,private&per_page=10`));
     const marcador = `hub-artigo:${projeto}:${p.id}:${p.versao}:${envio.assinatura}`;
     const certos = posts.filter((post2) => post2.status === envio.destino && post2.modified_gmt && new URL(post2.link).origin === new URL(c.url).origin && post2.content.raw?.trim() === htmlArtigo(p, marcador).trim());
     if (certos.length !== 1)
@@ -5055,15 +5130,15 @@ var WorkerHub = class {
 };
 
 // scripts/backend/servidor.ts
-import { Buffer as Buffer12 } from "buffer";
+import { Buffer as Buffer13 } from "buffer";
 import process4 from "process";
 import { setInterval as setInterval4, clearInterval as clearInterval4 } from "timers";
 import { createServer } from "http";
-import { z as z16 } from "zod";
+import { z as z18 } from "zod";
 
 // scripts/backend/backup.ts
 import { setInterval as setInterval3, clearInterval as clearInterval3 } from "timers";
-import { z as z14 } from "zod";
+import { z as z16 } from "zod";
 import { createHash as createHash9 } from "crypto";
 var TABELAS = ["hub_editorial_estados", "hub_editorial_artefactos", "hub_documentos", "hub_recolhas", "hub_operacao", "hub_jobs", "hub_publicacoes"];
 var assinaturaBackup = (valor) => createHash9("sha256").update(JSON.stringify(valor)).digest("hex");
@@ -5157,7 +5232,7 @@ function excerto(texto3, termos) {
   const inicio = Math.max(0, (posicoes.length ? Math.min(...posicoes) : 0) - 65);
   return `${inicio ? "\u2026" : ""}${limpo.slice(inicio, inicio + 240)}${limpo.length > inicio + 240 ? "\u2026" : ""}`;
 }
-function pesquisarCatalogo(c, consulta, tipo = "todos", pagina = 1, tamanho = 20) {
+function pesquisarCatalogo(c, consulta, tipo = "todos", pagina2 = 1, tamanho = 20) {
   const termos = termosPesquisa(consulta), contagens = { pdf: 0, noticia: 0, artigo: 0, social: 0 };
   const encontrados = [];
   if (consulta.trim().length >= 2 && termos.length) for (const item of c.itens) {
@@ -5169,8 +5244,8 @@ function pesquisarCatalogo(c, consulta, tipo = "todos", pagina = 1, tamanho = 20
     encontrados.push({ item, pagina: folha?.n, corpo: folha?.texto || item.texto, pontos: termos.reduce((n, t) => n + (titulo.includes(t) ? 3 : 0), 0) });
   }
   const filtrados = encontrados.filter((x) => tipo === "todos" || x.item.tipo === tipo).sort((a, b) => b.pontos - a.pontos || b.item.atualizadoEm.localeCompare(a.item.atualizadoEm) || a.item.id.localeCompare(b.item.id));
-  const paginas = Math.max(1, Math.ceil(filtrados.length / tamanho)), atual = Math.max(1, Math.min(paginas, Math.floor(pagina) || 1));
-  return { total: filtrados.length, pagina: atual, paginas, contagens, incompletos: c.incompletos ?? [], avisos: c.avisos, recolhidoEm: c.recolhidoEm, itens: filtrados.slice((atual - 1) * tamanho, atual * tamanho).map(({ item: { texto: texto3, paginas: _, ...item }, pagina: pagina2, corpo }) => ({ ...item, ...pagina2 ? { pagina: pagina2 } : {}, excerto: excerto(corpo, termos), url: item.tipo === "pdf" ? `${item.url}&termo=${encodeURIComponent(consulta.trim())}${pagina2 ? `&pagina=${pagina2}` : ""}` : item.url })) };
+  const paginas = Math.max(1, Math.ceil(filtrados.length / tamanho)), atual = Math.max(1, Math.min(paginas, Math.floor(pagina2) || 1));
+  return { total: filtrados.length, pagina: atual, paginas, contagens, incompletos: c.incompletos ?? [], avisos: c.avisos, recolhidoEm: c.recolhidoEm, itens: filtrados.slice((atual - 1) * tamanho, atual * tamanho).map(({ item: { texto: texto3, paginas: _, ...item }, pagina: pagina3, corpo }) => ({ ...item, ...pagina3 ? { pagina: pagina3 } : {}, excerto: excerto(corpo, termos), url: item.tipo === "pdf" ? `${item.url}&termo=${encodeURIComponent(consulta.trim())}${pagina3 ? `&pagina=${pagina3}` : ""}` : item.url })) };
 }
 function textoSocial(v, profundidade = 0) {
   if (profundidade > 12 || !v || typeof v !== "object") return "";
@@ -5292,7 +5367,7 @@ function construirPercursos(e, envios, aprovadas, publicacoesDisponiveis, local 
 }
 
 // scripts/backend/percurso.ts
-import { z as z15 } from "zod";
+import { z as z17 } from "zod";
 async function estadoEditorialLeitura(ctx) {
   const r = await ctx.user.from("hub_editorial_estados").select("dados").eq("project_id", ctx.projeto).maybeSingle();
   if (r.error) throw new Error("N\xE3o foi poss\xEDvel consultar o estado editorial.");
@@ -5313,7 +5388,7 @@ async function consultarPercurso(ctx) {
   return dados;
 }
 async function pesquisarHub(ctx, a) {
-  const p = z15.object({ consulta: z15.string().trim().min(2).max(160), tipo: z15.enum(["todos", ...TIPOS_PESQUISA]).default("todos"), pagina: z15.number().int().min(1).max(500).default(1) }).strict().parse(a);
+  const p = z17.object({ consulta: z17.string().trim().min(2).max(160), tipo: z17.enum(["todos", ...TIPOS_PESQUISA]).default("todos"), pagina: z17.number().int().min(1).max(500).default(1) }).strict().parse(a);
   const catalogo = await carregarCatalogo(ctx.user, ctx.userId, ctx.projeto, () => estadoEditorialLeitura(ctx), async () => {
     const docs = [];
     for (let inicio = 0; inicio <= 100; inicio += 20) {
@@ -5333,13 +5408,13 @@ async function lerCorpo(req, limite) {
   const partes = [];
   let total = 0;
   for await (const c of req) {
-    const b = Buffer12.isBuffer(c) ? c : Buffer12.from(c);
+    const b = Buffer13.isBuffer(c) ? c : Buffer13.from(c);
     total += b.length;
     if (total > limite)
       throw new FalhaHttp("O ficheiro ou pedido excede o limite permitido.", 413);
     partes.push(b);
   }
-  return Buffer12.concat(partes);
+  return Buffer13.concat(partes);
 }
 function criarServidor(config, servicos) {
   const limites = /* @__PURE__ */ new Map();
@@ -5390,7 +5465,7 @@ function criarServidor(config, servicos) {
           if (v.fim <= agora)
             limites.delete(k);
       }
-      const leitura = { seo: ["estado", "resultado", "ciclo", "campanha-fonte", "campanha-composicao"], documentos: ["capas", "documento", "versoes", "acervo", "recolhas", "encontrar", "ficheiro", "fontes", "diagnostico", "legado/catalogo", "tarefas", "ler"], operacao: ["estado", "percurso", "pesquisa"], wordpress: ["verificar", "estado"] };
+      const leitura = { seo: ["estado", "resultado", "ciclo", "campanha-fonte", "campanha-composicao"], documentos: ["capas", "documento", "versoes", "acervo", "recolhas", "encontrar", "ficheiro", "fontes", "diagnostico", "legado/catalogo", "legado-resumo", "tarefas", "ler"], operacao: ["estado", "percurso", "pesquisa"], wordpress: ["verificar", "estado"] };
       if (!leitura[caminho[1]].includes(caminho[2]) && !(caminho[1] === "operacao" && caminho[2] === "backup")) {
         const copia = await servicos.sb.from("hub_leases").select("token").eq("project_id", ctx.projeto).eq("recurso", "backup").gt("ate", (/* @__PURE__ */ new Date()).toISOString()).maybeSingle();
         if (copia.error)
@@ -5440,7 +5515,7 @@ function criarServidor(config, servicos) {
         resultado = await servicos.documentos.operar(ctx, caminho[2], a);
         if (resultado instanceof Blob) {
           res.setHeader("Content-Type", resultado.type || "application/octet-stream");
-          res.end(Buffer12.from(await resultado.arrayBuffer()));
+          res.end(Buffer13.from(await resultado.arrayBuffer()));
           return;
         }
         if (caminho[2] === "obter") {
@@ -5455,7 +5530,7 @@ function criarServidor(config, servicos) {
         resultado = await operarServico(servicos.sb, ctx, caminho[2], a);
       else {
         if (caminho[2] === "estado") {
-          const id = z16.string().uuid().parse(a.pautaId);
+          const id = z18.string().uuid().parse(a.pautaId);
           const [p, j] = await Promise.all([servicos.sb.from("hub_publicacoes").select("id,versao,destino,estado,remoto_url,atualizado_em").eq("project_id", ctx.projeto).eq("pauta_id", id).order("atualizado_em", { ascending: false }).limit(20), servicos.sb.from("hub_jobs").select("id,estado,resultado,pedido,criado_em").eq("project_id", ctx.projeto).eq("tipo", "wordpress").contains("pedido", { pautaId: id }).order("criado_em", { ascending: false }).limit(10)]);
           if (p.error || j.error)
             throw new Error("N\xE3o foi poss\xEDvel consultar os envios WordPress.");
@@ -5463,13 +5538,13 @@ function criarServidor(config, servicos) {
         } else {
           exigirEscrita(ctx);
           if (caminho[2] === "verificar")
-            resultado = await servicos.wordpress.verificar(z16.string().max(80).parse(a.siteId));
+            resultado = await servicos.wordpress.verificar(z18.string().max(80).parse(a.siteId));
           else if (caminho[2] === "reconciliar")
-            resultado = await servicos.wordpress.reconciliar(ctx.projeto, z16.string().uuid().parse(a.id));
+            resultado = await servicos.wordpress.reconciliar(ctx.projeto, z18.string().uuid().parse(a.id));
           else if (caminho[2] === "enfileirar") {
             if (a.confirmar !== true)
               throw new FalhaHttp("Confirma a cria\xE7\xE3o/publica\xE7\xE3o desta vers\xE3o.");
-            const r = await ctx.user.rpc("hub_enfileirar", { _projeto: ctx.projeto, _tipo: "wordpress", _dedup: z16.string().uuid().parse(a.pedidoId), _pedido: { pautaId: a.pautaId, versao: a.versao, destino: a.destino, confirmar: true, ...a.featuredMedia ? { featuredMedia: a.featuredMedia } : {}, ...a.categorias ? { categorias: a.categorias } : {}, ...a.tags ? { tags: a.tags } : {} } });
+            const r = await ctx.user.rpc("hub_enfileirar", { _projeto: ctx.projeto, _tipo: "wordpress", _dedup: z18.string().uuid().parse(a.pedidoId), _pedido: { pautaId: a.pautaId, versao: a.versao, destino: a.destino, confirmar: true, ...a.featuredMedia ? { featuredMedia: a.featuredMedia } : {}, ...a.categorias ? { categorias: a.categorias } : {}, ...a.tags ? { tags: a.tags } : {} } });
             if (r.error)
               throw new Error("N\xE3o foi poss\xEDvel enfileirar a publica\xE7\xE3o.");
             resultado = { id: r.data };
@@ -5479,8 +5554,8 @@ function criarServidor(config, servicos) {
       }
       json(res, resultado);
     } catch (e) {
-      const status = e instanceof FalhaHttp ? e.status : e instanceof z16.ZodError || e instanceof SyntaxError ? 400 : 422;
-      json(res, { erro: e instanceof z16.ZodError ? "Confere os campos do pedido." : e instanceof Error ? e.message : "N\xE3o foi poss\xEDvel concluir o pedido." }, status);
+      const status = e instanceof FalhaHttp ? e.status : e instanceof z18.ZodError || e instanceof SyntaxError ? 400 : 422;
+      json(res, { erro: e instanceof z18.ZodError ? "Confere os campos do pedido." : e instanceof Error ? e.message : "N\xE3o foi poss\xEDvel concluir o pedido." }, status);
     } finally {
       await libertar?.();
     }
@@ -5497,7 +5572,7 @@ async function operarServico(sb, ctx, acao, a) {
   }
   exigirEscrita(ctx);
   if (acao === "agenda") {
-    const agenda = z16.object({ ativa: z16.boolean(), dias: z16.array(z16.number().int().min(0).max(6)).min(1).max(7), hora: z16.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/) }).strict().parse(a.agenda);
+    const agenda = z18.object({ ativa: z18.boolean(), dias: z18.array(z18.number().int().min(0).max(6)).min(1).max(7), hora: z18.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/) }).strict().parse(a.agenda);
     const r = await ctx.user.rpc("hub_agenda_documentos_definir", { _projeto: ctx.projeto, _agenda: agenda });
     if (r.error)
       throw new Error("N\xE3o foi poss\xEDvel guardar a recolha peri\xF3dica.");

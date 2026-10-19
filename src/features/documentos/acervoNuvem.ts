@@ -65,3 +65,8 @@ export async function renovarCapasNuvem(ambito: string) { return apiBackend<{
     id: string;
     capa_url?: string;
 }[]>('/documentos/capas', { ambito }, { projeto: projetoAcervo(ambito) }); }
+
+export async function guardarOcrNuvem(d: DocumentoAcervo, pagina: import('./ocr-modelo').ResultadoOcr) {
+    const r = await apiBackend<RegistoDocumento>('/documentos/ocr-pagina', { id: d.id, ambito: d.ambito, hash: d.pdf.hash, pagina }, { projeto: projetoAcervo(d.ambito) });
+    return documento(r, d.ambito);
+}
