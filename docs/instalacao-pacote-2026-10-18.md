@@ -88,3 +88,22 @@ Não foram feitas chamadas pagas a DataForSEO, DeepSeek, imagens ou outros forne
 5. **Execução permanente e operações externas**: worker Hub não ativado; publicações WordPress/sociais e piloto pago não executados. A instalação não equivale a autorizar o início dessas operações.
 
 Nenhuma newsletter foi enviada, nenhuma publicação externa foi criada e nenhuma peça real foi sobrescrita. A aplicação pública permanece na versão anteriormente publicada.
+
+## Ligação da pré-visualização concluída — 19 de outubro de 2026
+
+O proprietário respondeu «Autorizar a ligação da pré-visualização» ao pedido específico sobre `.env.development`. O bloqueio de autorização do ponto 1 acima está resolvido. O ficheiro foi criado localmente, contendo exclusivamente a URL pública já instalada, e importado na branch `codex/hub-campanhas-descobertas` pelo commit `dbcf46362df24306dc7e125f36a591e6d51a6212` (árvore `6dca700bab11d3573fc657f8699e1e07a2ce1ca1`). O `.env` gerido foi preservado. A compilação em modo development e os 22 testes dirigidos passaram.
+
+O teste no navegador revelou também uma recusa CORS: o Lovable usa duas origens próprias para as pré-visualizações estática e ativa. A configuração pública `HUB_ORIGENS` foi atualizada pelo formulário Cloud, preservando as duas origens anteriores e acrescentando apenas as duas deste projeto:
+
+- `https://hub-conteudo.lovable.app` — preservada;
+- `https://preview--hub-conteudo.lovable.app` — preservada;
+- `https://id-preview--f100a3a8-d8dc-4aa5-89a4-d25e3de0bb36.lovable.app` — pré-visualização estática;
+- `https://f100a3a8-d8dc-4aa5-89a4-d25e3de0bb36.lovableproject.com` — pré-visualização ativa.
+
+Não foram usados wildcards nem alteradas autenticação, RLS ou credenciais. Não foi necessário redeploy. OPTIONS na pré-visualização ativa devolveu 204 com a origem exata e os cabeçalhos necessários; leitura anónima continuou 401 e origem alheia 403. O Lovable confirmou ainda quatro leituras autenticadas 200: estado com zero trabalhos, fontes com 99 entradas, acervo e tarefas vazios.
+
+A validação final foi feita diretamente no navegador do proprietário, após entrar com a conta existente na origem ativa: Biblioteca (0), serviço «Tarefas em pausa», recolha periódica desligada, Sites com PDFs com 99 fontes, pesquisa «Stanford» com um resultado e histórico com zero entradas. A pesquisa foi limpa e o separador de fontes ficou aberto. Estas leituras não comprovam upload, extração, capas ou importação do acervo anterior.
+
+O pedido restrito no Lovable apresentou **Credits used 3**: **3 créditos diários**, equivalentes a **0,90 €** a 0,30 €/crédito. O indicador diário passou de 5 para 2; o saldo do plano permaneceu em 3 665,53. Não houve chamadas a fornecedores pagos. A alteração de código/configuração versionada foi de uma linha; as restantes alterações desta ronda são documentação.
+
+Continuam pendentes os pontos 2–5 da lista anterior: ensaio de escrita de campanhas/compositor, reconfirmação envio real → rascunhos, importação privada dos 37 PDFs e ativação/validação separada da execução permanente e operações externas. A interface pública não foi republicada.
