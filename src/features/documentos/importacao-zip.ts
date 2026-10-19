@@ -33,7 +33,9 @@ export async function abrirAcervoZip(f: File) {
   for (const e of entradas) if (!zip.file(`pdfs/${e.hash}.pdf`)) throw new Error(`O ZIP está incompleto: falta o original de ${e.nome}.`);
   return { catalogo, async ficheiro(hash: string, nome: string) {
     const e = entradas.find(e => e.hash === hash); if (!e) throw new Error('PDF fora do catálogo.');
-    const b = await zip.file(`pdfs/${hash}.pdf`)!.async('uint8array');
+    const original = zip.file(`pdfs/${hash}.pdf`);
+    if (!original) throw new Error('PDF em falta no ZIP.');
+    const b = new Uint8Array(await original.async('uint8array'));
     const assinatura = [...new Uint8Array(await crypto.subtle.digest('SHA-256', b))].map(n => n.toString(16).padStart(2, '0')).join('');
     if (assinatura !== hash || (e.bytes && e.bytes !== b.length)) throw new Error('A assinatura do PDF não corresponde ao catálogo.');
     return new File([b], nome.endsWith('.pdf') ? nome : `${nome}.pdf`, { type: 'application/pdf' });
