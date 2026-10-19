@@ -21,7 +21,7 @@ export function OcrDocumento({ documento: d, ocupado, onGuardar }: { documento: 
       const { reconhecerPdf } = await import('./ocr');
       await reconhecerPdf(f, d.pdf.hash, pendentes.slice(0, 10).map(p => p.n), { signal: abort.signal, progresso: m => { if (vivo.current) setMensagem(m); }, guardar: onGuardar });
       if (vivo.current) setMensagem('Texto reconhecido e guardado. Confere números, nomes e tabelas no original antes de usar.');
-    } catch (e) { if (vivo.current) { if (abort.signal.aborted) setMensagem('OCR interrompido. As páginas já guardadas mantêm-se disponíveis.'); else setErro((e as Error).message); } }
+    } catch (e) { if (vivo.current) { if (abort.signal.aborted) setMensagem('OCR interrompido. As páginas já guardadas mantêm-se disponíveis.'); else setErro(e instanceof Error ? e.message : 'Não foi possível carregar o motor OCR. Atualiza a página e tenta novamente.'); } }
     finally { controller.current = null; if (vivo.current) setAtivo(false); }
   }
   if (!pendentes.length && !reconhecidas && !ativo && !erro) return null;

@@ -1,3 +1,4 @@
+import { prepararOcr } from "./scripts/preparar-ocr.mjs";
 import { roteirosLocal } from "./scripts/roteiros/local-plugin";
 import { documentosLocal } from "./scripts/documentos/local-plugin";
 import { seoLocal } from "./scripts/seo/local-plugin";
@@ -7,7 +8,9 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode, command }) => {
+export default defineConfig(async ({ mode, command }) => {
+  // Lovable may invoke Vite directly, without npm lifecycle hooks.
+  await prepararOcr();
   const hubLocal = mode === "hub" && command === "serve";
   if (mode === "hub" && command !== "serve") throw new Error("O modo hub é apenas uma demonstração local; usa npm run build para produção.");
   return ({

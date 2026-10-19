@@ -7,7 +7,7 @@ export const DOCUMENTOS_DISPONIVEL = DOCUMENTOS_LOCAL || BACKEND_NUVEM;
 export interface DocumentoAcervo {
   id: string; ambito: string; titulo: string; origem: string | null; recolhidoEm: string;
   publicadoEm: string | null; ficheiro: Blob; pdf: PdfLido;
-  processamento?:{estado:'a_processar'|'concluido'|'erro';paginas:number;total?:number;erro?:string};
+  processamento?:{estado:'a_processar'|'concluido'|'erro';paginas:number;total?:number;erro?:string;reextracao?:boolean};
   capaUrl?:string; capa?: Blob; capaErro?: string; fonteNome?: string; categoria?: string; paginaOrigem?: string;
   legado?:MetadadosPdfTracker;
   leitura?:'por_ler'|'lido'|'arquivado';

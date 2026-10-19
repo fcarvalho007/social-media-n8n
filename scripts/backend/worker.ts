@@ -187,7 +187,10 @@ export class WorkerHub {
         finally {
             clearInterval(timer);
             await progresso();
-            await rm(pasta, { recursive: true, force: true });
+            // Edge resets its isolated /tmp after invocation. Cleanup must not
+            // invalidate results already persisted in the private database.
+            try { await rm(pasta, { recursive: true, force: true }); }
+            catch (e) { if (!this.prepararDocumento) throw e; }
         }
     }
 }

@@ -32,7 +32,7 @@ export class DocumentosEdge extends DocumentosNuvem {
             const r = await this.banco.from('hub_documentos').select('*').eq('project_id', job.project_id).eq('id', job.pedido.documentoId).single();
             if (!r.error && r.data) {
                 const d = r.data as DocumentoNuvem;
-                await this.banco.from('hub_documentos').update({ dados: { ...d.dados, ...(job.pedido.capa ? { capaErro: (e as Error).message } : { processamento: { estado: 'erro', paginas: d.dados.pdf.paginas.length, total: d.dados.processamento?.total, erro: (e as Error).message } }) }, revisao: d.revisao + 1, atualizado_em: new Date().toISOString() }).eq('project_id', job.project_id).eq('id', d.id).eq('revisao', d.revisao);
+                await this.banco.from('hub_documentos').update({ dados: { ...d.dados, ...(job.pedido.capa ? { capaErro: (e as Error).message } : { processamento: { estado: 'erro', paginas: d.dados.pdf.paginas.length, total: d.dados.processamento?.total, reextracao: job.pedido.reextracao === true, erro: (e as Error).message } }) }, revisao: d.revisao + 1, atualizado_em: new Date().toISOString() }).eq('project_id', job.project_id).eq('id', d.id).eq('revisao', d.revisao);
             }
             throw e;
         }
@@ -43,7 +43,8 @@ export class DocumentosEdge extends DocumentosNuvem {
         if (r.error || !r.data)
             throw new Error('Documento não encontrado neste projeto.');
         const d = r.data as DocumentoNuvem;
-        if (!job.pedido.capa && d.dados.pdf.paginas.length > inicio) {
+        const reextracao = job.pedido.reextracao === true;
+        if (!reextracao && !job.pedido.capa && d.dados.pdf.paginas.length > inicio) {
             const processamento = (d.dados as unknown as {
                 processamento?: {
                     total: number;
@@ -54,7 +55,7 @@ export class DocumentosEdge extends DocumentosNuvem {
                 await this.enfileirar(job.project_id, id, proxima);
             return { reutilizado: true };
         }
-        if (!job.pedido.capa && d.dados.pdf.paginas.length !== inicio)
+        if (!reextracao && !job.pedido.capa && d.dados.pdf.paginas.length !== inicio)
             throw new Error('O intervalo do documento mudou. Não foi substituído.');
         const b = await this.banco.storage.from('hub-documentos').download(d.pdf_path);
         if (b.error || !b.data)
@@ -76,16 +77,19 @@ export class DocumentosEdge extends DocumentosNuvem {
                 throw new Error('O documento mudou. Atualiza antes de refazer a capa.');
             return { capaCriada: !!capaPath };
         }
-        const dados = { ...d.dados, pdf: { ...parte.pdf, paginas: job.pedido.capa ? d.dados.pdf.paginas : [...d.dados.pdf.paginas, ...parte.pdf.paginas] }, processamento: { estado: job.pedido.capa ? 'concluido' : parte.proxima === null ? 'concluido' : 'a_processar', paginas: inicio + parte.pdf.paginas.length, total: parte.total } };
+        // A second engine may recover malformed fonts. Never replace existing text or OCR.
+        const paginas = reextracao ? d.dados.pdf.paginas.map(p => p.texto || p.ocr ? p : parte.pdf.paginas.find(n => n.n === p.n) ?? p) : [...d.dados.pdf.paginas, ...parte.pdf.paginas];
+        const dados = { ...d.dados, pdf: { ...d.dados.pdf, paginas }, processamento: { estado: parte.proxima === null ? 'concluido' : 'a_processar', paginas: inicio + parte.pdf.paginas.length, total: parte.total, reextracao } };
         const q = await this.banco.from('hub_documentos').update({ dados, capa_path: capaPath, revisao: d.revisao + 1, atualizado_em: new Date().toISOString() }).eq('project_id', job.project_id).eq('id', id).eq('revisao', d.revisao).select('id');
         if (q.error || q.data?.length !== 1)
             throw new Error('O documento mudou durante a extração. As alterações do leitor foram preservadas.');
+        if (reextracao && parte.proxima !== null) return { paginas: inicio + parte.pdf.paginas.length, total: parte.total, continuarPedido: { ...job.pedido, inicio: parte.proxima } };
         if (!job.pedido.capa && parte.proxima !== null)
             await this.enfileirar(job.project_id, id, parte.proxima);
         return { paginas: dados.pdf.paginas.length, total: parte.total, concluido: parte.proxima === null };
     }
     async operar(ctx: ContextoBackend, acao: string, a: Record<string, unknown>) {
-        if (acao === 'retomar-processamento') {
+        if (acao === 'retomar-processamento' || acao === 'reextrair-texto') {
             if (!ctx.escrever)
                 throw new Error('É necessária permissão de edição.');
             const d = await this.obter(ctx, String(a.id));
@@ -94,10 +98,12 @@ export class DocumentosEdge extends DocumentosNuvem {
                 throw new Error('Fila indisponível.');
             if (fila.data?.length)
                 return { ok: true };
-            const r = await this.banco.from('hub_jobs').insert({ project_id: ctx.projeto, tipo: 'documento_preparar', dedup: crypto.randomUUID(), pedido: { documentoId: d.id, inicio: d.dados.pdf.paginas.length } });
+            const reextracao = acao === 'reextrair-texto' || d.dados.processamento?.reextracao === true;
+            if (reextracao && !d.dados.pdf.paginas.length) throw new Error('Aguarda a preparação inicial do PDF.');
+            const r = await this.banco.from('hub_jobs').insert({ project_id: ctx.projeto, tipo: 'documento_preparar', dedup: crypto.randomUUID(), pedido: { documentoId: d.id, inicio: reextracao ? 0 : d.dados.pdf.paginas.length, reextracao } });
             if (r.error)
                 throw new Error('Não foi possível retomar a extração.');
-            await this.banco.from('hub_documentos').update({ dados: { ...d.dados, processamento: { ...d.dados.processamento, estado: 'a_processar', paginas: d.dados.pdf.paginas.length } }, revisao: d.revisao + 1 }).eq('project_id', ctx.projeto).eq('id', d.id).eq('revisao', d.revisao);
+            await this.banco.from('hub_documentos').update({ dados: { ...d.dados, processamento: { ...d.dados.processamento, estado: 'a_processar', paginas: reextracao ? 0 : d.dados.pdf.paginas.length, reextracao } }, revisao: d.revisao + 1 }).eq('project_id', ctx.projeto).eq('id', d.id).eq('revisao', d.revisao);
             return { ok: true };
         }
         if (acao === 'refazer-capa') {

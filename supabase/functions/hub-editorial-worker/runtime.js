@@ -2707,8 +2707,11 @@ var MotorDocumentos = class {
     const p = (this.escritas.get(j.id) ?? Promise.resolve()).catch(() => void 0).then(async () => {
       const destino = path2.join(this.pasta, `tarefa-${j.id}.json`);
       const tmp = `${destino}.${randomUUID3()}.tmp`;
-      await writeFile(tmp, dados, this.opcoes.temporarioIsolado ? {} : { mode: 384 });
-      await rename2(tmp, destino);
+      if (this.opcoes.temporarioIsolado) await writeFile(destino, dados);
+      else {
+        await writeFile(tmp, dados, { mode: 384 });
+        await rename2(tmp, destino);
+      }
     });
     this.escritas.set(j.id, p);
     await p;
@@ -2894,8 +2897,11 @@ var MotorDocumentos = class {
             if (!j.pdfs.some((x) => x.hash === hash)) {
               const destino = path2.join(this.pasta, "pdfs", `${hash}.pdf`);
               const tmp = `${destino}.${randomUUID3()}.tmp`;
-              await writeFile(tmp, r.bytes, this.opcoes.temporarioIsolado ? {} : { mode: 384 });
-              await rename2(tmp, destino);
+              if (this.opcoes.temporarioIsolado) await writeFile(destino, r.bytes);
+              else {
+                await writeFile(tmp, r.bytes, { mode: 384 });
+                await rename2(tmp, destino);
+              }
               j.pdfs.push({ ...p, url: r.url, hash, bytes: r.bytes.length, categoria: f.group_category, estado: "descarregado" });
               guardadosFonte++;
             }
@@ -4545,7 +4551,7 @@ var DocumentosEdge = class extends DocumentosNuvem {
       const r = await this.banco.from("hub_documentos").select("*").eq("project_id", job.project_id).eq("id", job.pedido.documentoId).single();
       if (!r.error && r.data) {
         const d = r.data;
-        await this.banco.from("hub_documentos").update({ dados: { ...d.dados, ...job.pedido.capa ? { capaErro: e.message } : { processamento: { estado: "erro", paginas: d.dados.pdf.paginas.length, total: d.dados.processamento?.total, erro: e.message } } }, revisao: d.revisao + 1, atualizado_em: (/* @__PURE__ */ new Date()).toISOString() }).eq("project_id", job.project_id).eq("id", d.id).eq("revisao", d.revisao);
+        await this.banco.from("hub_documentos").update({ dados: { ...d.dados, ...job.pedido.capa ? { capaErro: e.message } : { processamento: { estado: "erro", paginas: d.dados.pdf.paginas.length, total: d.dados.processamento?.total, reextracao: job.pedido.reextracao === true, erro: e.message } } }, revisao: d.revisao + 1, atualizado_em: (/* @__PURE__ */ new Date()).toISOString() }).eq("project_id", job.project_id).eq("id", d.id).eq("revisao", d.revisao);
       }
       throw e;
     }
@@ -4556,14 +4562,15 @@ var DocumentosEdge = class extends DocumentosNuvem {
     if (r.error || !r.data)
       throw new Error("Documento n\xE3o encontrado neste projeto.");
     const d = r.data;
-    if (!job.pedido.capa && d.dados.pdf.paginas.length > inicio) {
+    const reextracao = job.pedido.reextracao === true;
+    if (!reextracao && !job.pedido.capa && d.dados.pdf.paginas.length > inicio) {
       const processamento = d.dados.processamento;
       const proxima = d.dados.pdf.paginas.length;
       if (processamento && proxima < processamento.total)
         await this.enfileirar(job.project_id, id, proxima);
       return { reutilizado: true };
     }
-    if (!job.pedido.capa && d.dados.pdf.paginas.length !== inicio)
+    if (!reextracao && !job.pedido.capa && d.dados.pdf.paginas.length !== inicio)
       throw new Error("O intervalo do documento mudou. N\xE3o foi substitu\xEDdo.");
     const b = await this.banco.storage.from("hub-documentos").download(d.pdf_path);
     if (b.error || !b.data)
@@ -4585,16 +4592,18 @@ var DocumentosEdge = class extends DocumentosNuvem {
         throw new Error("O documento mudou. Atualiza antes de refazer a capa.");
       return { capaCriada: !!capaPath };
     }
-    const dados = { ...d.dados, pdf: { ...parte.pdf, paginas: job.pedido.capa ? d.dados.pdf.paginas : [...d.dados.pdf.paginas, ...parte.pdf.paginas] }, processamento: { estado: job.pedido.capa ? "concluido" : parte.proxima === null ? "concluido" : "a_processar", paginas: inicio + parte.pdf.paginas.length, total: parte.total } };
+    const paginas = reextracao ? d.dados.pdf.paginas.map((p) => p.texto || p.ocr ? p : parte.pdf.paginas.find((n) => n.n === p.n) ?? p) : [...d.dados.pdf.paginas, ...parte.pdf.paginas];
+    const dados = { ...d.dados, pdf: { ...d.dados.pdf, paginas }, processamento: { estado: parte.proxima === null ? "concluido" : "a_processar", paginas: inicio + parte.pdf.paginas.length, total: parte.total, reextracao } };
     const q = await this.banco.from("hub_documentos").update({ dados, capa_path: capaPath, revisao: d.revisao + 1, atualizado_em: (/* @__PURE__ */ new Date()).toISOString() }).eq("project_id", job.project_id).eq("id", id).eq("revisao", d.revisao).select("id");
     if (q.error || q.data?.length !== 1)
       throw new Error("O documento mudou durante a extra\xE7\xE3o. As altera\xE7\xF5es do leitor foram preservadas.");
+    if (reextracao && parte.proxima !== null) return { paginas: inicio + parte.pdf.paginas.length, total: parte.total, continuarPedido: { ...job.pedido, inicio: parte.proxima } };
     if (!job.pedido.capa && parte.proxima !== null)
       await this.enfileirar(job.project_id, id, parte.proxima);
     return { paginas: dados.pdf.paginas.length, total: parte.total, concluido: parte.proxima === null };
   }
   async operar(ctx, acao, a) {
-    if (acao === "retomar-processamento") {
+    if (acao === "retomar-processamento" || acao === "reextrair-texto") {
       if (!ctx.escrever)
         throw new Error("\xC9 necess\xE1ria permiss\xE3o de edi\xE7\xE3o.");
       const d = await this.obter(ctx, String(a.id));
@@ -4603,10 +4612,12 @@ var DocumentosEdge = class extends DocumentosNuvem {
         throw new Error("Fila indispon\xEDvel.");
       if (fila.data?.length)
         return { ok: true };
-      const r = await this.banco.from("hub_jobs").insert({ project_id: ctx.projeto, tipo: "documento_preparar", dedup: crypto.randomUUID(), pedido: { documentoId: d.id, inicio: d.dados.pdf.paginas.length } });
+      const reextracao = acao === "reextrair-texto" || d.dados.processamento?.reextracao === true;
+      if (reextracao && !d.dados.pdf.paginas.length) throw new Error("Aguarda a prepara\xE7\xE3o inicial do PDF.");
+      const r = await this.banco.from("hub_jobs").insert({ project_id: ctx.projeto, tipo: "documento_preparar", dedup: crypto.randomUUID(), pedido: { documentoId: d.id, inicio: reextracao ? 0 : d.dados.pdf.paginas.length, reextracao } });
       if (r.error)
         throw new Error("N\xE3o foi poss\xEDvel retomar a extra\xE7\xE3o.");
-      await this.banco.from("hub_documentos").update({ dados: { ...d.dados, processamento: { ...d.dados.processamento, estado: "a_processar", paginas: d.dados.pdf.paginas.length } }, revisao: d.revisao + 1 }).eq("project_id", ctx.projeto).eq("id", d.id).eq("revisao", d.revisao);
+      await this.banco.from("hub_documentos").update({ dados: { ...d.dados, processamento: { ...d.dados.processamento, estado: "a_processar", paginas: reextracao ? 0 : d.dados.pdf.paginas.length, reextracao } }, revisao: d.revisao + 1 }).eq("project_id", ctx.projeto).eq("id", d.id).eq("revisao", d.revisao);
       return { ok: true };
     }
     if (acao === "refazer-capa") {
@@ -5134,7 +5145,11 @@ var WorkerHub = class {
     } finally {
       clearInterval2(timer);
       await progresso();
-      await rm2(pasta, { recursive: true, force: true });
+      try {
+        await rm2(pasta, { recursive: true, force: true });
+      } catch (e) {
+        if (!this.prepararDocumento) throw e;
+      }
     }
   }
 };

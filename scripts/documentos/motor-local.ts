@@ -43,7 +43,8 @@ export class MotorDocumentos {
     const dados = JSON.stringify(j);
     const p = (this.escritas.get(j.id) ?? Promise.resolve()).catch(()=>undefined).then(async()=>{
       const destino = path.join(this.pasta, `tarefa-${j.id}.json`); const tmp = `${destino}.${randomUUID()}.tmp`;
-      await writeFile(tmp, dados, this.opcoes.temporarioIsolado ? {} : { mode: 0o600 }); await rename(tmp, destino);
+      if (this.opcoes.temporarioIsolado) await writeFile(destino, dados);
+      else { await writeFile(tmp, dados, { mode: 0o600 }); await rename(tmp, destino); }
     });
     this.escritas.set(j.id,p); await p;
   }
@@ -162,7 +163,8 @@ export class MotorDocumentos {
           const hash = createHash('sha256').update(r.bytes).digest('hex');
           if (!j.pdfs.some(x=>x.hash===hash)) {
             const destino=path.join(this.pasta,'pdfs',`${hash}.pdf`);const tmp=`${destino}.${randomUUID()}.tmp`;
-            await writeFile(tmp,r.bytes,this.opcoes.temporarioIsolado ? {} : {mode:0o600});await rename(tmp,destino);
+            if (this.opcoes.temporarioIsolado) await writeFile(destino,r.bytes);
+            else { await writeFile(tmp,r.bytes,{mode:0o600});await rename(tmp,destino); }
             j.pdfs.push({...p,url:r.url,hash,bytes:r.bytes.length,categoria:f.group_category,estado:'descarregado'});
             guardadosFonte++;
           }
