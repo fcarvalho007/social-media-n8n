@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Loader2, Play, RefreshCw } from "lucide-react";
+import { ExternalLink, Info, Loader2, Play, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +12,7 @@ import {
   type Listagem,
 } from "@/services/conteudos";
 import { BibliotecasConteudoTabs } from "@/components/conteudos/BibliotecasConteudoTabs";
+import { MODO_HUB_LOCAL } from "@/lib/backendHub";
 
 const dataPt = (s: string | null) => (s ? new Date(s).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }) : "—");
 
@@ -25,13 +26,14 @@ export default function ConteudosSociais() {
   // Sequence guard: a response for an earlier project choice never overwrites the current one.
   const seq = useRef(0);
   const carregar = useCallback(async () => {
+    if (MODO_HUB_LOCAL) return;
     const meu = ++seq.current;
     const projeto = ctx.projetoId;
     setEstado((e) => ({ ...e, fase: e.dados ? "pronto" : "a_carregar", erro: undefined }));
     try { const dados = await listarConteudos(projeto); if (meu === seq.current) setEstado({ fase: "pronto", dados }); }
     catch (e) { if (meu === seq.current) setEstado({ fase: "erro", erro: (e as Error).message }); }
   }, [ctx.projetoId]);
-  useEffect(() => { if (ctx.estado === "pronto") carregar(); }, [ctx.estado, carregar]);
+  useEffect(() => { if (!MODO_HUB_LOCAL && ctx.estado === "pronto") carregar(); }, [ctx.estado, carregar]);
 
   const acao = async (nome: string, f: () => Promise<unknown>, ok?: string) => {
     setOcupado(nome);
@@ -45,8 +47,7 @@ export default function ConteudosSociais() {
   const conteudoDe = (edicaoId: string) => dados?.conteudos.find((c) => c.edicao_id === edicaoId);
 
   return (
-    <div className="mc-estudio -m-0 min-h-[calc(100dvh-4rem)] sm:-m-4 md:-m-6">
-    <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6 sm:py-10">
+    <div className="hub-page">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold">Divulgação da newsletter</h1>
@@ -57,16 +58,25 @@ export default function ConteudosSociais() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" asChild><Link to="/manual-create">Publicação livre</Link></Button>
-          <Button variant="outline" size="sm" disabled={!!ocupado} onClick={() => acao("ler", carregar)}>
+          <Button variant="outline" size="sm" disabled={MODO_HUB_LOCAL || !!ocupado} onClick={() => acao("ler", carregar)}>
             <RefreshCw className="mr-1 h-4 w-4" />Atualizar lista
           </Button>
-          <Button size="sm" disabled={!!ocupado || !dados} onClick={() => acao("fila", processarFila, "Fila processada")}>
+          <Button size="sm" disabled={MODO_HUB_LOCAL || !!ocupado || !dados} onClick={() => acao("fila", processarFila, "Fila processada")}>
             {ocupado === "fila" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Play className="mr-1 h-4 w-4" />}Processar fila agora
           </Button>
         </div>
       </header>
       <BibliotecasConteudoTabs ativa="cronica" />
       <p className="text-sm text-muted-foreground">Após a E-goi confirmar um envio real, o Story e o carrossel ficam em rascunho no compositor, sem usar IA. A verificação automática corre de hora a hora. «Processar fila agora» repete a verificação; trabalhos históricos que pediste podem usar IA.</p>
+
+      {MODO_HUB_LOCAL && <Alert>
+        <Info aria-hidden className="size-4" />
+        <AlertTitle>Os envios reais estão na aplicação Cloud</AlertTitle>
+        <AlertDescription className="flex flex-col items-start gap-3">
+          <p>Esta demonstração local não consulta a E-goi nem o histórico de divulgação. Os teus Story e carrosséis guardados continuam disponíveis na aplicação Cloud. Abre-a e inicia sessão com a tua conta.</p>
+          <Button variant="outline" asChild><a href="https://hub-conteudo.lovable.app/estudio/redes-sociais" target="_blank" rel="noreferrer">Abrir divulgação na aplicação Cloud<ExternalLink aria-hidden /><span className="sr-only"> (abre noutro separador)</span></a></Button>
+        </AlertDescription>
+      </Alert>}
 
       {dados && (!dados.credenciais.egoi || (!dados.credenciais.deepseek && dados.jobs.some((j) => j.estado === "aguarda_credencial"))) && (
         <Alert>
@@ -80,7 +90,7 @@ export default function ConteudosSociais() {
       )}
 
       {ctx.estado === "erro" && <Alert variant="destructive"><AlertTitle>Não foi possível carregar os projetos</AlertTitle><AlertDescription className="flex flex-wrap items-center gap-2"><span>{ctx.erro}</span><Button size="sm" variant="outline" onClick={ctx.recarregar}>Tentar de novo</Button></AlertDescription></Alert>}
-      {ctx.estado !== "erro" && estado.fase === "a_carregar" && <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>}
+      {!MODO_HUB_LOCAL && ctx.estado !== "erro" && estado.fase === "a_carregar" && <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>}
       {estado.fase === "erro" && (
         <Alert variant="destructive">
           <AlertTitle>Não foi possível carregar os carrosséis</AlertTitle>
@@ -136,7 +146,6 @@ export default function ConteudosSociais() {
           })}
         </ul>
       )}
-    </div>
     </div>
   );
 }
