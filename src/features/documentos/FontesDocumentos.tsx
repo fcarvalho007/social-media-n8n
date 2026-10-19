@@ -30,10 +30,23 @@ export function FontesDocumentos({ambito,ocupado,onGuardar,onConcluido,onAbrir,o
   const [vista,setVista]=useState<'ativas'|'pausadas'|'sugestoes'>('ativas'), [paginaFontes,setPaginaFontes]=useState(1), [repetir,setRepetir]=useState(0);
   const [form,setForm]=useState<FormFonte|null>(null), [erroForm,setErroForm]=useState(''), [removerFonte,setRemoverFonte]=useState<FonteDocumento|null>(null);
   const [referencias,setReferencias]=useState<TarefaDocumentos|null>(null), [paginaRef,setPaginaRef]=useState(1), [qRef,setQRef]=useState('');
-  const vivo=useRef(true), executando=useRef(false), conclusoes=useRef(new Set<string>());
-  const atualizar=useCallback(async()=>{const j=await apiDocumentos<TarefaDocumentos[]>('tarefas',{ambito});if(vivo.current)setTarefas(j);},[ambito]);
+  const vivo=useRef(true), executando=useRef(false);
+  const conclusoes=useRef<{ambito:string;estados:Map<string,TarefaDocumentos['estado']>}|null>(null);
+  const atualizar=useCallback(async()=>{const j=await apiDocumentos<TarefaDocumentos[]>('tarefas',{ambito});if(vivo.current){
+    // The first read is history, not a new completion. Replaying each old job
+    // flooded the library with concurrent full-corpus reads on every opening.
+    if(conclusoes.current?.ambito!==ambito)conclusoes.current={ambito,estados:new Map(j.map(t=>[t.id,t.estado]))};
+    setTarefas(j);
+  }},[ambito]);
   useEffect(()=>{vivo.current=true;setCarregando(true);setErro(null);Promise.all([apiDocumentos<FonteDocumento[]>('fontes',{ambito}),apiDocumentos<TarefaDocumentos|null>('diagnostico',{ambito}),atualizar()]).then(([f,a])=>{if(vivo.current){setFontes(f);setAuditoria(a);}}).catch(e=>{if(vivo.current)setErro(e.message);}).finally(()=>{if(vivo.current)setCarregando(false);});return()=>{vivo.current=false;};},[atualizar,repetir,ambito]);
-  useEffect(()=>{for(const t of tarefas)if(t.estado==='concluida'&&!conclusoes.current.has(t.id)){conclusoes.current.add(t.id);onConcluido();}},[tarefas,onConcluido]);
+  useEffect(()=>{
+    const anterior=conclusoes.current;
+    if(!anterior||anterior.ambito!==ambito)return;
+    const novas=tarefas.some(t=>t.estado==='concluida'&&anterior.estados.get(t.id)!=='concluida');
+    conclusoes.current={ambito,estados:new Map(tarefas.map(t=>[t.id,t.estado]))};
+    // One refresh per poll, even when several jobs finish together.
+    if(novas)onConcluido();
+  },[tarefas,onConcluido,ambito]);
   useEffect(()=>{if(!tarefas.some(j=>j.estado==='em_curso'))return;const t=setInterval(()=>void atualizar().catch(e=>setErro(e.message)),1800);return()=>clearInterval(t);},[tarefas,atualizar]);
   const emCurso=tarefas.find(j=>j.estado==='em_curso'), bloqueado=ocupado||!!trabalho||iniciando;
   const evidencias=new Map([...(auditoria?.fontes??[]).map(e=>({...e,em:auditoria!.iniciadaEm})),...tarefas.slice().reverse().flatMap(j=>j.fontes.map(e=>({...e,em:j.iniciadaEm})))].map(e=>[e.fonteId,e]));
