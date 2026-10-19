@@ -2427,10 +2427,10 @@ async function fonteCampanhaNuvem(ctx, bruto) {
   return prepararDescoberta({ tipo: "documento", id: ref.id, titulo: d.titulo, url: d.origem, texto: paginas.map((p) => `[P\xE1gina ${p.n}]
 ${p.texto}`).join("\n\n"), paginas: paginas.map((p) => p.n), parcial: paginas.length < d.pdf.paginas.length || d.processamento?.estado === "a_processar" });
 }
-async function lerComposicaoCampanha(ctx, e, a) {
+async function lerComposicaoCampanha(ctx, e, a, servico) {
   const id = z10.string().uuid().parse(a.id), tipo = z10.enum(TIPOS_PECA).parse(a.tipo), c = e.campanhas?.find((c2) => c2.id === id), p = c?.pecas.find((p2) => p2.tipo === tipo);
   if (!p?.composicao) throw new Error("Composi\xE7\xE3o n\xE3o encontrada neste projeto.");
-  const r = await ctx.user.from("hub_editorial_artefactos").select("dados").eq("project_id", ctx.projeto).eq("tipo", "resultado").eq("chave", p.composicao.id).maybeSingle();
+  const r = await servico.from("hub_editorial_artefactos").select("dados").eq("project_id", ctx.projeto).eq("tipo", "resultado").eq("chave", p.composicao.id).maybeSingle();
   if (r.error || !r.data) throw new Error("N\xE3o foi poss\xEDvel abrir a composi\xE7\xE3o.");
   return { pacote: r.data.dados, versao: c.versao, base: await assinaturaCampanha(baseComposicao(p)), baseGuardada: p.composicao.base };
 }
@@ -2533,7 +2533,7 @@ var ServicoSeo = class {
     if (acao === "campanha-composicao") {
       const r = await ctx.user.from("hub_editorial_estados").select("dados").eq("project_id", ctx.projeto).maybeSingle();
       if (r.error || !r.data) throw new Error("N\xE3o foi poss\xEDvel ler a campanha neste projeto.");
-      return lerComposicaoCampanha(ctx, r.data.dados, a);
+      return lerComposicaoCampanha(ctx, r.data.dados, a, this.sb);
     }
     if (acao === "resultado") {
       const id = z11.string().uuid().parse(a.id), r = await this.sb.from("hub_editorial_artefactos").select("dados").eq("project_id", ctx.projeto).eq("tipo", "resultado").eq("chave", id).single();
@@ -2620,6 +2620,7 @@ import path2 from "path";
 import { gunzipSync } from "zlib";
 
 // src/features/documentos/contratos.ts
+var MAX_BYTES_PDF_NUVEM = 32 * 1024 * 1024;
 var LIMITES_ACERVO = { maxBytes: 50 * 1024 * 1024, maxPaginas: 600 };
 var LIMITES_RECOLHA = { paginasPorFonte: 4, pdfsPorFonte: 3, tentativasPdfPorFonte: 8, pdfsPorTarefa: 12, bytesPorTarefa: 150 * 1024 * 1024, timeoutFonte: 65e3 };
 

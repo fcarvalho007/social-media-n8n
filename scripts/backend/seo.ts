@@ -59,7 +59,7 @@ export class ServicoSeo {
         if(acao==='campanha-composicao'){
             const r=await ctx.user.from('hub_editorial_estados').select('dados').eq('project_id',ctx.projeto).maybeSingle();
             if(r.error||!r.data)throw new Error('Não foi possível ler a campanha neste projeto.');
-            return lerComposicaoCampanha(ctx,r.data.dados as EstadoSeo,a);
+            return lerComposicaoCampanha(ctx,r.data.dados as EstadoSeo,a,this.sb);
         }
         if (acao === 'resultado') {
             const id = z.string().uuid().parse(a.id), r = await this.sb.from('hub_editorial_artefactos').select('dados').eq('project_id', ctx.projeto).eq('tipo', 'resultado').eq('chave', id).single();
