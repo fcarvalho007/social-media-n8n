@@ -1,0 +1,23 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { ConhecimentoEditor } from '@/features/seo/ConhecimentoEditor';
+import { EstruturaEditor } from '@/features/seo/EstruturaEditor';
+import { ConteudoArtigo } from '@/features/seo/ConteudoArtigo';
+import { CriarLoteEditor } from '@/features/seo/CriarLoteEditor';
+import { SITES_INICIAIS } from '@/features/seo/catalogo';
+import { conhecimentoVazio } from '@/features/seo/sequencia';
+import type { PautaEditorial } from '@/features/seo/contratos';
+const {pedido}=vi.hoisted(()=>({pedido:vi.fn()}));
+vi.mock('@/features/seo/api',()=>({apiSeo:pedido}));
+vi.mock('@/contexts/AuthContext',()=>({useAuth:()=>({user:null})}));
+vi.mock('@/contexts/ProjetoContext',()=>({useProjetoOpcional:()=>null}));
+beforeEach(()=>vi.stubGlobal('ResizeObserver',class{observe(){}unobserve(){}disconnect(){}}));
+afterEach(()=>{cleanup();pedido.mockReset();vi.unstubAllGlobals();});
+describe('motor editorial com controlo humano',()=>{
+  it('editar voz não envia pedidos e bloqueia importações que substituiriam alterações por guardar',()=>{render(<MemoryRouter><ConhecimentoEditor site={SITES_INICIAIS[0]} atualizar={vi.fn()}/></MemoryRouter>);fireEvent.click(screen.getByRole('button',{name:'Adicionar exemplo de voz'}));fireEvent.change(screen.getByLabelText('Exemplo de escrita aprovado 1'),{target:{value:'Um exemplo aprovado da forma como explicamos decisões de marketing.'}});expect(screen.getByRole('button',{name:'Escolher páginas de um PDF'})).toBeDisabled();expect(screen.getByRole('button',{name:'Descobrir no sitemap'})).toBeDisabled();expect(pedido).not.toHaveBeenCalled();});
+  it('uma revisão concorrente da marca não apaga amostras de voz por guardar',()=>{const site=SITES_INICIAIS[0],props={site,atualizar:vi.fn()};const{rerender}=render(<MemoryRouter><ConhecimentoEditor {...props}/></MemoryRouter>);fireEvent.click(screen.getByRole('button',{name:'Adicionar exemplo de voz'}));fireEvent.change(screen.getByLabelText('Exemplo de escrita aprovado 1'),{target:{value:'Uma voz com exemplos concretos que deve ser preservada no formulário.'}});rerender(<MemoryRouter><ConhecimentoEditor {...props} site={{...site,conhecimento:{...conhecimentoVazio(),revista:1}}}/></MemoryRouter>);expect(screen.getByLabelText('Exemplo de escrita aprovado 1')).toHaveValue('Uma voz com exemplos concretos que deve ser preservada no formulário.');expect(screen.getByRole('button',{name:'Guardar conhecimento'})).toBeDisabled();});
+  it('mover secções mantém os pontos e as fontes sem confirmar ou chamar IA',()=>{const p={id:'p',siteId:'sms',versao:1,fontes:[{id:'f1',titulo:'Fonte original',aprovada:true}],estrutura:{conteudo:{pergunta:'Como preparar uma campanha?',titulo:'Preparar campanhas',secoes:[{titulo:'Primeira secção',pontos:'Pontos concretos da primeira secção.',fonteIds:['f1']},{titulo:'Segunda secção',pontos:'Pontos concretos da segunda secção.',fonteIds:[]}],alertas:[]}}} as PautaEditorial;render(<EstruturaEditor pauta={p} sujo={false} orcamentar={vi.fn()} atualizar={vi.fn()} onGuardada={vi.fn()}/>);fireEvent.click(screen.getByRole('button',{name:'Descer secção 1'}));expect(screen.getAllByLabelText('Subtítulo')[0]).toHaveValue('Segunda secção');expect(screen.getAllByLabelText('O que explicar, demonstrar ou comparar')[1]).toHaveValue('Pontos concretos da primeira secção.');expect(screen.getAllByRole('checkbox')[1]).toBeChecked();expect(pedido).not.toHaveBeenCalled();});
+  it('uma referência privada mostra título e páginas sem criar um link vazio',()=>{const{container}=render(<ConteudoArtigo corpo="Informação suportada [fonte:pdf]." fontes={[{id:'pdf',titulo:'Guia interno',url:'',excerto:'',aprovada:true,verificadaEm:'',documento:{id:crypto.randomUUID(),hash:'a'.repeat(64),paginas:[2,3]}}]}/>);expect(container.querySelector('a')).toBeNull();expect(screen.getByText('[Guia interno · PDF, páginas 2, 3]')).toBeVisible();});
+  it('não permite criar mais de vinte temas nem transforma uma pesquisa em temas arbitrários',()=>{render(<CriarLoteEditor sites={SITES_INICIAIS} siteInicial="sms" temasIniciais={['sms marketing']} pesquisaId={crypto.randomUUID()} onCriado={vi.fn()}/>);expect(screen.getByLabelText('Temas ou keywords, um por linha')).toHaveAttribute('readonly');expect(screen.getByRole('button',{name:'Criar lote · sem chamadas pagas'})).toBeEnabled();expect(pedido).not.toHaveBeenCalled();});
+});

@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated")({
     return { user: data.user };
   },
   component: () => (
-    <div className="ds-app min-h-dvh w-full overflow-x-clip" style={{ background: "#F7F8FA" }}>
+    <div className="ds-app min-h-dvh w-full overflow-x-clip" style={{ background: "hsl(var(--background, 212 43% 97%))" }}>
       <TopNav />
       <Outlet />
     </div>

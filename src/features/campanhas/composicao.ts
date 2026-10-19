@@ -5,10 +5,11 @@ import { ENDERECO_SUBSCRICAO } from '../../../supabase/functions/_shared/conteud
 import type { Campanha, PecaCampanha } from './modelo';
 import type { SiteEditorial } from '../seo/contratos';
 const txt=(id:string,valor:string,x:number,y:number,w:number,h:number,tam:number,cor:string,peso:400|700=400,ref?:string):CamadaTexto=>({id,nome:id,tipo:'texto',...(ref?{ref}:{texto:valor}),x,y,w,h,z:2,estilo:{familia:peso===700?'grotesk':'inter',peso,tam,tamMin:Math.max(24,Math.floor(tam*.72)),linha:1.15,alinh:'esq',cor,overflow:'reduzir'}});
+export function impedimentosComposicaoCampanha(p:Pick<PecaCampanha,'tipo'|'texto'|'cta'>){if(p.tipo==='artigo'||p.tipo==='newsletter')return[];const partes=dividirTexto(p.texto,p.tipo==='carrossel'?180:500),falhas:string[]=[];if(p.tipo!=='carrossel'&&p.cta.length>220)falhas.push('Encurta o próximo passo para até 220 caracteres antes de criar a composição.');if(p.tipo!=='carrossel'&&partes.length>1)falhas.push('Esta peça visual precisa de texto com até 500 caracteres. Encurta-o ou pede uma alternativa à IA.');if(p.tipo==='carrossel'&&partes.length+2>20)falhas.push('O texto precisa de mais de 20 slides. Encurta-o antes de preparar a composição.');return falhas;}
 /** Reuses the incumbent editable document and renderer. No portrait, AI or invented facts. */
 export function comporCampanha(c: Campanha,p: PecaCampanha,s: SiteEditorial): PacoteProva {
   if(p.tipo==='artigo'||p.tipo==='newsletter')throw new Error('Esta peça usa o editor de texto.');
-  if(p.tipo!=='carrossel'&&p.cta.length>220)throw new Error('Usa um próximo passo com até 220 caracteres nesta peça visual. O texto foi preservado.');
+  const impedimentos=impedimentosComposicaoCampanha(p);if(impedimentos.length)throw new Error(impedimentos.join(' ')+' O texto foi preservado.');
   const story=p.tipo==='story', altura=story?1920:1350, formato=story?'story':p.tipo==='carrossel'?'carrossel':'post';
   const partes=dividirTexto(p.texto,p.tipo==='carrossel'?180:500);
   if(p.tipo!=='carrossel'&&partes.length>1)throw new Error('Para esta peça visual usa até 500 caracteres; o texto completo foi preservado na campanha.');
@@ -16,7 +17,7 @@ export function comporCampanha(c: Campanha,p: PecaCampanha,s: SiteEditorial): Pa
   if(slides.length>20)throw new Error('Este texto precisa de mais de 20 slides. Encurta-o antes de recriar a composição.');
   const paginas:Pagina[]=slides.map((sl,i)=>{
     const escuro=i===0||i===slides.length-1,cor=escuro?TINTAS.branco:TINTAS.tinta;
-    const origem=c.fonteConfirmadaEm&&c.fonte.url?new URL(c.fonte.url).hostname:'Fonte por verificar';
+    const origem=c.fonteConfirmadaEm?(c.fonte.url?new URL(c.fonte.url).hostname:c.fonte.tipo==='texto'?'Conteúdo fornecido':c.fonte.tipo==='documento'?'PDF privado · origem confirmada':'Fonte por verificar'):'Fonte por verificar';
     const fonte=txt('Origem',origem,72,story?1615:altura-190,920,38,26,escuro?TINTAS.suave:TINTAS.tinta);
     let camadas:Pagina['camadas']=[txt('Marca',s.nome,72,story?270:72,920,65,34,escuro?TINTAS.lima:TINTAS.tinta,700),txt('Título','',72,story?390:215,936,story?500:460,sl.titulo.length>100?58:80,cor,700,`${sl.id}.titulo`),txt('Texto','',72,story?980:720,936,story?460:360,story?44:46,cor,400,`${sl.id}.texto`),fonte,txt('Página',`${i+1} / ${slides.length}`,850,altura-100,170,40,26,cor)];
     if(p.tipo!=='carrossel')camadas.push(txt('Próximo passo',p.cta,72,story?1490:1050,920,story?100:90,36,escuro?TINTAS.lima:TINTAS.tinta,700));

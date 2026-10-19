@@ -1,0 +1,290 @@
+{
+  "em": "2026-10-19T13:19:35.439Z",
+  "modo": "diagnostico",
+  "fontes": [
+    {
+      "fonteId": 10000,
+      "nome": "Stanford HAI · AI Index",
+      "url": "https://hai.stanford.edu/ai-index",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 2,
+      "novidades": 31,
+      "detalhes": [],
+      "finalUrl": "https://hai.stanford.edu/ai-index"
+    },
+    {
+      "fonteId": 10001,
+      "nome": "Microsoft Work Trend Index",
+      "url": "https://www.microsoft.com/worklab",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 0,
+      "novidades": 5,
+      "detalhes": [
+        "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+      ],
+      "finalUrl": "https://www.microsoft.com/en-us/worklab"
+    },
+    {
+      "fonteId": 10002,
+      "nome": "LinkedIn Economic Graph",
+      "url": "https://economicgraph.linkedin.com/research",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 2,
+      "novidades": 26,
+      "detalhes": [],
+      "finalUrl": "https://economicgraph.linkedin.com/research"
+    },
+    {
+      "fonteId": 10003,
+      "nome": "APAN · Estudos",
+      "url": "https://apan.pt/conhecimento/estudosquestionarios/",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 2,
+      "novidades": 24,
+      "detalhes": [],
+      "finalUrl": "https://apan.pt/conhecimento/estudosquestionarios/"
+    },
+    {
+      "fonteId": 10004,
+      "nome": "IAPMEI",
+      "url": "https://www.iapmei.pt/",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 8,
+      "novidades": 23,
+      "detalhes": [],
+      "finalUrl": "https://www.iapmei.pt/"
+    },
+    {
+      "fonteId": 10005,
+      "nome": "Fundação Francisco Manuel dos Santos",
+      "url": "https://ffms.pt/pt-pt/estudos",
+      "estado": "concluida",
+      "paginas": 4,
+      "pdfs": 5,
+      "novidades": 11,
+      "detalhes": [],
+      "finalUrl": "https://ffms.pt/pt-pt/estudos"
+    },
+    {
+      "fonteId": 10006,
+      "nome": "Eurofound · Teletrabalho",
+      "url": "https://www.eurofound.europa.eu/en/topics/teleworking",
+      "estado": "bloqueada",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "Não foi possível confirmar o robots.txt (HTTP 429). · https://www.eurofound.europa.eu/en/topics/teleworking"
+      ]
+    },
+    {
+      "fonteId": 10007,
+      "nome": "GSMA · Mobile Economy",
+      "url": "https://www.gsma.com/solutions-and-impact/connectivity-for-good/mobile-economy/",
+      "estado": "erro",
+      "paginas": 0,
+      "pdfs": 0,
+      "novidades": 0,
+      "detalhes": [
+        "HTTP 403: https://www.gsma.com/solutions-and-impact/connectivity-for-good/mobile-economy/"
+      ]
+    }
+  ],
+  "descobertas": [
+    {
+      "url": "https://hai.stanford.edu/assets/files/ai_index_report_2026.pdf",
+      "titulo": "Read the 2026 AI Index Report",
+      "tipo": "pdf",
+      "origem": "https://hai.stanford.edu/ai-index/2026-ai-index-report",
+      "publicadoEm": null,
+      "fonteId": 10000,
+      "nomeFonte": "Stanford HAI · AI Index",
+      "nova": true
+    },
+    {
+      "url": "https://hai.stanford.edu/assets/files/hai-ai-index-2026-chinese-version-082226.pdf",
+      "titulo": "Read the translation",
+      "tipo": "pdf",
+      "origem": "https://hai.stanford.edu/ai-index/2026-ai-index-report",
+      "publicadoEm": null,
+      "fonteId": 10000,
+      "nomeFonte": "Stanford HAI · AI Index",
+      "nova": true
+    },
+    {
+      "url": "https://economicgraph.linkedin.com/content/dam/me/business/en-us/talent-solutions/emerging-jobs-report/pdf/LinkedIn-Opportunity-Index-2020-Global-White-paper.pdf",
+      "titulo": "Download global report",
+      "tipo": "pdf",
+      "origem": "https://economicgraph.linkedin.com/research/opportunity-index-2020",
+      "publicadoEm": null,
+      "fonteId": 10002,
+      "nomeFonte": "LinkedIn Economic Graph",
+      "nova": true
+    },
+    {
+      "url": "https://economicgraph.linkedin.com/content/dam/me/business/en-us/talent-solutions/emerging-jobs-report/pdf/PR-017156_0120-Opportunity-Index-Report-Design_D3.pdf",
+      "titulo": "Download US report",
+      "tipo": "pdf",
+      "origem": "https://economicgraph.linkedin.com/research/opportunity-index-2020",
+      "publicadoEm": null,
+      "fonteId": 10002,
+      "nomeFonte": "LinkedIn Economic Graph",
+      "nova": true
+    },
+    {
+      "url": "https://apan.pt/download/23314/?tmstv=1792415969",
+      "titulo": "Descarregar “WFA DEI Global 2021” WFA_The-Global-DEI-Census-2021-1.pdf – Descarregado 4083 vezes – 6,06 MB",
+      "tipo": "pdf",
+      "origem": "https://apan.pt/conhecimento/estudosquestionarios/",
+      "publicadoEm": null,
+      "fonteId": 10003,
+      "nomeFonte": "APAN · Estudos",
+      "nova": true
+    },
+    {
+      "url": "https://apan.pt/download/22511/?tmstv=1792415969",
+      "titulo": "Descarregar “WFA DEI Portugal 2021” WFA-DEI-Survey-2021-Portugal_PT.pdf – Descarregado 3796 vezes – 2,30 MB",
+      "tipo": "pdf",
+      "origem": "https://apan.pt/conhecimento/estudosquestionarios/",
+      "publicadoEm": null,
+      "fonteId": 10003,
+      "nomeFonte": "APAN · Estudos",
+      "nova": true
+    },
+    {
+      "url": "https://www.iapmei.pt/media/9b338d8e/20260811-221520_Orientacao-Tecnica-06_C16-i02_2022-Republicacao-28-7-2025.pdf",
+      "titulo": "Orientação Técnica N.º 06/C16-i02/2022",
+      "tipo": "pdf",
+      "origem": "https://www.iapmei.pt/pt/saber-mais/incentivos-e-financiamento/sistemas-de-incentivos/prr/c16-empresas-40/i02-transicao-digital-das-empresas/",
+      "publicadoEm": null,
+      "fonteId": 10004,
+      "nomeFonte": "IAPMEI",
+      "nova": true
+    },
+    {
+      "url": "https://www.iapmei.pt/media/e76f99ed/20260811-221521_Orientacao-Tecnica-06_C16-i02_2022-2-Republicacao-4-7-2025.pdf",
+      "titulo": "Orientação Técnica N.º 06/C16-i02/2022",
+      "tipo": "pdf",
+      "origem": "https://www.iapmei.pt/pt/saber-mais/incentivos-e-financiamento/sistemas-de-incentivos/prr/c16-empresas-40/i02-transicao-digital-das-empresas/",
+      "publicadoEm": null,
+      "fonteId": 10004,
+      "nomeFonte": "IAPMEI",
+      "nova": true
+    },
+    {
+      "url": "https://www.iapmei.pt/media/edf21b7c/20260811-221522_Orientacao-Tecnica-N-Ao-06_C16-i02_2022-(Republicacao).pdf",
+      "titulo": "Orientação Técnica N.º 06/C16-i02/2022",
+      "tipo": "pdf",
+      "origem": "https://www.iapmei.pt/pt/saber-mais/incentivos-e-financiamento/sistemas-de-incentivos/prr/c16-empresas-40/i02-transicao-digital-das-empresas/",
+      "publicadoEm": null,
+      "fonteId": 10004,
+      "nomeFonte": "IAPMEI",
+      "nova": true
+    },
+    {
+      "url": "https://www.iapmei.pt/media/8d434039/20260811-221524_OTEmpreendedorismo.pdf",
+      "titulo": "Orientação Técnica N.º 06/C16-i02/2022",
+      "tipo": "pdf",
+      "origem": "https://www.iapmei.pt/pt/saber-mais/incentivos-e-financiamento/sistemas-de-incentivos/prr/c16-empresas-40/i02-transicao-digital-das-empresas/",
+      "publicadoEm": null,
+      "fonteId": 10004,
+      "nomeFonte": "IAPMEI",
+      "nova": true
+    },
+    {
+      "url": "https://ffms.pt/sites/default/files/2026-08/ESTUDO%20-%20SustentabilidadeNaModa%20VF.pdf",
+      "titulo": "Sustentabilidade na Moda: Inovação e Competitividade em Portugal",
+      "tipo": "pdf",
+      "origem": "https://ffms.pt/pt-pt/estudos/estudos/sustentabilidade-na-moda-inovacao-e-competitividade-em-portugal",
+      "publicadoEm": null,
+      "fonteId": 10005,
+      "nomeFonte": "Fundação Francisco Manuel dos Santos",
+      "nova": true
+    },
+    {
+      "url": "https://ffms.pt/sites/default/files/2026-08/RESUMO%20-%20SustentabilidadeNaModa%20VF.pdf",
+      "titulo": "Sustentabilidade na Moda: Inovação e Competitividade em Portugal — Resumo",
+      "tipo": "pdf",
+      "origem": "https://ffms.pt/pt-pt/estudos/estudos/sustentabilidade-na-moda-inovacao-e-competitividade-em-portugal",
+      "publicadoEm": null,
+      "fonteId": 10005,
+      "nomeFonte": "Fundação Francisco Manuel dos Santos",
+      "nova": true
+    },
+    {
+      "url": "https://files.dre.pt/2s/2021/06/122000000/0001600020.pdf",
+      "titulo": "n.º 6269/2021",
+      "tipo": "pdf",
+      "origem": "https://www.iapmei.pt/pt/saber-mais/incentivos-e-financiamento/sistemas-de-incentivos/prr/c16-empresas-40/i03-catalisacao-da-transicao-digital-das-empresas/",
+      "publicadoEm": null,
+      "fonteId": 10004,
+      "nomeFonte": "IAPMEI",
+      "nova": true
+    },
+    {
+      "url": "https://files.dre.pt/2s/2021/11/219000002/0000200003.pdf",
+      "titulo": "1092-B/2021",
+      "tipo": "pdf",
+      "origem": "https://www.iapmei.pt/pt/saber-mais/incentivos-e-financiamento/sistemas-de-incentivos/prr/c16-empresas-40/i03-catalisacao-da-transicao-digital-das-empresas/",
+      "publicadoEm": null,
+      "fonteId": 10004,
+      "nomeFonte": "IAPMEI",
+      "nova": true
+    },
+    {
+      "url": "https://www.iapmei.pt/media/cf116ce1/20260811-221448_OT_SELOS_04_C16-i03_2023-Republicacao.pdf",
+      "titulo": "Orientação Técnica N.º 04/C16-i03/2023 (Republicação)",
+      "tipo": "pdf",
+      "origem": "https://www.iapmei.pt/pt/saber-mais/incentivos-e-financiamento/sistemas-de-incentivos/prr/c16-empresas-40/i03-catalisacao-da-transicao-digital-das-empresas/",
+      "publicadoEm": null,
+      "fonteId": 10004,
+      "nomeFonte": "IAPMEI",
+      "nova": true
+    },
+    {
+      "url": "https://www.iapmei.pt/media/c2d5a790/20260811-221449_Orientacao-Tecnica-N-Ao-04_C16-i03_2023.pdf",
+      "titulo": "Orientação Técnica N.º 04/C16-i03/2023",
+      "tipo": "pdf",
+      "origem": "https://www.iapmei.pt/pt/saber-mais/incentivos-e-financiamento/sistemas-de-incentivos/prr/c16-empresas-40/i03-catalisacao-da-transicao-digital-das-empresas/",
+      "publicadoEm": null,
+      "fonteId": 10004,
+      "nomeFonte": "IAPMEI",
+      "nova": true
+    },
+    {
+      "url": "https://www.buzzsprout.com/1288067/19771239.mp3?download=true",
+      "titulo": "19771239.mp3",
+      "tipo": "pdf",
+      "origem": "https://ffms.pt/pt-pt/ffms-play/da-capa-contracapa-podcast/escrever-mao-ainda-faz-diferenca-num-mundo-cada-vez-mais-digital",
+      "publicadoEm": null,
+      "fonteId": 10005,
+      "nomeFonte": "Fundação Francisco Manuel dos Santos",
+      "nova": true
+    },
+    {
+      "url": "https://ffms.pt/sites/default/files/2026-09/Estudo_QuemGovernaPortugal.pdf",
+      "titulo": "Quem Governa Portugal? Perfis ministeriais em perspetiva comparada (1976-2025)",
+      "tipo": "pdf",
+      "origem": "https://ffms.pt/pt-pt/estudos/estudos/quem-governa-portugal-perfis-ministeriais-em-perspetiva-comparada-1976-2025",
+      "publicadoEm": null,
+      "fonteId": 10005,
+      "nomeFonte": "Fundação Francisco Manuel dos Santos",
+      "nova": true
+    },
+    {
+      "url": "https://ffms.pt/sites/default/files/2026-09/Resumo_QuemGovernaPortugal.pdf",
+      "titulo": "Quem Governa Portugal? Perfis ministeriais em perspetiva comparada (1976-2025) — Resumo",
+      "tipo": "pdf",
+      "origem": "https://ffms.pt/pt-pt/estudos/estudos/quem-governa-portugal-perfis-ministeriais-em-perspetiva-comparada-1976-2025",
+      "publicadoEm": null,
+      "fonteId": 10005,
+      "nomeFonte": "Fundação Francisco Manuel dos Santos",
+      "nova": true
+    }
+  ]
+}

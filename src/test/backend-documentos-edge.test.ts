@@ -22,7 +22,31 @@ it('recupera texto com outro motor sem substituir OCR, títulos, leitura ou pág
   const parser={parte:vi.fn(async()=>({pdf:{hash:'ignored',bytes:1,ficheiro:'ignored',paginas:[pagina(1,'Extraído'),pagina(2,'Não substituir'),pagina(3,'Não substituir OCR')]},total:4,proxima:3,capa:null}))} as unknown as PdfNuvem;
   const docs=new DocumentosEdge(m.sb,parser),salvo=await docs.guardar(ctx,Buffer.from('%PDF-1.7\noriginal'),{titulo:'Meu título',ficheiro:'fonte.pdf'}),d=m.tabelas.hub_documentos[0] as unknown as DocumentoNuvem;
   d.dados.pdf.paginas=[pagina(1,''),pagina(2,'Texto original'),{...pagina(3,'OCR guardado'),ocr:{motor:'tesseract-7',confianca:95,idiomas:'por+eng',em:new Date().toISOString()}},pagina(4,'')]; d.dados.leitura='lido';
-  const r=await docs.parte({id:crypto.randomUUID(),project_id:projeto,tipo:'documento_preparar',pedido:{documentoId:salvo.documento.id,inicio:0,reextracao:true},lease_token:'t'}) as {continuarPedido:{inicio:number}};
-  expect(r.continuarPedido.inicio).toBe(3); expect(d.dados.pdf.paginas.map(p=>p.texto)).toEqual(['Extraído','Texto original','OCR guardado','']);
+  const r=await docs.parte({id:crypto.randomUUID(),project_id:projeto,tipo:'documento_preparar',pedido:{documentoId:salvo.documento.id,inicio:0,reextracao:true},lease_token:'t'});
+  expect(r).not.toHaveProperty('continuarPedido'); expect(m.tabelas.hub_jobs.at(-1)?.pedido).toMatchObject({inicio:3,reextracao:true}); expect(d.dados.pdf.paginas.map(p=>p.texto)).toEqual(['Extraído','Texto original','OCR guardado','']);
   expect(d.dados.titulo).toBe('Meu título'); expect(d.dados.leitura).toBe('lido'); expect(d.dados.pdf.hash).toBe(salvo.documento.hash); expect(d.dados.processamento).toMatchObject({estado:'a_processar',reextracao:true,paginas:3});
+});
+
+it('recupera todas as páginas por tarefas independentes e não duplica continuações repetidas', async () => {
+  const projeto = crypto.randomUUID(), userId = crypto.randomUUID();
+  const m = supabaseMemoria({ hub_operacao: [{ project_id: projeto, pausado: false }] });
+  const pagina = (n: number, texto = '') => ({ n, texto, estado: texto ? 'texto' as const : 'sem_texto_com_imagem' as const, paragrafos: texto ? [texto] : [] });
+  const parser = { parte: vi.fn(async (_b, _nome, inicio: number) => ({ pdf: { paginas: Array.from({ length: Math.min(5, 12 - inicio) }, (_, i) => pagina(inicio + i + 1, `Texto ${inicio + i + 1}`)) }, total: 12, proxima: inicio + 5 < 12 ? inicio + 5 : null, capa: null })) } as unknown as PdfNuvem;
+  const docs = new DocumentosEdge(m.sb, parser);
+  const salvo = await docs.guardar({ projeto, userId, escrever: true, user: m.sb }, Buffer.from('%PDF-1.7\noriginal'), { titulo: 'Relatório', ficheiro: 'fonte.pdf' });
+  const d = m.tabelas.hub_documentos[0] as unknown as DocumentoNuvem;
+  d.dados.pdf.paginas = Array.from({ length: 12 }, (_, i) => pagina(i + 1));
+  const primeiro: JobHub = { id: crypto.randomUUID(), project_id: projeto, tipo: 'documento_preparar', pedido: { documentoId: salvo.documento.id, inicio: 0, reextracao: true, reextracaoId: 'ensaio' }, lease_token: 't' };
+  await docs.parte(primeiro);
+  await docs.parte(primeiro);
+  const segunda = m.tabelas.hub_jobs.filter(j => (j.pedido as Record<string, unknown>).inicio === 5);
+  expect(segunda).toHaveLength(1);
+  expect(segunda[0].pedido).toMatchObject({ reextracao: true, reextracaoId: 'ensaio' });
+  await docs.parte({ ...segunda[0], lease_token: 't' } as unknown as JobHub);
+  const terceira = m.tabelas.hub_jobs.at(-1)!;
+  expect(terceira.pedido).toMatchObject({ inicio: 10, reextracao: true, reextracaoId: 'ensaio' });
+  await docs.parte({ ...terceira, lease_token: 't' } as unknown as JobHub);
+  expect(d.dados.pdf.paginas.map(p => p.texto)).toEqual(Array.from({ length: 12 }, (_, i) => `Texto ${i + 1}`));
+  expect(d.dados.processamento).toMatchObject({ estado: 'concluido', paginas: 12, total: 12 });
+  expect(m.chamadas.some(c => c.nome === 'hub_job_adiar')).toBe(false);
 });

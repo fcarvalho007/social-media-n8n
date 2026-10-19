@@ -4,7 +4,8 @@ import { diaLisboa } from '../../src/features/seo/precos';
 import { mkdir, rm } from 'node:fs/promises';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { MotorDocumentos } from '../documentos/motor-local';
-import fontes from '../documentos/fontes-originais.json';
+import { configuracaoFontes } from './fontes-documentos';
+import { fontesCatalogo } from '../documentos/catalogo';
 import type { TarefaDocumentos } from '../../src/features/documentos/contratos';
 import type { ContextoBackend } from './seguranca';
 import { DocumentosNuvem } from './documentos';
@@ -51,14 +52,17 @@ export class WorkerHub {
                     const owner = await this.sb.from('projects').select('owner_id').eq('id', p.project_id).single();
                     if (owner.error || !owner.data)
                         throw new Error('Proprietário da recolha indisponível.');
-                    const tarefa = await this.sb.from('hub_jobs').upsert({ project_id: p.project_id, tipo: 'documentos_recolha', dedup: `agenda:${dia}`, pedido: { ids: fontes.filter(f => f.active).slice(0, 12).map(f => f.id), modo: 'recolher', userId: owner.data.owner_id } }, { onConflict: 'project_id,tipo,dedup', ignoreDuplicates: true });
+                    const inventario = fontesCatalogo(await configuracaoFontes(this.sb,p.project_id)).filter(f=>f.active&&!f.pausada).slice(0,12);
+                    const tarefa = inventario.length ? await this.sb.from('hub_jobs').upsert({ project_id: p.project_id, tipo: 'documentos_recolha', dedup: `agenda:${dia}`, pedido: { ids: inventario.map(f=>f.id), inventario, modo: 'diagnostico', userId: owner.data.owner_id } }, { onConflict: 'project_id,tipo,dedup', ignoreDuplicates: true }) : {error:null};
                     if (tarefa.error)
                         throw new Error('Não foi possível guardar a recolha agendada.');
                 }
             }
             const e = await this.sb.from('hub_editorial_estados').select('dados').eq('project_id', p.project_id).maybeSingle();
             const dados = e.data?.dados;
-            if (e.error || !dados || dados.configuracao?.automacaoPausada !== false || dados.configuracao?.pausado !== false)
+            if(e.error||!dados)continue;
+            if(typeof this.seo.notificar==='function'){try{await this.seo.notificar(p.project_id);}catch{console.warn('Notificações editoriais pendentes de nova tentativa no projeto',p.project_id);}}
+            if (dados.configuracao?.automacaoPausada !== false || dados.configuracao?.pausado !== false)
                 continue;
             for (const pauta of dados.pautas ?? []) {
                 const site = dados.sites?.find((s: {
@@ -148,7 +152,8 @@ export class WorkerHub {
         const pasta = path.join(this.pasta, job.id);
         // Edge /tmp is isolated by the platform; chmod is blocklisted there.
         await mkdir(pasta, { recursive: true, ...(!this.prepararDocumento ? { mode: 0o700 } : {}) });
-        const motor = new MotorDocumentos(pasta, fontes, continuar, { temporarioIsolado: !!this.prepararDocumento }), ambito = JSON.stringify([ctx.userId, ctx.projeto]);
+        const inventario = (job.pedido.inventario as import('../../src/features/documentos/contratos').FonteDocumento[] | undefined) ?? fontesCatalogo(await configuracaoFontes(this.sb,ctx.projeto));
+        const motor = new MotorDocumentos(pasta, inventario, continuar, { temporarioIsolado: !!this.prepararDocumento }), ambito = JSON.stringify([ctx.userId, ctx.projeto]);
         let tarefa: TarefaDocumentos | undefined;
         const anteriores = job.resultado, ids = job.pedido.ids as number[], agregar = () => ({ ...structuredClone(tarefa!), id: job.id, total: anteriores?.total ?? ids.length, fontes: [...(anteriores?.fontes ?? []), ...(tarefa?.fontes ?? [])], descobertas: [...(anteriores?.descobertas ?? []), ...(tarefa?.descobertas ?? [])], pdfs: [...(anteriores?.pdfs ?? []), ...(tarefa?.pdfs ?? [])].filter((p, i, a) => a.findIndex(x => x.hash === p.hash) === i), erros: [...(anteriores?.erros ?? []), ...(tarefa?.erros ?? [])] });
         const progresso = async () => {
@@ -190,7 +195,7 @@ export class WorkerHub {
             // Edge resets its isolated /tmp after invocation. Cleanup must not
             // invalidate results already persisted in the private database.
             try { await rm(pasta, { recursive: true, force: true }); }
-            catch (e) { if (!this.prepararDocumento) throw e; }
+            catch { console.warn('Limpeza temporária pendente; o resultado persistido foi preservado.'); }
         }
     }
 }

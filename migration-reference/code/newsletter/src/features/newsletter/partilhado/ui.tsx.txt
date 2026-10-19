@@ -70,9 +70,9 @@ export const T = {
   ink: "#101828",             // texto principal
   muted: "#667085",           // texto secundário
   faint: "#98A2B3",           // texto ténue
-  primary: "#4F46E5",         // texto/ícone acento (indigo AA sobre branco)
-  primarySoft: "#EEF2FF",     // fundo pastel indigo
-  grad: "linear-gradient(135deg,#6366F1,#8B5CF6,#EC4899)",
+  primary: "#046AD7",         // azul AA; hex kept for legacy alpha-suffix consumers
+  primarySoft: "hsl(var(--accent, 210 100% 96%))",     // superfície de seleção do Hub
+  grad: "hsl(var(--primary, 211 96% 43%))",
   ok: "#027A48", okSoft: "#ECFDF3", okAccent: "#12B76A",
   warn: "#B54708", warnSoft: "#FFFAEB", warnAccent: "#F79009",
   danger: "#B42318", dangerSoft: "#FEF3F2", dangerAccent: "#F04438",
@@ -83,7 +83,7 @@ export const T = {
 
 /* ─── secções: 3 famílias semânticas (atenção/editorial/passiva) + ícone ─── */
 export const COR_ATENCAO = "#F59E0B";    // âmbar — acção pendente agora
-export const COR_EDITORIAL = "#6366F1";  // índigo — conteúdo editorial em trabalho
+export const COR_EDITORIAL = "#046AD7";  // índigo — conteúdo editorial em trabalho
 export const COR_PASSIVA = "#94A3B8";    // cinza — configuração/consulta passiva
 
 export const SECS = {

@@ -65,3 +65,18 @@ describe('recolha local durável: prova, limites e recuperação',()=>{
     const b=await motor.iniciar('a',[1],'recolher');await motor.aguardar(b.id,'a');expect(b.pdfs[0].url).toContain('/download/4');
   });
 });
+
+it('só descarrega o candidato escolhido e conserva a decisão após reiniciar',async()=>{
+ const m=new MotorDocumentos(pasta,[fonte()]),j=await m.iniciar('a',[1],'diagnostico');await m.aguardar(j.id,'a');const d=j.descobertas[0];expect(j.pdfs).toHaveLength(0);
+ await m.decidir(j.id,'a',d.url,'ignorar');expect((await new MotorDocumentos(pasta,[fonte()]).ler(j.id,'a')).descobertas[0].decisao).toBe('ignorado');
+ const p=await m.descarregarCandidato(j.id,'a',d.url);expect(p.estado).toBe('descarregado');expect(p.categoria).toBe('labs_ia');expect(j.descobertas[0].decisao).toBeUndefined();
+ await expect(m.descarregarCandidato(j.id,'b',d.url)).rejects.toThrow('projeto');await expect(m.descarregarCandidato(j.id,'a','https://other.example/x.pdf')).rejects.toThrow('não pertence');
+});
+it('remove candidatos de todas as pesquisas do projeto sem apagar ficheiros partilhados com outro projeto',async()=>{
+ const m=new MotorDocumentos(pasta,[fonte()]);const a=await m.iniciar('a',[1],'recolher');await m.aguardar(a.id,'a');const b=await m.iniciar('b',[1],'recolher');await m.aguardar(b.id,'b');const d=a.descobertas[0],hash=a.pdfs[0].hash;
+ const repetida=await m.iniciar('a',[1],'diagnostico');await m.aguardar(repetida.id,'a');await m.decidir(repetida.id,'a',d.url,'remover');expect((await m.ler(a.id,'a')).descobertas).toHaveLength(0);expect(await m.binario(b.id,'b',hash)).toBeInstanceOf(Buffer);
+ await m.esquecerDocumento('b',hash);await expect(readFile(path.join(pasta,'pdfs',`${hash}.pdf`))).rejects.toMatchObject({code:'ENOENT'});
+});
+it('recusa eliminar um resultado que já representa um documento na biblioteca',async()=>{
+ const m=new MotorDocumentos(pasta,[fonte()]),j=await m.iniciar('a',[1],'recolher');await m.aguardar(j.id,'a');await m.confirmar(j.id,'a',j.pdfs[0].hash,'documento');await expect(m.decidir(j.id,'a',j.descobertas[0].url,'remover')).rejects.toThrow('biblioteca');expect(j.pdfs).toHaveLength(1);
+});

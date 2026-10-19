@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckSquare, FolderOpen, Loader2, RefreshCw } from 'lucide-react';
@@ -13,6 +13,7 @@ import { DESTINOS_NAVEGACAO } from '@/lib/navegacao';
 interface GlobalSearchProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  gatilhoRef?: RefObject<HTMLButtonElement>;
 }
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-PT').trim();
@@ -92,7 +93,8 @@ function ResultadosPesquisa({ aoEscolher }: { aoEscolher: (url: string) => void 
   );
 }
 
-export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
+export function GlobalSearch({ open, onOpenChange, gatilhoRef }: GlobalSearchProps) {
+  const focoAnterior = useRef<HTMLElement | null>(null), navegou = useRef(false);
   const navigate = useNavigate();
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -107,10 +109,19 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw_-_2rem)] max-w-xl gap-0 overflow-hidden rounded-xl p-0">
+      <DialogContent className="w-[calc(100vw_-_2rem)] max-w-xl gap-0 overflow-hidden rounded-xl p-0" onOpenAutoFocus={() => {
+        focoAnterior.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+        navegou.current = false;
+      }} onCloseAutoFocus={event => {
+        event.preventDefault();
+        if (!navegou.current) {
+          const alvo = focoAnterior.current?.isConnected ? focoAnterior.current : gatilhoRef?.current;
+          alvo?.focus({ preventScroll: true });
+        }
+      }}>
         <DialogTitle className="sr-only">Pesquisa na aplicação</DialogTitle>
         <DialogDescription className="sr-only">Pesquisa conteúdos, abre uma área, um projeto ou o projeto de uma tarefa. Usa as setas e Enter para escolher.</DialogDescription>
-        {open && <ResultadosPesquisa aoEscolher={(url) => { navigate(url); onOpenChange(false); }} />}
+        {open && <ResultadosPesquisa aoEscolher={(url) => { navegou.current = true; navigate(url); onOpenChange(false); }} />}
       </DialogContent>
     </Dialog>
   );

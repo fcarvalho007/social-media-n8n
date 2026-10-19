@@ -2,19 +2,22 @@ import { setInterval, clearInterval } from 'node:timers';
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
-const TABELAS = ['hub_editorial_estados', 'hub_editorial_artefactos', 'hub_documentos', 'hub_recolhas', 'hub_operacao', 'hub_jobs', 'hub_publicacoes'] as const;
+const BASE = ['hub_editorial_estados', 'hub_editorial_artefactos', 'hub_documentos', 'hub_recolhas', 'hub_operacao', 'hub_jobs', 'hub_publicacoes'] as const;
+const TABELAS=[...BASE,'hub_artigo_imagens','hub_wp_imagens'] as const;
 export interface CopiaHub {
     versao: 1;
     projeto: string;
     em: string;
     tabelas: Record<string, Record<string, unknown>[]>;
     objetos: {
+        bucket?: 'hub-documentos'|'hub-artigos';
         path: string;
         hash: string;
         bytes: number;
     }[];
     hash: string;
 }
+const assinaturaBytes=(bytes:Uint8Array)=>createHash('sha256').update(bytes).digest('hex');
 export const assinaturaBackup = (valor: unknown) => createHash('sha256').update(JSON.stringify(valor)).digest('hex');
 export async function criarBackup(sb: SupabaseClient, projeto: string): Promise<CopiaHub> {
     const pausa = await sb.from('hub_operacao').select('pausado').eq('project_id', projeto).maybeSingle();
@@ -46,7 +49,8 @@ export async function criarBackup(sb: SupabaseClient, projeto: string): Promise<
             const dados: Record<string, unknown>[] = [];
             for (let offset = 0;; offset += 500) {
                 verificar();
-                let q = sb.from(tabela).select('*').eq('project_id', projeto).order(tabela === 'hub_editorial_estados' || tabela === 'hub_operacao' ? 'project_id' : tabela === 'hub_editorial_artefactos' ? 'chave' : 'id').range(offset, offset + 499);
+                let q = sb.from(tabela).select('*').eq('project_id', projeto).order(tabela === 'hub_editorial_estados' || tabela === 'hub_operacao' ? 'project_id' : tabela === 'hub_editorial_artefactos' ? 'chave' : tabela==='hub_wp_imagens'?'hash':'id').range(offset, offset + 499);
+                if(tabela==='hub_wp_imagens')q=q.order('site_id');
                 if (tabela === 'hub_editorial_artefactos')
                     q = q.neq('tipo', 'backup');
                 const r = await q;
@@ -75,6 +79,7 @@ export async function criarBackup(sb: SupabaseClient, projeto: string): Promise<
                 objetos.push({ path: p, hash: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.byteLength });
             }
         }
+        for(const i of tabelas.hub_artigo_imagens){verificar();const r=await sb.storage.from('hub-artigos').download(String(i.caminho));if(r.error||!r.data)throw new Error('Backup interrompido: imagem privada em falta.');const bytes=new Uint8Array(await r.data.arrayBuffer()),hash=assinaturaBytes(bytes);if(hash!==i.hash)throw new Error('Backup interrompido: imagem adulterada.');objetos.push({bucket:'hub-artigos',path:String(i.caminho),hash,bytes:bytes.length});}
         await renovar();
         verificar();
         const conteudo = { versao: 1 as const, projeto, em: new Date().toISOString(), tabelas, objetos };
@@ -90,14 +95,15 @@ export function verificarBackup(c: CopiaHub) {
     const { hash, ...dados } = c;
     if (c.versao !== 1 || assinaturaBackup(dados) !== hash)
         throw new Error('A assinatura da cópia não corresponde ao conteúdo.');
-    if (Object.keys(c.tabelas).some(t => !TABELAS.includes(t as typeof TABELAS[number])) || TABELAS.some(t => !Array.isArray(c.tabelas[t])))
+    if (Object.keys(c.tabelas).some(t => !TABELAS.includes(t as typeof TABELAS[number])) || BASE.some(t => !Array.isArray(c.tabelas[t]))||Object.entries(c.tabelas).some(([,v])=>!Array.isArray(v)))
         throw new Error('Tabelas de backup inválidas.');
     for (const linhas of Object.values(c.tabelas))
         if (linhas.some(r => r.project_id !== c.projeto))
             throw new Error('A cópia mistura projetos.');
-    for (const o of c.objetos)
-        if (!new RegExp(`^${c.projeto}/[a-f0-9]{64}/(?:original\\.pdf|capa-[a-f0-9]{64}\\.png)$`).test(o.path) || !/^[a-f0-9]{64}$/.test(o.hash) || !Number.isSafeInteger(o.bytes) || o.bytes < 1 || o.bytes > 50 * 1024 * 1024)
-            throw new Error('Objeto de backup inválido.');
+    for (const o of c.objetos){
+        const doc=new RegExp(`^${c.projeto}/[a-f0-9]{64}/(?:original\\.pdf|capa-[a-f0-9]{64}\\.png)$`),img=new RegExp(`^${c.projeto}/[a-f0-9-]{36}\\.(?:png|jpg|webp)$`);
+        if(!(o.bucket==='hub-artigos'?img.test(o.path):(!o.bucket||o.bucket==='hub-documentos')&&doc.test(o.path))||!/^[a-f0-9]{64}$/.test(o.hash)||!Number.isSafeInteger(o.bytes)||o.bytes<1||o.bytes>(o.bucket==='hub-artigos'?8388608:50*1024*1024))throw new Error('Objeto de backup inválido.');
+    }
     return c;
 }
 export async function guardarBackup(sb: SupabaseClient, projeto: string) {

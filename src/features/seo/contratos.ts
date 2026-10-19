@@ -42,10 +42,12 @@ export interface SiteEditorial {
   configuracaoGuiada?: { concluidaEm: string; revista: number };
   conhecimento?: ConhecimentoMarca;
 }
-export interface FonteEditorial { id: string; titulo: string; url: string; excerto: string; verificadaEm: string; aprovada: boolean }
+export interface FonteEditorial { id: string; titulo: string; url: string; excerto: string; verificadaEm: string; aprovada: boolean; documento?: { id: string; hash: string; paginas: number[] } }
 export interface TextoEditorial {
   titulo: string; resumo: string; slug: string; corpo: string;
   afirmacoes: { trecho: string; fonteIds: string[] }[]; alertas: string[];
+  seo?: import('./artigoCompleto').zSeoArtigo;
+  imagem?: import('./artigoCompleto').ImagemArtigo | null;
 }
 export type EstadoPauta = 'planeado' | 'a_preparar' | 'aguarda_revisao' | 'aprovado' | 'pronto_automatico' | 'bloqueado';
 export interface PautaEditorial {
@@ -57,17 +59,26 @@ export interface PautaEditorial {
   producaoAutomaticaAutorizada: boolean;
   guia?: GuiaArtigo; estrutura?: EstruturaGuardada | null; propostaEstrutura?: EstruturaGuardada | null;
   estruturaAtual?: boolean;
+  propostaFontes?: FonteEditorial[] | null;
+  propostaBaseAssinatura?: string | null;
+  glossarioAssinatura?: string; propostaGlossarioAssinatura?:string|null; glossarioId?: string; glossarioTermoId?: string | null;
+  planoId?: string; temaPlano?: string; planoAssinatura?: string;
+  loteId?: string;
   pesquisaContexto?: { recolhidaEm: string; mercado: string; consulta: string; perguntas: string[]; resultados: ResultadoSerp[] } | null;
 }
 export interface LinhaPreco { descricao: string; quantidade: number; unitarioMicro: number; totalMicro: number }
 export interface OrcamentoSeo {
   id: string; tipo: 'pesquisa' | 'texto' | 'estrutura'; criadoEm: string; expiraEm: string; siteId: string;
   pesquisa?: PesquisaSeo; pautaId?: string; pautaVersao?: number; assinatura?: string;
+  ideiasCampanha?: import('../campanhas/ideias').ContextoIdeiasCampanha;
+  refinamento?: { instrucao: string; trecho: string | null };
+  loteId?: string;
   estimativaMicro: number; linhas: LinhaPreco[]; fontePrecos: string; precosEm: string;
   cambio: number; cambioData: string; cacheId: string | null; usadoPor: string | null;
   bloqueios: string[]; automatico: boolean;
 }
 export interface PedidoSeo {
+  ideiasCampanha?: {chave:string;campo:import('../campanhas/ideias').CampoIdeias;tipo?:import('../campanhas/modelo').TipoPeca;campanhaId?:string};
   id: string; orcamentoId: string; siteId: string; tipo: 'pesquisa' | 'texto' | 'estrutura'; operacao: string;
   fornecedor: 'dataforseo' | 'deepseek' | 'local'; modo: ModoSeo;
   criadoEm: string; terminadoEm: string | null; estado: 'em_curso' | 'concluido' | 'falhou' | 'incerto';
@@ -76,6 +87,7 @@ export interface PedidoSeo {
   taskId: string | null; codigoFornecedor: number | null; detalhe: string; cacheDe: string | null;
   pesquisa?: PesquisaSeo; pautaId?: string; resultadoId: string | null; automatico: boolean;
   consentimento: string; precosEm: string; linhas: LinhaPreco[]; fontePrecos: string; modelo?: string; tokens?: { cacheHit: number; cacheMiss: number; saida: number };
+  loteId?: string;
 }
 export interface RegistoAuditoriaSeo { id: string; em: string; acao: string; alvo: string; detalhe: string }
 export interface ContaSeo { verificadaEm: string; saldoUsd: number | null; custoConsultaMicro: number; tarifaBaseInformativa: boolean }
@@ -84,7 +96,11 @@ export interface EstadoSeo {
   pedidos: PedidoSeo[]; pautas: PautaEditorial[]; auditoria: RegistoAuditoriaSeo[];
   slots: { id: string; siteId: string; em: string; pautaId: string | null; estado: string; detalhe: string }[];
   conta: ContaSeo | null;
+  eventos?: import('./eventos').EventoEditorial[];
+  integracoes?: import('./eventos').IntegracoesEditorial;
+  glossarios?: import('./glossarios').Glossario[];
   campanhas?: Campanha[];
+  lotes?: import('./lotes').LoteEditorial[];
 }
 export interface EstadoPublicoSeo extends Omit<EstadoSeo, 'orcamentos'> {
   podeEditar?: boolean;

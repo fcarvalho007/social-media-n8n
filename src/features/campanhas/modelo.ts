@@ -4,9 +4,10 @@ export const TIPOS_PECA = ['artigo', 'newsletter', 'story', 'carrossel', 'contin
 export type TipoPeca = typeof TIPOS_PECA[number];
 export const NOMES_PECA: Record<TipoPeca, string> = { artigo: 'Artigo', newsletter: 'Destaque na newsletter', story: 'Story', carrossel: 'Carrossel', continuidade: 'Continuidade' };
 const data = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Escolhe uma data válida.').refine(v => { const d = new Date(`${v}T12:00:00Z`); return Number.isFinite(+d) && d.toISOString().slice(0,10) === v; }, 'Escolhe uma data válida.');
-export const schemaFonteCampanha = z.object({ tipo: z.enum(['noticia','documento']), id: z.string().min(1).max(100), titulo: z.string().trim().min(3).max(300), texto: z.string().trim().min(40, 'A descoberta precisa de pelo menos 40 caracteres de texto.').max(20000), url: z.string().max(2000).nullable(), hash: z.string().min(1).max(120), parcial: z.boolean(), paginas: z.array(z.number().int().positive()).max(600), capturadaEm: z.string().datetime() }).strict();
+export const schemaFonteCampanha = z.object({ tipo: z.enum(['noticia','documento','texto']), id: z.string().min(1).max(100), titulo: z.string().trim().min(3).max(300), texto: z.string().trim().min(40, 'A descoberta precisa de pelo menos 40 caracteres de texto.').max(20000), url: z.string().max(2000).nullable(), hash: z.string().min(1).max(120), parcial: z.boolean(), paginas: z.array(z.number().int().positive()).max(600), capturadaEm: z.string().datetime() }).strict();
 export type FonteCampanha = z.infer<typeof schemaFonteCampanha>;
-export const schemaNovaCampanha = z.object({ siteId: z.string().min(1).max(80), nome: z.string().trim().min(5).max(200), angulo: z.string().trim().min(40,'Explica o contributo próprio em pelo menos 40 caracteres.').max(4000), objetivo: z.string().trim().min(10).max(2000), cta: z.string().trim().min(10).max(1500), inicio: data }).strict();
+export const schemaFormatosCampanha=z.array(z.enum(TIPOS_PECA)).min(1,'Escolhe pelo menos uma peça.').max(5).refine(v=>new Set(v).size===v.length,'Cada formato só pode ser escolhido uma vez.');
+export const schemaNovaCampanha = z.object({ formatos:schemaFormatosCampanha.optional(), siteId: z.string().min(1,'Escolhe o site principal da campanha.').max(80), nome: z.string().trim().min(5,'Dá à campanha um nome com pelo menos 5 caracteres.').max(200), angulo: z.string().trim().min(40,'Explica o contributo próprio em pelo menos 40 caracteres.').max(4000), objetivo: z.string().trim().min(10,'Explica o objetivo para o leitor em pelo menos 10 caracteres.').max(2000), cta: z.string().trim().min(10,'Indica o próximo passo e a oferta em pelo menos 10 caracteres.').max(1500), inicio: data }).strict();
 export type NovaCampanha = z.infer<typeof schemaNovaCampanha>;
 export const schemaPecaCampanha = z.object({ titulo: z.string().trim().min(3).max(200), papel: z.string().trim().min(10).max(1000), texto: z.string().trim().min(10).max(8000), cta: z.string().trim().min(3).max(1500), diasDepois: z.number().int().min(0).max(60) }).strict();
 export type EdicaoPeca = z.infer<typeof schemaPecaCampanha>;
@@ -24,7 +25,15 @@ export async function prepararDescoberta(d: Omit<FonteCampanha,'hash'|'capturada
   const valor={tipo:d.tipo,id:d.id,titulo:d.titulo.trim(),texto:d.texto.trim(),url,parcial:d.parcial,paginas:[...new Set(d.paginas)].sort((a,b)=>a-b)};
   return schemaFonteCampanha.parse({...valor,hash:await assinaturaCampanha(valor),capturadaEm:new Date().toISOString()}) as FonteCampanha;
 }
-export const schemaRascunhoNova=z.object({siteId:z.string().max(80),nome:z.string().max(200),angulo:z.string().max(4000),objetivo:z.string().max(2000),cta:z.string().max(1500),inicio:z.string().max(10)}).strict();
+export const schemaTextoCampanha = z.object({ titulo:z.string().trim().min(3,'Dá um título ao conteúdo.').max(300), texto:z.string().trim().min(40,'Cola pelo menos 40 caracteres de conteúdo.').max(20000,'Usa até 20 000 caracteres.'), url:z.string().trim().max(2000).refine(v=>{if(!v)return true;try{const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password&&(!u.port||u.port==='443');}catch{return false;}},'Usa uma ligação HTTPS pública, sem credenciais.') }).strict();
+export async function prepararTextoCampanha(bruto:unknown):Promise<FonteCampanha>{
+  const d=schemaTextoCampanha.parse(bruto);
+  const u=d.url?new URL(d.url):null;if(u)u.hash='';const url=u?.href??null;
+  const id=await assinaturaCampanha({titulo:d.titulo,texto:d.texto,url});
+  return prepararDescoberta({tipo:'texto',id,titulo:d.titulo,texto:d.texto,url,parcial:false,paginas:[]});
+}
+export function nomeFonteCampanha(f:FonteCampanha){return f.tipo==='noticia'?'Notícia':f.tipo==='documento'?'Estudo / PDF':'Conteúdo colado';}
+export const schemaRascunhoNova=z.object({formatos:z.array(z.enum(TIPOS_PECA)).max(5).refine(v=>new Set(v).size===v.length).optional(),siteId:z.string().max(80),nome:z.string().max(200),angulo:z.string().max(4000),objetivo:z.string().max(2000),cta:z.string().max(1500),inicio:z.string().max(10)}).strict();
 export const schemaRascunhoPeca=z.object({titulo:z.string().max(200),papel:z.string().max(1000),texto:z.string().max(8000),cta:z.string().max(1500),diasDepois:z.number().int().min(0).max(60)}).strict();
 export function diaPeca(inicio: string, dias: number): string { const d=new Date(`${inicio}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+dias);return d.toISOString().slice(0,10); }
 export function dataCampanha(d: string) { return new Date(`${d}T12:00:00Z`).toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric',timeZone:'Europe/Lisbon'}); }
@@ -42,5 +51,13 @@ export function criarPecas(f: FonteCampanha, n: NovaCampanha): PecaCampanha[] {
     criar('continuidade','Retomar o tema com uma pergunta prática e recolher dúvidas para novo conteúdo.',`Depois desta descoberta, que decisão merece ser revista?\n\n1. Que processo pode beneficiar?\n2. Que evidência falta confirmar?\n3. Qual é o primeiro teste pequeno que faz sentido?\n\nPartilha a tua dúvida para aprofundarmos o tema.`,3,`Como aplicar: ${n.nome}`.slice(0,200)),
   ];
   const convites:Partial<Record<TipoPeca,string>>={newsletter:'Lê o artigo completo quando estiver publicado.',story:'Explora o tema na newsletter. Ligação no perfil.',carrossel:'Subscreve a newsletter DIGITALSPRINT.',continuidade:'Partilha a tua dúvida nos comentários.'};
-  return pecas.map(p=>({...p,cta:convites[p.tipo]??p.cta}));
+  const incluiArtigo=formatosCampanha(n).includes('artigo');
+  if(!formatosCampanha(n).includes('newsletter'))convites.story=incluiArtigo?'Lê o artigo quando estiver publicado. Ligação no perfil.':'Explora o próximo passo indicado na legenda.';
+  return pecas.map(p=>({...p,...(p.tipo==='newsletter'&&!incluiArtigo?{papel:'Dar contexto à descoberta e propor um próximo passo útil.',texto:`Descoberta para contextualizar: ${f.titulo}\n\nÂngulo editorial: ${n.angulo}\n\nPreparar uma síntese factual depois de verificar a fonte; usar apenas o próximo passo aprovado.`}:{}),cta:p.tipo==='newsletter'&&!incluiArtigo?n.cta:convites[p.tipo]??p.cta}));
 }
+
+export function formatosCampanha(c:{formatos?:TipoPeca[]}){return c.formatos??[...TIPOS_PECA];}
+export function pecasAtivas(c:Campanha){const ativas=new Set(formatosCampanha(c));return c.pecas.filter(p=>ativas.has(p.tipo));}
+
+export function requisitosFonteCampanha(f:FonteCampanha){const erros:string[]=[];if(f.texto.length<(f.tipo==='texto'?40:200))erros.push(`É necessário um excerto de pelo menos ${f.tipo==='texto'?40:200} caracteres. Recolhe mais texto antes de confirmar.`);if(f.tipo==='noticia'&&!f.url)erros.push('Esta notícia precisa de uma referência HTTPS para confirmar a origem.');if(f.tipo==='documento'&&!f.url&&!f.paginas.length)erros.push('O estudo precisa de uma referência HTTPS ou de páginas identificadas do PDF privado.');return erros;}
+export function direcaoCampanha(c:Campanha):NovaCampanha {const {siteId,nome,angulo,objetivo,cta,inicio,formatos}=c;return{siteId,nome,angulo,objetivo,cta,inicio,...(formatos?{formatos}:{})};}

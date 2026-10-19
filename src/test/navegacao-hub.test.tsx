@@ -18,7 +18,7 @@ describe('contexto coerente de navegação', () => {
     expect(migalhasNavegacao(p).at(-1)?.label).toBe(DESTINOS_NAVEGACAO.find(d => d.url === p)?.label);
   });
   it('mantém o contexto do assistente de sites e a volta à lista nas migalhas', () => {
-    expect(migalhasNavegacao('/artigos/sites/sms').map(m => m.label)).toEqual(['Início','Artigos','Sites e regras','Configuração guiada']);
+    expect(migalhasNavegacao('/artigos/sites/sms').map(m => m.label)).toEqual(['Início','Artigos','Perfis dos sites','Configuração guiada']);
     expect(migalhasNavegacao('/artigos/sites/sms').at(-2)?.path).toBe('/artigos/sites');
   });
   it('distingue Aprovar e Criar no mesmo pathname', () => {

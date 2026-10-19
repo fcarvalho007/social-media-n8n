@@ -1,3 +1,6 @@
+import { schemaEvento, schemaIntegracoes } from '../../src/features/seo/eventos';
+import { schemaGlossario } from '../../src/features/seo/glossarios';
+import { registarTransicoes } from './eventos';
 import process from 'node:process';
 import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
@@ -6,6 +9,7 @@ import { estadoInicialSeo } from '../../src/features/seo/catalogo';
 import { z } from 'zod';
 import { schemaConfiguracaoSeo, schemaPoliticaSeo } from '../../src/features/seo/politicas';
 import type { EstadoSeo } from '../../src/features/seo/contratos';
+import { schemaLote } from '../../src/features/seo/lotes';
 import { schemaCampanhaGuardada } from '../../src/features/campanhas/modelo';
 export async function escreverAtomico(ficheiro: string, dados: unknown) {
   await mkdir(path.dirname(ficheiro), { recursive: true, mode: 0o700 });
@@ -17,7 +21,7 @@ export async function escreverAtomico(ficheiro: string, dados: unknown) {
 const micro=z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 export function validarEstadoPersistido(e:EstadoSeo){
   const raiz=z.object({versao:z.literal(1),configuracao:schemaConfiguracaoSeo,sites:z.array(z.object({id:z.string().min(1),dominio:z.string().min(3),estado:z.enum(['piloto','planeado']),revisaoObrigatoria:z.boolean(),politica:schemaPoliticaSeo}).passthrough()).min(1),pedidos:z.array(z.object({id:z.string().uuid(),modo:z.enum(['real','sandbox','exemplo']),estado:z.enum(['em_curso','concluido','falhou','incerto']),estimativaMicro:micro,custoMicro:micro.nullable(),reservaMicro:micro,cambio:z.number().positive(),criadoEm:z.string().refine(v=>Number.isFinite(Date.parse(v))),linhas:z.array(z.object({descricao:z.string(),quantidade:z.number().nonnegative(),unitarioMicro:z.number().nonnegative(),totalMicro:z.number().nonnegative()}))}).passthrough()),orcamentos:z.array(z.object({id:z.string().uuid(),estimativaMicro:micro}).passthrough()),pautas:z.array(z.object({id:z.string().uuid(),versao:z.number().int().positive(),siteId:z.string(),fontes:z.array(z.unknown())}).passthrough()),auditoria:z.array(z.unknown()),slots:z.array(z.unknown()),conta:z.unknown().nullable()}).strict();
-  try{const {campanhas,...resto}=e;raiz.parse(resto);if(campanhas){z.array(schemaCampanhaGuardada).max(100).parse(campanhas);if(new Set(campanhas.map(c=>c.id)).size!==campanhas.length)throw new Error();}for(const s of e.sites)if(s.conhecimento)schemaConhecimento.parse(s.conhecimento);if(new Set(e.sites.map(s=>s.id)).size!==e.sites.length)throw new Error();const pessoal=e.sites.find(s=>s.id==='frederico');if(pessoal&&(!pessoal.revisaoObrigatoria||pessoal.dominio!=='fredericocarvalho.pt'||pessoal.politica.publicacao!=='humana'))throw new Error();}catch{throw new Error('O registo local tem dados ou limites inválidos. Foi preservado; os serviços pagos ficam indisponíveis até à recuperação.');}
+  try{const {campanhas,lotes,eventos,integracoes,glossarios,...resto}=e;raiz.parse(resto);if(eventos)z.array(schemaEvento).parse(eventos);if(integracoes)schemaIntegracoes.parse(integracoes);if(glossarios)z.array(schemaGlossario).max(100).parse(glossarios);if(lotes){z.array(schemaLote).max(100).parse(lotes);if(new Set(lotes.map(l=>l.id)).size!==lotes.length)throw new Error();}if(campanhas){z.array(schemaCampanhaGuardada).max(100).parse(campanhas);if(new Set(campanhas.map(c=>c.id)).size!==campanhas.length)throw new Error();}for(const s of e.sites)if(s.conhecimento)schemaConhecimento.parse(s.conhecimento);if(new Set(e.sites.map(s=>s.id)).size!==e.sites.length)throw new Error();const pessoal=e.sites.find(s=>s.id==='frederico');if(pessoal&&(!pessoal.revisaoObrigatoria||pessoal.dominio!=='fredericocarvalho.pt'||pessoal.politica.publicacao!=='humana'))throw new Error();}catch{throw new Error('O registo local tem dados ou limites inválidos. Foi preservado; os serviços pagos ficam indisponíveis até à recuperação.');}
 }
 
 export interface ArmazemSeo {
@@ -54,7 +58,7 @@ export class RepositorioSeo {
   }
   async ler() { await this.fila; return structuredClone(this.estado); }
   async alterar<T>(fn: (e: EstadoSeo) => T | Promise<T>): Promise<T> {
-    const tarefa = this.fila.then(async () => { if (!this.estado || !this.bloqueio) throw new Error('O motor local não está disponível.'); const novo = structuredClone(this.estado); const resposta = await fn(novo); await escreverAtomico(path.join(this.raiz, 'estado.json'), novo); this.estado = novo; return structuredClone(resposta); });
+    const tarefa = this.fila.then(async () => { if (!this.estado || !this.bloqueio) throw new Error('O motor local não está disponível.'); const novo = structuredClone(this.estado); const resposta = await fn(novo); registarTransicoes(this.estado,novo); await escreverAtomico(path.join(this.raiz, 'estado.json'), novo); this.estado = novo; return structuredClone(resposta); });
     this.fila = tarefa.then(() => {}, () => {}); return tarefa;
   }
   async guardarResultado(id: string, dados: unknown) { if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Identificador inválido.'); await escreverAtomico(path.join(this.raiz, 'resultados', `${id}.json`), dados); }

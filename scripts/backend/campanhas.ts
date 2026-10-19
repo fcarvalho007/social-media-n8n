@@ -1,11 +1,17 @@
+import { recuperarIdeiasCampanha } from '../seo/ideias-campanha';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { prepararDescoberta, TIPOS_PECA, assinaturaCampanha, baseComposicao, type FonteCampanha } from '../../src/features/campanhas/modelo';
+import { prepararDescoberta, schemaFonteCampanha, prepararTextoCampanha, TIPOS_PECA, assinaturaCampanha, baseComposicao, type FonteCampanha } from '../../src/features/campanhas/modelo';
 import type { ContextoBackend } from './seguranca';
 import type { EstadoSeo } from '../../src/features/seo/contratos';
 import { CampanhasEditorial } from '../seo/campanhas';
 import type { MotorSeo } from '../seo/motor-local';
 export async function fonteCampanhaNuvem(ctx:ContextoBackend,bruto:unknown):Promise<FonteCampanha>{
+  if((bruto as {tipo?:unknown})?.tipo==='texto'){
+    const f=schemaFonteCampanha.parse(bruto),normal=await prepararTextoCampanha({titulo:f.titulo,texto:f.texto,url:f.url??''});
+    if(f.id!==normal.id||f.hash!==normal.hash)throw new Error('O conteúdo colado mudou. Volta a confirmar a fonte.');
+    return normal;
+  }
   const ref=z.object({tipo:z.enum(['noticia','documento']),id:z.string().uuid(),paginas:z.array(z.number().int().positive()).max(600).default([])}).parse(bruto);
   if(ref.tipo==='noticia'){
     const r=await ctx.user.rpc('nl_curadoria_snapshot',{_id:ref.id});
@@ -30,10 +36,14 @@ export async function lerComposicaoCampanha(ctx:ContextoBackend,e:EstadoSeo,a:Re
   if(r.error||!r.data)throw new Error('Não foi possível abrir a composição.');
   return{pacote:r.data.dados,versao:c!.versao,base:await assinaturaCampanha(baseComposicao(p)),baseGuardada:p.composicao.base};
 }
-export function operarCampanha(m:MotorSeo,acao:string,a:Record<string,unknown>){
+export async function operarCampanha(m:MotorSeo,acao:string,a:Record<string,unknown>){
   const motor=new CampanhasEditorial(m.repo),id=()=>z.string().uuid().parse(a.id),versao=()=>z.number().int().positive().parse(a.versao),tipo=()=>z.enum(TIPOS_PECA).parse(a.tipo);
   switch(acao){
+    case'campanha-ideias-recuperar':return recuperarIdeiasCampanha(await m.repo.ler(),id());
+    case'campanha-ideias-orcamento':return m.orcamentarIdeiasCampanha(a.contexto);
+    case'campanha-ideias-executar':{const e=await m.repo.ler();if(!e.orcamentos.some(q=>q.id===id()&&q.ideiasCampanha))throw new Error('Orçamento de ideias não encontrado neste projeto.');const p=await m.executar(id(),a.confirmar===true);return m.aguardar(p.id);}
     case'campanha-criar':return motor.criar(a.fonte,a.plano,a.confirmacao===true);
+    case'campanha-formatos':return motor.formatos(id(),versao(),a.formatos);
     case'campanha-peca':return motor.alterar(id(),versao(),tipo(),a.peca);
     case'campanha-fonte-confirmar':return motor.confirmarFonte(id(),versao(),a.confirmacao===true);
     case'campanha-rever':return motor.rever(id(),versao(),tipo(),a.confirmacao===true);

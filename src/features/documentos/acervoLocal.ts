@@ -110,3 +110,24 @@ export async function guardarOcrLocal(documento: DocumentoAcervo, pagina: import
     tx.oncomplete = () => resolve(atualizado); tx.onabort = () => reject(new Error('A página mudou. O texto existente foi preservado; atualiza o documento.'));
   });
 }
+
+/** Explicit permanent removal, scoped atomically to the document's project. */
+export async function eliminarDocumento(d: DocumentoAcervo): Promise<void> {
+  if (BACKEND_NUVEM) {
+    const { apiDocumentos } = await import('./apiLocal');
+    await apiDocumentos('documento-eliminar', { ambito: d.ambito, id: d.id, confirmar: true });
+    return;
+  }
+  const { apiDocumentos } = await import('./apiLocal');
+  // Remove temporary job copies too, before deleting the browser's private original.
+  await apiDocumentos('esquecer-documento', { ambito: d.ambito, hash: d.pdf.hash });
+  const db = await abrir();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(['documentos','recolhas'],'readwrite'), docs=tx.objectStore('documentos'), r=docs.get(d.id);
+    r.onsuccess=()=>{const atual=r.result as DocumentoAcervo|undefined;if(!atual||atual.ambito!==d.ambito){tx.abort();return;}docs.delete(d.id);
+      const c=tx.objectStore('recolhas').index('ambito').openCursor(IDBKeyRange.only(d.ambito));
+      c.onsuccess=()=>{const cursor=c.result;if(cursor){if(cursor.value.documentoId===d.id)cursor.delete();cursor.continue();}};
+    };
+    tx.oncomplete=()=>resolve();tx.onabort=()=>reject(new Error('Não foi possível eliminar o documento deste projeto.'));
+  });
+}

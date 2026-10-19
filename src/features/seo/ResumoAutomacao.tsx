@@ -1,0 +1,8 @@
+import { CalendarClock, CirclePause, FileCheck2, Wallet } from 'lucide-react';
+import type { EstadoPublicoSeo } from './contratos';
+import { usd } from './precos';
+export function ResumoAutomacao({estado:e}:{estado:EstadoPublicoSeo}){
+ const ativos=e.sites.filter(s=>s.estado!=='planeado'&&s.politica.ativa),pendentes=e.pautas.filter(p=>p.texto&&!p.aprovacao),reserva=e.pedidos.reduce((n,p)=>n+p.reservaMicro,0);
+ const cards=[{titulo:'Preparação automática',valor:e.configuracao.automacaoPausada?'Pausada':`${ativos.length} sites ativos`,ajuda:e.configuracao.automacaoPausada?'Os ciclos não iniciam novas tarefas.':'Cada tarefa respeita a política do destino.',icon:CirclePause},{titulo:'Cadência por destino',valor:`${ativos.reduce((n,s)=>n+s.politica.limiteSemanal,0)} artigos / semana`,ajuda:'Objetivo dos sites ativos; não confirma produção.',icon:CalendarClock},{titulo:'À espera de revisão',valor:String(pendentes.length),ajuda:'Artigos com texto e sem aprovação da versão.',icon:FileCheck2},{titulo:'Orçamento reservado',valor:usd(reserva),ajuda:'Inclui pedidos com custo ainda por confirmar.',icon:Wallet}];
+ return <section aria-label="Resumo da automação" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(c=><div key={c.titulo} className="rounded-xl border bg-card p-5"><div className="flex items-start justify-between gap-3"><p className="text-sm text-muted-foreground">{c.titulo}</p><c.icon className="size-5 shrink-0 text-primary"/></div><p className="mt-4 text-2xl font-semibold tabular-nums">{c.valor}</p><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{c.ajuda}</p></div>)}</section>;
+}

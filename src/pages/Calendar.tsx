@@ -1094,13 +1094,13 @@ const Calendar = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-3">
-                  <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <CalendarIcon className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
+                <h1 className="hub-page-title flex items-center gap-3">
+                  <div className="hub-page-icon">
+                    <CalendarIcon className="size-5 text-primary" />
                   </div>
                   <span>Calendário</span>
                 </h1>
-                <div className="flex items-center gap-3 mt-1 ml-[52px] lg:ml-[60px]">
+                <div className="flex items-center gap-3 mt-2 ml-[52px]">
                   <p className="text-sm text-muted-foreground hidden sm:block">
                     Arraste para reagendar publicações
                   </p>
@@ -1113,7 +1113,7 @@ const Calendar = () => {
                           <button 
                             onClick={() => fetchScheduledContent()}
                             disabled={loading}
-                            className="flex items-center justify-center h-7 w-7 rounded-md border bg-background hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="Atualizar calendário" className="flex size-11 items-center justify-center rounded-md border bg-card text-muted-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
                           </button>

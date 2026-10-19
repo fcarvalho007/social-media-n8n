@@ -7,11 +7,11 @@ export const OPERACOES_SEO: Record<OperacaoSeo, { nome: string; ajuda: string; e
   sugestoes: { nome: 'Sugestões de keywords', ajuda: 'Variações que incluem o termo de partida.', endpoint: 'dataforseo_labs/google/keyword_suggestions/live', precoUrl: PRECO_LABS_URL, entrada: 'termo' },
   relacionadas: { nome: 'Keywords relacionadas', ajuda: 'Pesquisas relacionadas com o tema.', endpoint: 'dataforseo_labs/google/related_keywords/live', precoUrl: PRECO_LABS_URL, entrada: 'termo' },
   ideias: { nome: 'Ideias por tema', ajuda: 'Ideias na mesma categoria dos termos indicados.', endpoint: 'dataforseo_labs/google/keyword_ideas/live', precoUrl: PRECO_LABS_URL, entrada: 'lista' },
-  visao: { nome: 'Analisar keywords', ajuda: 'Volume, intenção, dificuldade e evolução mensal.', endpoint: 'dataforseo_labs/google/keyword_overview/live', precoUrl: PRECO_LABS_URL, entrada: 'lista' },
+  visao: { nome: 'Analisar keywords', ajuda: 'Volume, dificuldade e evolução mensal, quando disponíveis.', endpoint: 'dataforseo_labs/google/keyword_overview/live', precoUrl: PRECO_LABS_URL, entrada: 'lista' },
   dominio: { nome: 'Keywords de um domínio', ajuda: 'Consultas em que o domínio já aparece, segundo a base Labs.', endpoint: 'dataforseo_labs/google/ranked_keywords/live', precoUrl: PRECO_LABS_URL, entrada: 'dominio' },
   lacunas: { nome: 'Lacunas face a um concorrente', ajuda: 'Keywords do concorrente ausentes no site escolhido.', endpoint: 'dataforseo_labs/google/domain_intersection/live', precoUrl: PRECO_LABS_URL, entrada: 'lacunas' },
   volume: { nome: 'Volume Google Ads', ajuda: 'Volume e concorrência de anúncios para até 1 000 termos num pedido.', endpoint: 'keywords_data/google_ads/search_volume/live', precoUrl: PRECO_ADS_URL, entrada: 'lista' },
-  serp: { nome: 'Resultados do Google', ajuda: 'Resultados atuais e perguntas, para perceber a intenção e os formatos.', endpoint: 'serp/google/organic/live/advanced', precoUrl: PRECO_SERP_URL, entrada: 'termo' },
+  serp: { nome: 'Resultados do Google', ajuda: 'Resultados atuais e perguntas, para avaliar fontes e formatos de conteúdo.', endpoint: 'serp/google/organic/live/advanced', precoUrl: PRECO_SERP_URL, entrada: 'termo' },
 };
 export const microUsd = (usd: number) => Math.round(usd * 1_000_000);
 export const usd = (micro: number) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 9 }).format(micro / 1_000_000);

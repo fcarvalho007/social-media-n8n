@@ -21,12 +21,25 @@ function setup(open = true, projectOverrides = {}, taskOverrides = {}) {
   function Page() {
     const [aberto, setAberto] = useState(open);
     const location = useLocation();
-    return <><output>{location.pathname}</output><GlobalSearch open={aberto} onOpenChange={setAberto} /></>;
+    return <><output>{location.pathname}</output><button onClick={() => setAberto(true)}>Abrir pesquisa</button><input aria-label="Campo de origem"/><GlobalSearch open={aberto} onOpenChange={setAberto} /></>;
   }
   render(<QueryClientProvider client={client}><MemoryRouter><Page /></MemoryRouter></QueryClientProvider>);
   return client;
 }
 describe('pesquisa na aplicação', () => {
+  it('Escape devolve o foco ao botão que abriu a pesquisa', async () => {
+    setup(false);
+    const botao = screen.getByRole('button', {name:'Abrir pesquisa'});botao.focus();fireEvent.click(botao);
+    fireEvent.keyDown(screen.getByRole('dialog'), {key:'Escape'});
+    await waitFor(() => expect(botao).toHaveFocus());
+  });
+  it('o atalho de teclado conserva o campo de origem ao fechar', async () => {
+    setup(false);
+    const campo = screen.getByRole('textbox', {name:'Campo de origem'});campo.focus();fireEvent.keyDown(document, {key:'k',ctrlKey:true});
+    fireEvent.keyDown(screen.getByRole('dialog'), {key:'Escape'});
+    await waitFor(() => expect(campo).toHaveFocus());
+  });
+
   it('não consulta projetos ou tarefas enquanto fechada; Cmd+K abre a pesquisa com atalhos', () => {
     setup(false);
     expect(mocks.projects).not.toHaveBeenCalled();

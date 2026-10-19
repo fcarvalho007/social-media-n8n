@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { execFileSync } from 'node:child_process';
 import { it, expect } from 'vitest';
 import { extrairPdfServidor } from '../../scripts/backend/pdf';
 export function pdfTeste() {
@@ -15,5 +16,6 @@ export function pdfTeste() {
     s += `xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map(n => String(n).padStart(10, '0') + ' 00000 n ').join('\n')}\ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
     return Buffer.from(s);
 }
-it('extrai texto por página e uma capa PNG real com o Poppler', async () => { const r = await extrairPdfServidor(pdfTeste(), 'documento.pdf'); expect(r.pdf.paginas).toHaveLength(1); expect(r.pdf.paginas[0].texto).toContain('Hub documento verificavel'); expect(Buffer.from(r.capa!.subarray(0, 8)).toString('hex')).toBe('89504e470d0a1a0a'); }, 20000);
+let poppler=true;try{for(const bin of ['pdfinfo','pdftotext','pdftoppm'])execFileSync(bin,['-v'],{stdio:'ignore'});}catch{poppler=false;}
+it.skipIf(!poppler)('extrai texto por página e uma capa PNG real com o Poppler', async () => { const r = await extrairPdfServidor(pdfTeste(), 'documento.pdf'); expect(r.pdf.paginas).toHaveLength(1); expect(r.pdf.paginas[0].texto).toContain('Hub documento verificavel'); expect(Buffer.from(r.capa!.subarray(0, 8)).toString('hex')).toBe('89504e470d0a1a0a'); }, 20000);
 it('recusa binários que não sejam PDFs antes de iniciar conversões', async () => { await expect(extrairPdfServidor(Buffer.from('sem pdf'), 'x')).rejects.toThrow('PDF válido'); });

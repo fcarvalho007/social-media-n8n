@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import * as jsdom from 'jsdom';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { analisarDocumento, extrairArtigoDocumento, mesmoSite } from '../../src/features/documentos/descoberta';
@@ -48,13 +48,14 @@ export class MotorDocumentos {
     });
     this.escritas.set(j.id,p); await p;
   }
-  async iniciar(ambito: string, ids: number[], modo: TarefaDocumentos['modo']) {
+  async iniciar(ambito: string, ids: number[], modo: TarefaDocumentos['modo'], inventario = this.fontes) {
     await this.prontos;
     if (!ambito || ambito.length > 300 || !Array.isArray(ids) || !ids.length || ids.length > 120) throw new Error('Escolhe as fontes a consultar.');
     const existente = [...this.jobs.values()].find(j => j.ambito === ambito && j.estado === 'em_curso'); if (existente) return existente;
-    const escolhidas = this.fontes.filter(f => ids.includes(f.id));
+    const escolhidas = inventario.filter(f => ids.includes(f.id));
     if (!escolhidas.length) throw new Error('As fontes escolhidas não existem no inventário.');
     const j: TarefaDocumentos = { id: randomUUID(), ambito, modo, estado: 'em_curso', iniciadaEm: new Date().toISOString(), atual: 'Na fila local…', total: escolhidas.length, fontes: escolhidas.map(f => ({ fonteId:f.id,nome:f.name,url:f.url,estado:'a_consultar',paginas:0,pdfs:0,novidades:0,detalhes:[] })), descobertas: [], pdfs: [], erros: [] };
+    j.inventario = structuredClone(escolhidas);
     this.jobs.set(j.id, j); await this.salvar(j);
     this.enfileirar(j);
     return j;
@@ -73,6 +74,49 @@ export class MotorDocumentos {
     const j = await this.ler(id,ambito); if (!/^[a-f0-9]{64}$/.test(hash) || !j.pdfs.some(p => p.hash === hash)) throw new Error('PDF não encontrado nesta recolha.');
     return readFile(path.join(this.pasta,'pdfs',`${hash}.pdf`));
   }
+  async descarregarCandidato(id: string, ambito: string, url: string) {
+    const j = await this.ler(id, ambito);
+    if (j.estado === 'em_curso') throw new Error('Espera que a pesquisa termine antes de importar.');
+    const item = j.descobertas.find(d => d.url === url && d.tipo === 'pdf');
+    if (!item) throw new Error('O PDF não pertence a esta pesquisa.');
+    const existente = j.pdfs.find(p => (p.candidatoUrl ?? p.url) === url);
+    if (existente) return existente;
+    const r = await obterPublico(downloadConhecido(url), AbortSignal.timeout(30000), { antesDeVisitar: u => robots.verificar(u), maxBytes: 50 * 1024 * 1024 });
+    if (!r.bytes.subarray(0,1024).includes(Buffer.from('%PDF-'))) throw new Error('A ligação não devolveu um PDF. Pode exigir um formulário ou login.');
+    const hash = createHash('sha256').update(r.bytes).digest('hex');
+    const igual = j.pdfs.find(p => p.hash === hash); if (igual) return igual;
+    await writeFile(path.join(this.pasta, 'pdfs', `${hash}.pdf`), r.bytes, { mode: 0o600 });
+    const p = { ...item, categoria: (j.inventario ?? this.fontes).find(f=>f.id===item.fonteId)?.group_category, candidatoUrl: item.url, url: r.url, hash, bytes: r.bytes.length, estado: 'descarregado' as const };
+    j.pdfs.push(p); delete item.decisao; await this.salvar(j); return p;
+  }
+  async decidir(id: string, ambito: string, url: string, decisao: 'ignorar' | 'repor' | 'remover') {
+    const j = await this.ler(id, ambito);
+    if (j.estado === 'em_curso') throw new Error('Espera que a pesquisa termine antes de alterar os resultados.');
+    const item = j.descobertas.find(d => d.url === url);
+    if (!item) throw new Error('Resultado não encontrado nesta pesquisa.');
+    if (decisao === 'remover') {
+      const afetadas=[...this.jobs.values()].filter(t=>t.ambito===ambito&&t.descobertas.some(d=>d.url===url));
+      if(afetadas.some(t=>t.estado==='em_curso'))throw new Error('Há uma pesquisa em curso com este resultado.');
+      const pdfs=afetadas.flatMap(t=>t.pdfs.filter(p=>(p.candidatoUrl??p.url)===url));
+      if(pdfs.some(p=>p.documentoId))throw new Error('Este PDF está na biblioteca. Remove primeiro o documento no leitor.');
+      for(const p of pdfs)if(![...this.jobs.values()].some(t=>!afetadas.includes(t)&&t.pdfs.some(x=>x.hash===p.hash)))await unlink(path.join(this.pasta,'pdfs',`${p.hash}.pdf`)).catch(e=>{if(e.code!=='ENOENT')throw e;});
+      for(const t of afetadas){t.descobertas=t.descobertas.filter(d=>d.url!==url);t.pdfs=t.pdfs.filter(p=>(p.candidatoUrl??p.url)!==url);await this.salvar(t);}
+
+    } else { if (decisao === 'ignorar') item.decisao = 'ignorado'; else delete item.decisao; await this.salvar(j); }
+    return { ok: true };
+  }
+  async esquecerDocumento(ambito: string, hash: string) {
+    await this.prontos;
+    if ([...this.jobs.values()].some(j=>j.ambito===ambito&&j.estado==='em_curso'))throw new Error('Espera que a pesquisa termine antes de eliminar.');
+    if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error('Assinatura inválida.');
+    for (const j of this.jobs.values()) if (j.ambito === ambito) {
+      const afetados = j.pdfs.filter(p => p.hash === hash);
+      j.descobertas = j.descobertas.filter(d => !afetados.some(p => (p.candidatoUrl ?? p.url) === d.url));
+      j.pdfs = j.pdfs.filter(p => p.hash !== hash); await this.salvar(j);
+    }
+    if (![...this.jobs.values()].some(j => j.pdfs.some(p => p.hash === hash))) await unlink(path.join(this.pasta, 'pdfs', `${hash}.pdf`)).catch(e => { if (e.code !== 'ENOENT') throw e; });
+    return { ok: true };
+  }
   async lerArtigo(id:string,ambito:string,url:string){
     const j=await this.ler(id,ambito);const item=j.descobertas.find(d=>d.url===url&&d.tipo==='artigo');
     if(!item)throw new Error('A referência não pertence a esta recolha.');
@@ -90,7 +134,7 @@ export class MotorDocumentos {
       const dominios = new Set<string>(); let cursor = 0;
       const worker = async () => {
         while (cursor < pendentes.length) {
-          const ev = pendentes[cursor++]; await this.verificarContinuidade(); const f = this.fontes.find(f => f.id === ev.fonteId)!;
+          const ev = pendentes[cursor++]; await this.verificarContinuidade(); const f = (j.inventario ?? this.fontes).find(f => f.id === ev.fonteId)!;
           let dominio = f.url; try { dominio = new URL(f.url).hostname.replace(/^www\./,''); } catch { /* invalid source is reported below */ }
           while (dominios.has(dominio)) await new Promise(r => setTimeout(r,100));
           dominios.add(dominio);
@@ -165,7 +209,7 @@ export class MotorDocumentos {
             const destino=path.join(this.pasta,'pdfs',`${hash}.pdf`);const tmp=`${destino}.${randomUUID()}.tmp`;
             if (this.opcoes.temporarioIsolado) await writeFile(destino,r.bytes);
             else { await writeFile(tmp,r.bytes,{mode:0o600});await rename(tmp,destino); }
-            j.pdfs.push({...p,url:r.url,hash,bytes:r.bytes.length,categoria:f.group_category,estado:'descarregado'});
+            j.pdfs.push({...p,candidatoUrl:p.url,url:r.url,hash,bytes:r.bytes.length,categoria:f.group_category,estado:'descarregado'});
             guardadosFonte++;
           }
           await this.salvar(j);

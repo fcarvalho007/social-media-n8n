@@ -10,9 +10,10 @@ export function validarPolitica(s: SiteEditorial, p: PoliticaSite) {
   if (p.ativa && p.producao === 'automatica' && !p.temasPermitidos.length) throw new Error('Define pelo menos um tema permitido para a produção automática.');
   if (p.diarioMicro > p.mensalMicro || p.pedidoMicro > p.diarioMicro) throw new Error('O limite por pedido não pode superar o diário, nem o diário o mensal.');
 }
-export const normalizarSeo = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+export const normalizarSeo = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim().replace(/\s+/g,' ');
 export function bloqueiosProducao(p: PautaEditorial, site: SiteEditorial): string[] {
   const falhas: string[] = [];
+  if (p.palavra.trim().length < 2) falhas.push('Define a palavra-chave principal antes de produzir ou publicar este artigo.');
   if (site.estado === 'planeado') falhas.push('Site planeado: a desenvolver mais tarde.');
   if (p.modoOrigem === 'exemplo' || p.modoOrigem === 'sandbox') falhas.push('Esta pauta usa dados de demonstração. Prepara uma pauta com dados reais ou um tópico próprio antes de gastar.');
   if (p.contributo?.trim().length < 40) falhas.push('Explica o contributo original do artigo em pelo menos 40 caracteres.');
@@ -23,6 +24,7 @@ export function bloqueiosProducao(p: PautaEditorial, site: SiteEditorial): strin
 }
 export function triagemPublicacao(p: PautaEditorial, site: SiteEditorial): string[] {
   const falhas = bloqueiosProducao(p, site);
+  if(p.texto?.imagem&&(!p.texto.imagem.alt?.trim()||!p.texto.imagem.titulo?.trim()))falhas.push('Completa o título e o texto alternativo da imagem destacada.');
   if (!p.texto || p.texto.corpo.trim().length < 500) falhas.push('Texto insuficiente ou ainda não produzido.');
   if (!p.texto?.afirmacoes.length) falhas.push('Falta o mapa de afirmações e fontes.');
   if (p.texto && (!p.texto.titulo.trim() || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(p.texto.slug))) falhas.push('Confirma o título e um slug válido, sem espaços ou acentos.');

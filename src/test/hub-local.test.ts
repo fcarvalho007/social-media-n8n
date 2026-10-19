@@ -53,6 +53,6 @@ describe("demonstração local da plataforma", () => {
     expect(producao.resolve?.alias).not.toHaveProperty("@/integrations/supabase/client");
     expect(local.server?.headers?.["Content-Security-Policy"]).toContain("connect-src 'self'");
     expect(producao.server?.headers).toBeUndefined();
-    expect(() => (viteConfig as (args: { mode: string; command: string }) => unknown)({ mode: "hub", command: "build" })).toThrow("apenas uma demonstração local");
+    await expect(viteConfig({ mode: "hub", command: "build" })).rejects.toThrow("apenas uma demonstração local");
   });
 });

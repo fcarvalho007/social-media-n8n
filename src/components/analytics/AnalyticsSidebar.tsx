@@ -1,124 +1,35 @@
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  LayoutDashboard,
-  User,
-  PieChart,
-  TrendingUp,
-  Trophy,
-  Clock,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
-import { useState } from "react";
-
-interface AnalyticsSidebarProps {
-  className?: string;
-}
+import { useEffect, useState } from 'react';
+import { LayoutDashboard, User, PieChart, TrendingUp, Trophy, Clock, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const sections = [
-  { id: "dashboard-header", label: "Dashboard", icon: LayoutDashboard },
-  { id: "kpi-cards", label: "KPIs", icon: TrendingUp },
-  { id: "profile-overview", label: "Perfil", icon: User },
-  { id: "content-analysis", label: "Conteúdo", icon: PieChart },
-  { id: "engagement-chart", label: "Performance", icon: TrendingUp },
-  { id: "top-posts", label: "Top Posts", icon: Trophy },
-  { id: "best-times", label: "Horários", icon: Clock },
-  { id: "caption-analysis", label: "Captions", icon: FileText },
+  { id: 'dashboard-header', label: 'Visão geral', icon: LayoutDashboard },
+  { id: 'kpi-cards', label: 'Indicadores', icon: TrendingUp },
+  { id: 'profile-overview', label: 'Perfil', icon: User },
+  { id: 'content-analysis', label: 'Conteúdo', icon: PieChart },
+  { id: 'engagement-chart', label: 'Interações', icon: TrendingUp },
+  { id: 'top-posts', label: 'Melhores publicações', icon: Trophy },
+  { id: 'best-times', label: 'Horários', icon: Clock },
+  { id: 'caption-analysis', label: 'Legendas', icon: FileText },
 ];
 
-export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeSection, setActiveSection] = useState<string>("dashboard-header");
-
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-      setActiveSection(sectionId);
-    }
-  };
-
-  return (
-    <aside
-      className={cn(
-        "hidden lg:flex flex-col h-[calc(100vh-4rem)] sticky top-16 transition-all duration-300",
-        // Dark sidebar styling
-        "bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
-        isCollapsed ? "w-14" : "w-52",
-        className
-      )}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-sidebar-border">
-        {!isCollapsed && (
-          <span className="text-sm font-semibold text-white">Navegação</span>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 ml-auto text-white/70 hover:text-white hover:bg-sidebar-muted"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
-
-      {/* Navigation items */}
-      <ScrollArea className="flex-1 py-3">
-        <nav className="flex flex-col gap-1 px-2">
-          {sections.map((section) => {
-            const isActive = activeSection === section.id;
-            
-            return (
-              <Button
-                key={section.id}
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "justify-start gap-3 transition-all duration-200 rounded-lg",
-                  "text-white/80 font-medium hover:text-white",
-                  isCollapsed ? "px-2 justify-center" : "px-3",
-                  isActive 
-                    ? "bg-sidebar-accent/20 text-white font-bold border-l-2 border-sidebar-accent" 
-                    : "hover:bg-sidebar-muted"
-                )}
-                onClick={() => scrollToSection(section.id)}
-              >
-                <section.icon 
-                  className={cn(
-                    "h-4 w-4 flex-shrink-0 transition-colors",
-                    isActive ? "text-sidebar-accent" : "text-white/80"
-                  )} 
-                />
-                {!isCollapsed && (
-                  <span className={cn(
-                    "truncate text-sm",
-                    isActive ? "text-white font-bold" : "text-white/80 font-medium"
-                  )}>
-                    {section.label}
-                  </span>
-                )}
-              </Button>
-            );
-          })}
-        </nav>
-      </ScrollArea>
-
-      {/* Footer - mini branding */}
-      {!isCollapsed && (
-        <div className="p-3 border-t border-sidebar-border">
-          <p className="text-xs text-white/60 text-center">
-            Analytics v2.0
-          </p>
-        </div>
-      )}
-    </aside>
-  );
+/** In-page destinations, rather than a second application sidebar. */
+export function AnalyticsSidebar({ className, perfilVisivel = false }: { className?: string; perfilVisivel?: boolean }) {
+  const [active, setActive] = useState('dashboard-header');
+  useEffect(() => {
+    if (!('IntersectionObserver' in window)) return;
+    const observer = new IntersectionObserver(entries => {
+      const first = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (first) setActive(first.target.id);
+    }, { rootMargin: '-100px 0px -55% 0px' });
+    sections.filter(s => s.id !== 'profile-overview' || perfilVisivel).forEach(s => { const node = document.getElementById(s.id); if (node) observer.observe(node); });
+    return () => observer.disconnect();
+  }, [perfilVisivel]);
+  return <nav aria-label="Secções dos resultados" className={cn('flex min-w-0 gap-1 overflow-x-auto rounded-lg border bg-card p-1', className)}>
+    {sections.filter(s => s.id !== 'profile-overview' || perfilVisivel).map(s => <Button key={s.id} variant="ghost" className={cn('min-h-11 shrink-0 text-xs', active === s.id && 'bg-accent text-primary')} aria-current={active === s.id ? 'location' : undefined} onClick={() => {
+      const node = document.getElementById(s.id);
+      if (node) { node.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); setActive(s.id); }
+    }}><s.icon data-icon="inline-start" aria-hidden />{s.label}</Button>)}
+  </nav>;
 }

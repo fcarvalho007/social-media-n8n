@@ -1,0 +1,78 @@
+[
+  {
+    "id": 1,
+    "motivo": "Consulta de 18/10/2026: HTTP 403: https://www.mckinsey.com/capabilities/quantumblack/our-insights"
+  },
+  {
+    "id": 3,
+    "motivo": "Consulta de 18/10/2026: HTTP 403: https://www.oecd.org/en/publications.html"
+  },
+  {
+    "id": 6,
+    "motivo": "Consulta de 18/10/2026: HTTP 403: https://openai.com/research"
+  },
+  {
+    "id": 13,
+    "motivo": "Consulta de 18/10/2026: O site excedeu o limite de redirecionamentos. · https://www2.deloitte.com/insights/us/en.html"
+  },
+  {
+    "id": 15,
+    "motivo": "Consulta de 18/10/2026: HTTP 403: https://www.gartner.com/en/documents"
+  },
+  {
+    "id": 16,
+    "motivo": "Consulta de 18/10/2026: HTTP 404: https://www.forrester.com/research/artificial-intelligence/"
+  },
+  {
+    "id": 39,
+    "motivo": "Consulta de 18/10/2026: HTTP 403: https://www.cigionline.org"
+  },
+  {
+    "id": 41,
+    "motivo": "Consulta de 18/10/2026: Não foi possível confirmar o robots.txt (HTTP 403). · https://unctad.org/publications"
+  },
+  {
+    "id": 55,
+    "motivo": "Consulta de 18/10/2026: HTTP 403: https://www.bportugal.pt/publicacoes"
+  },
+  {
+    "id": 58,
+    "motivo": "Consulta de 18/10/2026: HTTP 403: https://www.idc.com/pt"
+  },
+  {
+    "id": 62,
+    "motivo": "Consulta de 18/10/2026: Não foi possível confirmar o robots.txt (HTTP 403). · https://www.theinformation.com"
+  },
+  {
+    "id": 73,
+    "motivo": "Consulta de 18/10/2026: HTTP 403: https://papers.ssrn.com"
+  },
+  {
+    "id": 78,
+    "motivo": "Consulta de 18/10/2026: Não foi possível consultar o robots.txt; tenta novamente mais tarde. · https://www.ine.pt/xportal/xmain?xpgid=ine_publicacoes"
+  },
+  {
+    "id": 80,
+    "motivo": "Consulta de 18/10/2026: Não foi possível consultar o robots.txt; tenta novamente mais tarde. · https://www.gee.gov.pt/pt/lista-publicacoes"
+  },
+  {
+    "id": 82,
+    "motivo": "Consulta de 18/10/2026: O robots.txt desta fonte não permite esta recolha. · https://www.anacom.pt/render.jsp?categoryId=337754"
+  },
+  {
+    "id": 83,
+    "motivo": "Consulta de 18/10/2026: O robots.txt devolveu uma página HTML; recolha suspensa nesta fonte. · https://portugaldigital.gov.pt"
+  },
+  {
+    "id": 92,
+    "motivo": "Consulta de 18/10/2026: O robots.txt devolveu uma página HTML; recolha suspensa nesta fonte. · https://www.erc.pt"
+  },
+  {
+    "id": 102,
+    "motivo": "Consulta de 18/10/2026: Não foi possível consultar o robots.txt; tenta novamente mais tarde. · https://www.ahresp.com"
+  },
+  {
+    "id": 104,
+    "motivo": "Consulta de 18/10/2026: Endereço interno, redigido ou inválido. Precisa de uma fonte pública correta."
+  }
+]

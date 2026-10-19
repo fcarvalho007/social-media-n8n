@@ -414,9 +414,7 @@ export default function Analytics() {
   const isEmpty = analytics.length === 0;
 
   return (
-    <div className="flex">
-      {/* Sidebar navigation */}
-      <AnalyticsSidebar />
+    <div className="flex min-w-0 flex-col">
 
       {/* Main content */}
       <div className="hub-page flex-1">
@@ -424,11 +422,11 @@ export default function Analytics() {
         <div id="dashboard-header" className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <BarChart3 className="h-6 w-6 text-primary" />
+              <div className="hub-page-icon">
+                <BarChart3 className="size-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold">Resultados do Instagram</h1>
+                <h1 className="hub-page-title">Resultados do Instagram</h1>
                 <p className="text-sm text-muted-foreground">
                   {isEmpty
                     ? "Importe os dados das suas publicações"
@@ -561,6 +559,7 @@ export default function Analytics() {
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
+                <AnalyticsSidebar perfilVisivel={account !== "all" && !!selectedProfile}/>
                 {/* 2. KPI CARDS (6 cards) */}
                 <KPICards stats={filteredStats} />
 

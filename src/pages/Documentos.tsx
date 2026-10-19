@@ -1,3 +1,4 @@
+import { CabecalhoPagina } from '@/components/CabecalhoPagina';
 import {BACKEND_NUVEM,apiBackend} from '@/lib/backendHub';
 import {renovarCapasNuvem,atualizarAlteradosNuvem,guardarFicheiroNuvem,ficheiroNuvem,refazerCapaNuvem} from '@/features/documentos/acervoNuvem';
 import {EstadoServicoEditorial} from '@/components/backend/EstadoServicoEditorial';
@@ -6,6 +7,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BookOpen, Info, Loader2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { CuradoriaNavegacao } from '@/components/CuradoriaNavegacao';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -14,7 +16,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { useAuth } from '@/contexts/AuthContext';
 import { useProjeto } from '@/contexts/ProjetoContext';
 import { lerPdf } from '@/features/motor/fontePdf';
-import { encontrarDocumentoHash, guardarCapaDocumento, guardarDocumento, guardarLegadoDocumento, guardarLeituraDocumento, guardarRecolha, guardarTituloDocumento, listarAcervo } from '@/features/documentos/acervoLocal';
+import { eliminarDocumento, encontrarDocumentoHash, guardarCapaDocumento, guardarDocumento, guardarLegadoDocumento, guardarLeituraDocumento, guardarRecolha, guardarTituloDocumento, listarAcervo } from '@/features/documentos/acervoLocal';
 import { ImportarAcervoNuvem } from '@/features/documentos/ImportarAcervoNuvem';
 import { guardarOcrNuvem } from '@/features/documentos/acervoNuvem';
 import { guardarOcrLocal } from '@/features/documentos/acervoLocal';
@@ -35,7 +37,7 @@ export default function Documentos() {
   const { user } = useAuth(); const ctx = useProjeto(); const nav = useNavigate();
   const ambito = user && ctx.projetoId ? ambitoAcervo(user.id, ctx.projetoId) : null;
   return <div className="hub-page">
-    <header className="flex flex-wrap items-start justify-between gap-4"><div className="flex max-w-2xl flex-col gap-2"><h1 className="text-3xl font-semibold tracking-tight">Documentos e relatórios</h1><p className="text-sm text-muted-foreground">Pesquisa as tuas fontes e transforma páginas verificadas em conteúdo.</p></div><div className="flex w-full flex-col gap-1.5 sm:w-64"><Label htmlFor="projeto-acervo">Documentos do projeto</Label><Select value={ctx.projetoId ?? ''} disabled={ctx.estado !== 'pronto' || ctx.aGuardar} onValueChange={id => ctx.escolher(id).catch(e => toast.error(e.message))}><SelectTrigger id="projeto-acervo" className="min-h-11"><SelectValue placeholder="Escolhe um projeto" /></SelectTrigger><SelectContent><SelectGroup>{ctx.projetos.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectGroup></SelectContent></Select></div></header>
+    <CabecalhoPagina titulo="Documentos e relatórios" descricao="Pesquisa as tuas fontes e transforma páginas verificadas em conteúdo." icone={BookOpen} acoes={<div className="flex w-full flex-col gap-1.5 sm:w-64"><Label htmlFor="projeto-acervo">Documentos do projeto</Label><Select value={ctx.projetoId ?? ''} disabled={ctx.estado !== 'pronto' || ctx.aGuardar} onValueChange={id => ctx.escolher(id).catch(e => toast.error(e.message))}><SelectTrigger id="projeto-acervo" className="min-h-11"><SelectValue placeholder="Escolhe um projeto" /></SelectTrigger><SelectContent><SelectGroup>{ctx.projetos.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectGroup></SelectContent></Select></div>}/>
     <CuradoriaNavegacao />
     <div className="flex items-start gap-2 text-xs text-muted-foreground"><Info className="mt-0.5 size-4 shrink-0" aria-hidden="true"/><p>{BACKEND_NUVEM?'Acervo privado na nuvem · ficheiros e histórico separados por projeto.':'Pré-visualização local · ficheiros neste computador e neste navegador · sem sincronização na nuvem.'}</p></div>
     {BACKEND_NUVEM && <EstadoServicoEditorial projeto={ctx.projetoId}/>}
@@ -47,6 +49,7 @@ function Acervo({ ambito, userId, projetoId, navegar }: { ambito: string; userId
   const [params, setParams] = useSearchParams(); const estado = lerEstadoBiblioteca(params);
   const [docs, setDocs] = useState<DocumentoAcervo[]>([]); const [recolhas, setRecolhas] = useState<Recolha[]>([]);
   const [carregando, setCarregando] = useState(true); const [erroCarga, setErroCarga] = useState<string|null>(null); const [erro, setErro] = useState<string|null>(null);
+  const [aEliminar,setAEliminar]=useState<DocumentoAcervo|null>(null);
   const [ocupado, setOcupado] = useState<string|null>(null); const emCurso = useRef(false); const vivo = useRef(true); const retorno = useRef<string|null>(null);
   const [url, setUrl] = useState(''); const [candidatos, setCandidatos] = useState<CandidatoPdf[]>([]); const [resultado, setResultado] = useState<string|null>(null);
   const [paginas, setPaginas] = useState<Set<number>>(new Set()); const ficheiroInput = useRef<HTMLInputElement>(null);
@@ -110,6 +113,7 @@ function Acervo({ ambito, userId, projetoId, navegar }: { ambito: string; userId
       const res = await pedidoLocal('obter', { url: endereco });
       const bytes = new Uint8Array(await res.arrayBuffer()); const final = decodeURIComponent(res.headers.get('X-Hub-Url-Final') || encodeURIComponent(endereco));
       if (temAssinaturaPdf(bytes)) {
+        if(!apenasPdf){setCandidatos([{url:final,titulo:titulo||nomeDoFicheiro(final)}]);setResultado('PDF encontrado. Escolhe «Importar PDF» para criar texto e capa na biblioteca.');await guardarRecolha({...r,estado:'consultado',detalhe:'Assinatura PDF verificada. A aguardar escolha de importação.'});return;}
         setResultado(null); await guardar(new File([bytes], nomeDoFicheiro(final), { type: 'application/pdf' }), final, titulo, { ...r, estado: 'descarregado', detalhe: `${bytes.byteLength} bytes recebidos. A verificar a estrutura e a extrair o texto.` });
       } else {
         if (apenasPdf || !res.headers.get('Content-Type')?.includes('html')) throw new Error('O endereço não devolveu um PDF. Pode ser uma página de login, um bloqueio ou outro ficheiro.');
@@ -134,10 +138,11 @@ function Acervo({ ambito, userId, projetoId, navegar }: { ambito: string; userId
     <input ref={ficheiroInput} tabIndex={-1} type="file" accept="application/pdf,.pdf" className="sr-only" aria-label="Ficheiro PDF" onChange={e=>{const f=e.target.files?.[0];e.target.value='';if(f)void executar('A ler e guardar o PDF…',()=>guardar(f,null));}}/>
     {erro&&<Alert variant="destructive"><AlertDescription>{erro}</AlertDescription></Alert>}
     {ocupado&&<p role="status" className="flex items-center gap-2 text-sm"><Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true"/>{ocupado}</p>}
+    <Dialog open={!!aEliminar} onOpenChange={v=>{if(!v&&!ocupado)setAEliminar(null);}}><DialogContent><DialogHeader><DialogTitle>Eliminar definitivamente este PDF?</DialogTitle><DialogDescription>Remove o original, capas, texto, estado de leitura e entradas da biblioteca neste projeto. Elimina também os downloads temporários associados. As peças de conteúdo já criadas a partir dele não são apagadas. Esta ação não pode ser desfeita.</DialogDescription></DialogHeader><p className="break-words font-medium">{aEliminar?.titulo}</p><div className="flex flex-wrap justify-end gap-2"><Button variant="outline" disabled={!!ocupado} onClick={()=>setAEliminar(null)}>Cancelar</Button><Button variant="destructive" disabled={!!ocupado} onClick={async()=>{if(!aEliminar)return;const ok=await executar('A eliminar o documento…',()=>eliminarDocumento(aEliminar));if(ok){setAEliminar(null);mudar({documento:null,separador:'acervo'});toast.success('Documento e ficheiros eliminados deste projeto.');}}}>Eliminar PDF e ficheiros</Button></div></DialogContent></Dialog>
     <div>
       <TabsContent value="acervo" forceMount hidden={estado.tab!=='acervo'} className={estado.tab!=='acervo'?'hidden':'flex flex-col gap-6'}>
 
-        {erroCarga?<Alert variant="destructive"><AlertDescription><p>{erroCarga}</p><Button variant="outline" className="mt-3 min-h-11" onClick={()=>void carregar()}>Tentar abrir o acervo novamente</Button></AlertDescription></Alert>:doc?<LeitorDocumento onReextrair={BACKEND_NUVEM?()=>void executar('A preparar uma nova extração…',()=>apiBackend('/documentos/reextrair-texto',{id:doc.id,ambito:doc.ambito},{projeto:projetoId})):undefined} ocr={<OcrDocumento documento={doc} ocupado={!!ocupado} onGuardar={async p=>{const atualizado=BACKEND_NUVEM?await guardarOcrNuvem(doc,p):await guardarOcrLocal(doc,p);if(vivo.current)setDocs(ds=>ds.map(d=>d.id===atualizado.id?atualizado:d));}}/>} termoInicial={(params.get('termo')??'').slice(0,160)} paginaInicial={Math.max(1,Number(params.get('pagina'))||1)} key={`${doc.id}:${params.get('termo')??''}`} documento={doc} paginas={paginas} onPaginas={setPaginas} ocupado={!!ocupado} voltar={()=>{retorno.current=doc.id;mudar({documento:null});}} onTitulo={s=>executar('A guardar o título…',()=>guardarTituloDocumento(doc.id,ambito,s))} onLeitura={s=>void executar('A guardar o estado de leitura…',()=>guardarLeituraDocumento(doc.id,ambito,s))} onOriginal={()=>descarregar(doc)} onCapa={()=>void refazerCapa(doc)} onDownloadCapa={()=>{void executar('A preparar a capa…',async()=>{const b=BACKEND_NUVEM?await ficheiroNuvem(doc,true):doc.capa;if(b)downloadBlob(b,`${doc.pdf.ficheiro.replace(/\.pdf$/i,'')}-capa.png`);});}} onCopiar={()=>navigator.clipboard.writeText(excertoReferenciado(doc,paginas)).then(()=>toast.success('Texto e referência copiados')).catch(()=>setErro('O navegador não permitiu copiar. Abre o texto da página e seleciona o excerto.'))} onPreparar={enviar}/>:<>
+        {erroCarga?<Alert variant="destructive"><AlertDescription><p>{erroCarga}</p><Button variant="outline" className="mt-3 min-h-11" onClick={()=>void carregar()}>Tentar abrir o acervo novamente</Button></AlertDescription></Alert>:doc?<LeitorDocumento onEliminar={()=>setAEliminar(doc)} onReextrair={BACKEND_NUVEM?()=>void executar('A preparar uma nova extração…',()=>apiBackend('/documentos/reextrair-texto',{id:doc.id,ambito:doc.ambito},{projeto:projetoId})):undefined} ocr={<OcrDocumento documento={doc} ocupado={!!ocupado} onGuardar={async p=>{const atualizado=BACKEND_NUVEM?await guardarOcrNuvem(doc,p):await guardarOcrLocal(doc,p);if(vivo.current)setDocs(ds=>ds.map(d=>d.id===atualizado.id?atualizado:d));}}/>} termoInicial={(params.get('termo')??'').slice(0,160)} paginaInicial={Math.max(1,Number(params.get('pagina'))||1)} key={`${doc.id}:${params.get('termo')??''}`} documento={doc} paginas={paginas} onPaginas={setPaginas} ocupado={!!ocupado} voltar={()=>{retorno.current=doc.id;mudar({documento:null});}} onTitulo={s=>executar('A guardar o título…',()=>guardarTituloDocumento(doc.id,ambito,s))} onLeitura={s=>void executar('A guardar o estado de leitura…',()=>guardarLeituraDocumento(doc.id,ambito,s))} onOriginal={()=>descarregar(doc)} onCapa={()=>void refazerCapa(doc)} onDownloadCapa={()=>{void executar('A preparar a capa…',async()=>{const b=BACKEND_NUVEM?await ficheiroNuvem(doc,true):doc.capa;if(b)downloadBlob(b,`${doc.pdf.ficheiro.replace(/\.pdf$/i,'')}-capa.png`);});}} onCopiar={()=>navigator.clipboard.writeText(excertoReferenciado(doc,paginas)).then(()=>toast.success('Texto e referência copiados')).catch(()=>setErro('O navegador não permitiu copiar. Abre o texto da página e seleciona o excerto.'))} onPreparar={enviar}/>:<>
           {estado.id&&!carregando&&<Alert><AlertDescription>Este documento não está disponível neste projeto. <Button variant="link" onClick={()=>mudar({documento:null},true)}>Voltar ao acervo</Button></AlertDescription></Alert>}
           <GaleriaDocumentos docs={docs} carregando={carregando} estado={estado} mudar={mudar} abrir={abrir}/>
         </>}

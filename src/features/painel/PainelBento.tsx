@@ -24,14 +24,14 @@ const mesAtual = () => new Date().toLocaleDateString("pt-PT", { month: "long", y
 const ESTADO: Record<string, string> = { active: "Ativo", on_hold: "Em pausa", completed: "Concluído" };
 
 export function Bloco({ className = "", children }: { className?: string; children: ReactNode }) {
-  return <section className={`rounded-3xl border bg-card p-5 sm:p-6 ${className}`}>{children}</section>;
+  return <section className={`hub-surface p-5 sm:p-6 ${className}`}>{children}</section>;
 }
 
 function Titulo({ icon: Icon, children, acao }: { icon: typeof Euro; children: ReactNode; acao?: ReactNode }) {
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
       <h2 className="flex items-center gap-3 font-semibold">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary"><Icon className="h-4 w-4" aria-hidden /></span>
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-primary"><Icon className="h-4 w-4" aria-hidden /></span>
         {children}
       </h2>
       {acao}
@@ -40,7 +40,7 @@ function Titulo({ icon: Icon, children, acao }: { icon: typeof Euro; children: R
 }
 
 const LinkVer = ({ to, children }: { to: string; children: ReactNode }) => (
-  <Link to={to} className="text-xs font-semibold uppercase tracking-wider text-primary hover:underline">{children} →</Link>
+  <Link to={to} className="inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline">{children} →</Link>
 );
 
 export function CustosBloco() {
@@ -54,8 +54,8 @@ export function CustosBloco() {
         <span className="text-xs text-muted-foreground">{mesAtual()}</span>
       </div>
       <div className="py-5">
-        {loading ? <Skeleton className="h-12 w-32" /> : <div className="text-5xl font-bold tracking-tight">{eurC(mes.total)}</div>}
-        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-primary">IA · {mes.pedidos} pedidos</p>
+        {loading ? <Skeleton className="h-12 w-32" /> : <div className="text-4xl font-semibold tabular-nums tracking-tight">{eurC(mes.total)}</div>}
+        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-primary">IA · {mes.pedidos} {mes.pedidos === 1 ? "pedido" : "pedidos"}</p>
       </div>
       <ul className="space-y-2 text-sm">
         {FORNECEDORES.filter((f) => f.id !== "outros").map((f) => (
@@ -109,7 +109,7 @@ export function ConteudoBloco() {
     <section className="space-y-4 lg:col-span-12">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold">Conteúdo a tratar</h2>
+          <h2 className="text-xl font-semibold">Conteúdo a tratar</h2>
           {!loading && <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-bold">{totalCount}</span>}
           {taxa && taxa.total > 0 && (
             <span className="text-xs text-muted-foreground" title={taxa.redes.map((r) => `${r.rede}: ${r.sucesso} de ${r.total}`).join(" · ")}>
@@ -117,9 +117,9 @@ export function ConteudoBloco() {
             </span>
           )}
         </div>
-        <nav className="flex gap-1 rounded-2xl border bg-card p-1.5" aria-label="Conteúdo a tratar">
+        <nav className="flex flex-wrap gap-1 rounded-lg border bg-card p-1" aria-label="Conteúdo a tratar">
           {filtro.map((f, i) => (
-            <Link key={f.to} to={f.to} className={`rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${i === 0 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+            <Link key={f.to} to={f.to} className={`min-h-11 rounded-md px-3 py-3 text-xs font-medium transition-colors ${i === 0 ? "bg-accent text-primary" : "text-muted-foreground hover:text-foreground"}`}>
               {f.r}{!loading && ` (${f.n})`}
             </Link>
           ))}
@@ -182,9 +182,9 @@ export function CalendarioBloco() {
   return (
     <Bloco className="lg:col-span-6">
       <Titulo icon={CalendarDays} acao={<LinkVer to="/calendar">Ver calendário</LinkVer>}>Calendário</Titulo>
-      <ul className="space-y-2">
+      <ul className="flex flex-col divide-y">
         {linhas.map((l) => (
-          <li key={l.r} className="flex items-center justify-between rounded-2xl border bg-background p-3.5">
+          <li key={l.r} className="flex items-center justify-between gap-3 py-3.5">
             <span className="flex items-center gap-3 text-sm text-muted-foreground"><span className={`h-2 w-2 rounded-full ${l.cor}`} aria-hidden />{l.r}</span>
             <span className="text-xl font-bold">{loading ? "…" : l.n}</span>
           </li>
@@ -205,14 +205,14 @@ export function ProjetosBloco({ projetoId }: { projetoId: string | null }) {
       {lista.length === 0 ? (
         <p className="py-4 text-center text-sm text-muted-foreground">Nenhum projeto criado. <Link to="/projects" className="underline">Criar projeto</Link></p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="flex flex-col divide-y">
           {lista.map((p) => (
             <li key={p.id}>
-              <Link to={`/projects/${p.id}`} className="group flex items-center justify-between rounded-2xl border bg-background p-3.5 transition-colors hover:border-primary">
+              <Link to={`/projects/${p.id}`} className="group flex items-center justify-between gap-3 py-3.5 transition-colors hover:border-primary">
                 <span className="flex min-w-0 items-center gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">{p.name.charAt(0)}</span>
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold uppercase tracking-tight">{p.name}</span>
+                    <span className="block truncate text-sm font-semibold">{p.name}</span>
                     <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{ESTADO[p.status] ?? "Arquivado"}</span>
                   </span>
                 </span>

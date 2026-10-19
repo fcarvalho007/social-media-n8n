@@ -23,7 +23,7 @@ export function criarRuntimeEdge(ambiente: AmbienteEdge) {
         if (u.origin !== o || u.protocol !== 'https:')
             throw new Error('As origens do Hub têm de ser HTTPS exatas.');
     }
-    const env = new Proxy({} as Record<string, string | undefined>, { get: (_t, p) => typeof p === 'string' ? ambiente.get(p) : undefined }), doc = new DocumentosEdge(sb, new PdfNuvem(ambiente.lerWasm)), seo = new ServicoSeo(sb, () => ({ login: ambiente.get('DATAFORSEO_LOGIN'), password: ambiente.get('DATAFORSEO_PASSWORD'), deepseek: ambiente.get('DEEPSEEK_API_KEY') }), true);
+    const env = new Proxy({} as Record<string, string | undefined>, { get: (_t, p) => typeof p === 'string' ? ambiente.get(p) : undefined }), doc = new DocumentosEdge(sb, new PdfNuvem(ambiente.lerWasm)), seo = new ServicoSeo(sb, () => ({ login: ambiente.get('DATAFORSEO_LOGIN'), password: ambiente.get('DATAFORSEO_PASSWORD'), deepseek: ambiente.get('DEEPSEEK_API_KEY') }), true,()=>ambiente.get('HUB_WEBHOOKS_EDITORIAIS'));
     const wp = new PublicadorWordPress(sb, s => credencialWordPress(s, env), () => ambiente.get('HUB_WORDPRESS_PUBLICAR') === '1'), worker = new WorkerHub(sb, seo, doc, '/tmp/hub-worker', j => wp.executar(j), s => ambiente.get('HUB_WORDPRESS_PUBLICAR') === '1' && !!credencialWordPress(s, env), j => doc.parte(j));
     const fetch = adaptarWeb(criarServidor({ url, anon, origens, pasta: '/tmp/hub-worker' }, { sb, seo, documentos: doc, wordpress: wp }));
     return { fetch, async trabalhar(req: Request) {

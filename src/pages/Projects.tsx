@@ -1,3 +1,4 @@
+import { CabecalhoPagina } from '@/components/CabecalhoPagina';
 import { useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -94,19 +95,10 @@ export default function Projects() {
       
       <div id="main-content" className="space-y-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Projetos</h1>
-            <p className="text-muted-foreground">Gere os teus projetos e tarefas</p>
-          </div>
-          <Button onClick={() => setCreateModalOpen(true)} size="lg" className="gap-2">
-            <Plus className="h-5 w-5" />
-            Criar Projeto
-          </Button>
-        </div>
+        <CabecalhoPagina titulo="Projetos" descricao="Gere os teus projetos e tarefas." acoes={<Button onClick={() => setCreateModalOpen(true)} className="gap-2"><Plus aria-hidden/>Criar Projeto</Button>}/>
 
         {/* Search and Filters - Mobile optimized */}
-        <div className="flex flex-col gap-3 mb-6">
+        <div className="hub-toolbar flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
@@ -118,7 +110,7 @@ export default function Projects() {
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger aria-label="Filtrar projetos por estado" className="w-full min-h-[44px] active:scale-95 transition-transform">
+            <SelectTrigger aria-label="Filtrar projetos por estado" className="min-h-11 w-full sm:w-52">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

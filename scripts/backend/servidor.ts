@@ -1,3 +1,6 @@
+import { obterPublico } from '../documentos/obter';
+import { validarImagem } from '../seo/imagens';
+import { ImagensArtigoNuvem } from './imagens-artigo';
 import { Buffer } from 'node:buffer';
 import process from 'node:process';
 import { setInterval, clearInterval } from 'node:timers';
@@ -87,7 +90,7 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
                 for (const [k, v] of limites)
                     if (v.fim <= agora)
                         limites.delete(k);
-            const leitura = { seo: ['estado', 'resultado', 'ciclo', 'campanha-fonte', 'campanha-composicao'], documentos: ['capas', 'documento', 'versoes', 'acervo', 'recolhas', 'encontrar', 'ficheiro', 'fontes', 'diagnostico', 'legado/catalogo', 'legado-resumo', 'tarefas', 'ler'], operacao: ['estado', 'percurso', 'pesquisa'], wordpress: ['verificar', 'estado'] } as Record<string, string[]>;
+            const leitura = { seo: ['estado', 'resultado', 'ciclo', 'campanha-fonte', 'campanha-composicao','biblioteca-pesquisas','integracoes-estado','imagens-listar','imagem-detalhe','imagem-exportar'], documentos: ['capas', 'documento', 'versoes', 'acervo', 'recolhas', 'encontrar', 'ficheiro', 'fontes', 'diagnostico', 'legado/catalogo', 'legado-resumo', 'tarefas', 'ler'], operacao: ['estado', 'percurso', 'pesquisa'], wordpress: ['verificar', 'estado'] } as Record<string, string[]>;
             if (!leitura[caminho[1]].includes(caminho[2]) && !(caminho[1] === 'operacao' && caminho[2] === 'backup')) {
                 const copia = await servicos.sb.from('hub_leases').select('token').eq('project_id', ctx.projeto).eq('recurso', 'backup').gt('ate', new Date().toISOString()).maybeSingle();
                 if (copia.error)
@@ -121,11 +124,16 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
             }
             if (!tipo.startsWith('application/json'))
                 throw new FalhaHttp('Pedido JSON obrigatório.', 415);
-            const a = JSON.parse((await lerCorpo(req, caminho[1]==='seo'&&caminho[2]==='campanha-composicao-guardar'?1700000:400000)).toString('utf8') || '{}') as Record<string, unknown>;
+            const a = JSON.parse((await lerCorpo(req, caminho[1]==='seo'&&caminho[2]==='imagem-guardar'?12000000:caminho[1]==='seo'&&caminho[2]==='glossario-guardar'?1300000:caminho[1]==='seo'&&caminho[2]==='campanha-composicao-guardar'?1700000:400000)).toString('utf8') || '{}') as Record<string, unknown>;
             if (!a || typeof a !== 'object' || Array.isArray(a))
                 throw new FalhaHttp('Pedido inválido.');
             let resultado: unknown;
-            if (caminho[1] === 'seo')
+            if(caminho[1]==='seo'&&caminho[2]==='imagens-listar')resultado=await new ImagensArtigoNuvem(servicos.sb).listar(ctx);
+            else if(caminho[1]==='seo'&&caminho[2]==='imagem-detalhe')resultado=await new ImagensArtigoNuvem(servicos.sb).detalhe(ctx,z.string().uuid().parse(a.id));
+            else if(caminho[1]==='seo'&&caminho[2]==='imagem-exportar'){const i=a.id?await new ImagensArtigoNuvem(servicos.sb).ficheiro(ctx.projeto,z.string().uuid().parse(a.id)):await obterPublico(z.string().url().max(2000).parse(a.url),AbortSignal.timeout(20000),{maxBytes:8388608});resultado={tipo:validarImagem(i.bytes).tipo,base64:Buffer.from(i.bytes).toString('base64')};}
+            else if(caminho[1]==='seo'&&caminho[2]==='imagem-importar')resultado=await new ImagensArtigoNuvem(servicos.sb).importar(ctx,z.string().url().max(2000).parse(a.url));
+            else if(caminho[1]==='seo'&&caminho[2]==='imagem-guardar')resultado=await new ImagensArtigoNuvem(servicos.sb).guardar(ctx,a.imagem);
+            else if (caminho[1] === 'seo')
                 resultado = await servicos.seo.executar(ctx, caminho[2], a);
             else if (caminho[1] === 'documentos') {
                 if (a.ambito !== undefined)
@@ -156,15 +164,17 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
             else {
                 if (caminho[2] === 'estado') {
                     const id = z.string().uuid().parse(a.pautaId);
-                    const [p, j] = await Promise.all([servicos.sb.from('hub_publicacoes').select('id,versao,destino,estado,remoto_url,atualizado_em').eq('project_id', ctx.projeto).eq('pauta_id', id).order('atualizado_em', { ascending: false }).limit(20), servicos.sb.from('hub_jobs').select('id,estado,resultado,pedido,criado_em').eq('project_id', ctx.projeto).eq('tipo', 'wordpress').contains('pedido', { pautaId: id }).order('criado_em', { ascending: false }).limit(10)]);
+                    const [p, j] = await Promise.all([servicos.sb.from('hub_publicacoes').select('id,versao,destino,estado,escrita_iniciada,remoto_url,atualizado_em').eq('project_id', ctx.projeto).eq('pauta_id', id).order('atualizado_em', { ascending: false }).limit(20), servicos.sb.from('hub_jobs').select('id,estado,resultado,pedido,criado_em').eq('project_id', ctx.projeto).eq('tipo', 'wordpress').contains('pedido', { pautaId: id }).order('criado_em', { ascending: false }).limit(10)]);
                     if (p.error || j.error)
                         throw new Error('Não foi possível consultar os envios WordPress.');
-                    resultado = { envios: p.data, trabalhos: j.data, podeEditar: ctx.escrever, publicacaoAtiva: process.env.HUB_WORDPRESS_PUBLICAR === '1' };
+                    const imagens=await servicos.sb.from('hub_wp_imagens').select('site_id,hash,estado,remoto_id,metadados').eq('project_id',ctx.projeto).order('atualizado_em',{ascending:false}).limit(50);
+                    resultado = { imagens:imagens.error?[]:imagens.data,envios: p.data, trabalhos: j.data, podeEditar: ctx.escrever, publicacaoAtiva: process.env.HUB_WORDPRESS_PUBLICAR === '1' };
                 }
                 else {
                     exigirEscrita(ctx);
                     if (caminho[2] === 'verificar')
                         resultado = await servicos.wordpress.verificar(z.string().max(80).parse(a.siteId));
+                    else if(caminho[2]==='imagem-reconciliar')resultado=await servicos.wordpress.reconciliarImagem(ctx.projeto,z.string().max(80).parse(a.siteId),z.string().regex(/^[a-f0-9]{64}$/).parse(a.hash));
                     else if (caminho[2] === 'reconciliar')
                         resultado = await servicos.wordpress.reconciliar(ctx.projeto, z.string().uuid().parse(a.id));
                     else if (caminho[2] === 'enfileirar') {

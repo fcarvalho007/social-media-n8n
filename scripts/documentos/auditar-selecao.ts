@@ -1,0 +1,12 @@
+import path from 'node:path';
+import { mkdir,writeFile } from 'node:fs/promises';
+import originais from './fontes-originais.json';
+import { SUGESTOES_FONTES,chaveFonte } from '../../src/features/documentos/sugestoes';
+import { MotorDocumentos } from './motor-local';
+const fontes=SUGESTOES_FONTES.map((s,i)=>({...originais.find(f=>chaveFonte(f.url)===chaveFonte(s.url)),...s,id:10000+i,alternative_urls:[],region:'international',priority:'medium',active:false,tags:[],display_order:i}));
+const motor=new MotorDocumentos(path.resolve('.documentos-local/auditoria-selecao'),fontes);
+const j=await motor.iniciar('auditoria-tecnica-selecao',fontes.map(f=>f.id),'diagnostico');
+await motor.aguardar(j.id,j.ambito);
+const relatorio={em:new Date().toISOString(),modo:'diagnostico',fontes:j.fontes,descobertas:j.descobertas.filter(d=>d.tipo==='pdf').slice(0,100)};
+await mkdir('docs/auditorias',{recursive:true});await writeFile('docs/auditorias/fontes-selecao-2026-10-19.json',JSON.stringify(relatorio,null,2)+'\n');
+process.stdout.write(JSON.stringify(j.fontes.map(f=>({nome:f.nome,estado:f.estado,pdfs:f.pdfs,detalhes:f.detalhes})),null,2)+'\n');

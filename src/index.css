@@ -46,15 +46,72 @@
 @layer components {
   /* MainLayout owns the gutter; content pages share one inner rhythm. */
   .hub-page {
-    @apply mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-6;
+    @apply mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-6 lg:gap-7;
+  }
+
+  .hub-page-header {
+    @apply flex min-w-0 flex-wrap items-start justify-between gap-4;
+  }
+
+  .hub-page-title {
+    @apply break-words font-semibold tracking-tight outline-none;
+    font-size: clamp(1.5rem, 1.1rem + 1vw, 1.875rem);
+    line-height: 1.2;
+    scroll-margin-top: 10rem;
+    overflow-wrap: anywhere;
+  }
+
+  .hub-page-icon {
+    @apply mt-0.5 inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-primary;
+  }
+
+  .hub-surface {
+    @apply rounded-lg border border-border bg-card shadow-sm;
+  }
+
+  .hub-toolbar {
+    @apply min-w-0 rounded-lg border border-border bg-card p-4;
+  }
+
+  .hub-section-nav {
+    @apply flex min-w-0 gap-1 border-b border-border;
+  }
+
+  .hub-section-link {
+    @apply relative inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-t-md px-3 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+    box-shadow: inset 0 -2px transparent;
+  }
+
+  .hub-section-link[aria-current="page"],
+  .hub-section-link[data-route-active="true"] {
+    @apply text-primary;
+    box-shadow: inset 0 -2px hsl(var(--primary));
+  }
+
+  .hub-action-tile {
+    @apply flex min-h-24 items-start gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  /* Authenticated newsletter controls share the Hub theme. Public editions,
+     emails and graphic documents keep their separate editorial palettes. */
+  .hub-navigation .ds-app .ds-gradient {
+    background: hsl(var(--primary));
+  }
+
+  .hub-navigation .ds-app .font-display {
+    font-family: Inter, system-ui, sans-serif;
+  }
+
+  .hub-navigation :is(#dashboard-header, #kpi-cards, #profile-overview, #content-analysis, #engagement-chart, #top-posts, #best-times, #caption-analysis) {
+    scroll-margin-top: 7rem;
   }
 
   .hub-navigation {
     --sidebar-background: var(--card);
     --sidebar-foreground: var(--foreground);
     --sidebar-border: var(--border);
-    --sidebar-accent: var(--muted);
-    --sidebar-accent-foreground: var(--foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--primary);
     --sidebar-ring: var(--ring);
   }
 
@@ -78,43 +135,43 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Page backgrounds */
-    --background: 210 20% 98%; /* #F9FAFB */
-    --background-secondary: 210 16% 93%; /* #E5E7EB */
-    --foreground: 222 47% 11%; /* #0F172A */
+    --background: 212 43% 97%;
+    --background-secondary: 212 40% 95%;
+    --foreground: 216 35% 16%;
 
     /* Card styling */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --card-hover: 210 20% 96%;
+    --card-foreground: 216 35% 16%;
+    --card-hover: 211 65% 98%;
 
     /* Popover styling */
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary - Indigo vibrante */
-    --primary: 239 84% 66%; /* white text contrast >= 4.5:1 */
-    --primary-hover: 239 84% 57%; /* #4F46E5 */
+    /* Hub blue: luminous accent with AA contrast for white action labels. */
+    --primary: 211 96% 43%; /* 5.18:1 against white */
+    --primary-hover: 211 100% 36%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 226 100% 94%; /* #E0E7FF */
+    --primary-light: 210 100% 96%;
     
     /* Cores específicas da paleta */
-    --iconosquare-blue: 208 100% 50%;
-    --iconosquare-bg: 210 20% 98%;
+    --iconosquare-blue: var(--primary);
+    --iconosquare-bg: var(--background);
     --iconosquare-inactive: 215 16% 47%;
     --iconosquare-alert: 0 84% 60%;
-    --iconosquare-accent: 208 100% 50%;
+    --iconosquare-accent: var(--primary);
 
     /* Secondary */
-    --secondary: 210 16% 93%;
+    --secondary: 212 50% 96%;
     --secondary-foreground: 222 47% 11%;
 
     /* Muted elements */
-    --muted: 210 16% 93%;
-    --muted-foreground: 215 16% 42%; /* Contraste AA também no fundo secundário */
+    --muted: 214 35% 95%;
+    --muted-foreground: 215 18% 40%;
 
     /* Accent colors */
-    --accent: 239 84% 66%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 210 100% 96%;
+    --accent-foreground: 211 100% 36%;
     --accent-purple: 239 84% 67%;
     --accent-mint: 160 84% 39%;
 
@@ -134,12 +191,12 @@ All colors MUST be HSL.
     --info: 217 91% 60%;
 
     /* Success - Verde */
-    --success: 160 84% 39%; /* #10B981 */
+    --success: 158 70% 30%;
     --success-light: 160 84% 95%;
     --success-foreground: 0 0% 100%;
 
     /* Destructive - Vermelho */
-    --destructive: 0 84% 60%; /* #EF4444 */
+    --destructive: 0 72% 45%;
     --destructive-light: 0 84% 95%;
     --destructive-foreground: 0 0% 100%;
 
@@ -170,12 +227,19 @@ All colors MUST be HSL.
     --template-b-secondary: 215 16% 47%;
 
     /* Borders and inputs */
-    --border: 214 18% 86%; /* #E5E7EB */
-    --input: 214 18% 86%;
-    --ring: 239 84% 67%;
+    --border: 214 32% 90%;
+    --input: 214 20% 57%; /* 3.33:1 control boundary on white */
+    --ring: var(--primary);
 
-    --radius: 1rem;
+    --radius: .75rem;
     
+    /* Shared data series: labels and legends must accompany colour. */
+    --chart-1: 211 96% 43%;
+    --chart-2: 168 70% 30%;
+    --chart-3: 34 86% 41%;
+    --chart-4: 262 60% 51%;
+    --chart-5: 350 70% 45%;
+
     /* Chart gradient colors */
     --chart-video-from: 239 74% 66%;
     --chart-video-to: 280 58% 52%;
@@ -199,10 +263,10 @@ All colors MUST be HSL.
     --duration-slow: 400ms;
     
     /* Shadows - Premium */
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-sm: 0 1px 3px hsl(214 45% 24% / .04);
+    --shadow-md: 0 5px 16px hsl(214 45% 24% / .07);
+    --shadow-lg: 0 12px 32px hsl(214 45% 24% / .12);
+    --shadow-xl: 0 20px 64px hsl(214 45% 24% / .16);
     
     /* Platform colors */
     --color-instagram: 330 100% 50%;
@@ -290,7 +354,7 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-gradient-to-br from-background to-[hsl(var(--background-secondary))] text-foreground;
+    @apply bg-background text-foreground;
     /* Improve text rendering on all devices */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

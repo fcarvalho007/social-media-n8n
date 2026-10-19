@@ -22,15 +22,16 @@ export interface DestinoNavegacao {
 export const DESTINOS_NAVEGACAO: DestinoNavegacao[] = [
   { label: 'Início', url: '/', descricao: 'Retomar trabalho e escolher projeto', grupo: 'Trabalho', icon: LayoutDashboard },
   { label: 'Pesquisar no Hub', url: '/pesquisa', descricao: 'Pesquisar texto em PDFs, notícias, artigos e peças sociais', grupo: 'Trabalho', icon: Search, palavrasChave: ['pesquisa transversal','encontrar','busca'] },
-  ...(SEO_DISPONIVEL ? [{ label: 'Percurso editorial', url: '/artigos/percurso', pai: '/artigos', descricao: 'Fonte, pesquisa, artigo, aprovação, publicação e resultados', grupo: 'Trabalho' as const, icon: Route }] : []),
-  ...(SEO_DISPONIVEL ? [{ label: 'Sites e regras', url: '/artigos/sites', pai: '/artigos', descricao: 'Configuração guiada de público, voz, temas, oferta, frequência e aprovação', grupo: 'Trabalho' as const, icon: SlidersHorizontal, palavrasChave: ['configurar site','assistente','público','voz','temas','oferta','frequência','aprovação'] }] : []),
+  ...(SEO_DISPONIVEL ? [{ label: 'Plano de artigos', url: '/artigos/plano', pai: '/artigos', descricao: 'Fonte, pesquisa, artigo, aprovação, publicação e resultados', grupo: 'Trabalho' as const, icon: Route }] : []),
+  ...(SEO_DISPONIVEL ? [{ label: 'Perfis dos sites', url: '/artigos/sites', pai: '/artigos', descricao: 'Configuração guiada de público, voz, temas, oferta, frequência e aprovação', grupo: 'Trabalho' as const, icon: SlidersHorizontal, palavrasChave: ['configurar site','assistente','público','voz','temas','oferta','frequência','aprovação'] }] : []),
+  ...(SEO_DISPONIVEL ? [{ label: 'Séries e calendário', url: '/artigos/lotes', pai: '/artigos', descricao: 'Séries de artigos com calendário, orçamento e aprovação por site', grupo: 'Trabalho' as const, icon: FileText, palavrasChave: ['lotes','séries','bulk','Byword'] }] : []),
   { label: 'Curadoria', url: '/curadoria', descricao: 'Escolher notícias, emails e documentos para criar conteúdo', grupo: 'Trabalho', icon: CheckCircle2 },
   ...(SEO_DISPONIVEL ? [{label:'Campanhas',url:'/campanhas',descricao:'Criar artigo, newsletter, carrossel, Story e continuidade a partir de uma descoberta',grupo:'Trabalho' as const,icon:Route,palavrasChave:['campanha','descoberta','sequência','multicanal']}] : []),
   { label: 'Criar publicação social', url: '/pending?tab=create', descricao: 'Redes sociais: criação manual ou com IA', grupo: 'Trabalho', icon: PlusCircle },
   { label: 'Conteúdos visuais', url: '/estudio/carrosseis', descricao: 'Carrosséis, posts e stories', grupo: 'Trabalho', icon: GalleryHorizontal },
   { label: 'Roteiros de Reels', url: '/estudio/roteiros', descricao: 'Escrever e preparar a gravação', grupo: 'Trabalho', icon: Video },
   { label: 'Newsletter', url: '/newsletter', descricao: 'Edições, crónica e envio', grupo: 'Trabalho', icon: Mail },
-  { label: 'Artigos', url: '/artigos', descricao: SEO_DISPONIVEL ? 'Pesquisa SEO, plano editorial e textos' : 'Escrever e guardar rascunhos', grupo: 'Trabalho', icon: FileText },
+  { label: 'Artigos', url: '/artigos', descricao: SEO_DISPONIVEL ? 'Planear, escrever, rever e publicar por site' : 'Escrever e guardar rascunhos', grupo: 'Trabalho', icon: FileText },
   ...(DOCUMENTOS_DISPONIVEL ? [{ label: 'Documentos e relatórios', url: '/curadoria/documentos', pai: '/curadoria', palavrasChave: ['PDF Tracker', 'PDFs', 'acervo'], descricao: 'Biblioteca de PDFs, capas e páginas de referência', grupo: 'Trabalho' as const, icon: FileText }] : []),
   { label: 'Rascunhos', url: '/drafts', descricao: 'Publicações sociais por concluir', grupo: 'Publicação', icon: FileText },
   { label: 'Divulgação da newsletter', url: '/estudio/redes-sociais', pai: '/newsletter', descricao: 'Story e carrossel após o envio', grupo: 'Publicação', icon: GalleryHorizontal },
@@ -54,7 +55,7 @@ export const DESTINOS_NAVEGACAO: DestinoNavegacao[] = [
 /** Main tasks remain visible; account options live together in the footer. */
 export const SECOES_NAVEGACAO = [
   { titulo: 'Recolher conteúdo', urls: ['/pesquisa', '/curadoria', ...(DOCUMENTOS_DISPONIVEL ? ['/curadoria/documentos'] : [])] },
-  { titulo: 'Criar conteúdo', urls: [...(SEO_DISPONIVEL ? ['/campanhas'] : []), '/newsletter', '/estudio/redes-sociais', '/artigos', ...(SEO_DISPONIVEL ? ['/artigos/percurso','/artigos/sites'] : []), '/estudio/carrosseis', '/estudio/roteiros'] },
+  { titulo: 'Criar conteúdo', urls: [...(SEO_DISPONIVEL ? ['/campanhas'] : []), '/newsletter', '/estudio/redes-sociais', '/artigos', ...(SEO_DISPONIVEL ? ['/artigos/plano','/artigos/sites','/artigos/lotes'] : []), '/estudio/carrosseis', '/estudio/roteiros'] },
   { titulo: 'Rever e publicar nas redes', urls: ['/drafts', '/pending', '/calendar', '/publication-history'] },
   { titulo: 'Organizar', urls: ['/projects', '/media-library'] },
   { titulo: 'Resultados e custos', urls: ['/analytics', '/insights', '/benchmark', '/custos'] },
@@ -110,10 +111,10 @@ export function migalhasNavegacao(pathname: string, search = ''): Migalha[] {
   if (pathname.startsWith('/estudio/roteiros/')) return detalhe('/estudio/roteiros', pathname.endsWith('/novo') ? 'Novo roteiro' : 'Editor');
   if(pathname.startsWith('/campanhas/')) return detalhe('/campanhas',pathname.endsWith('/nova')?'Nova campanha':pathname.includes('/compositor/')?'Compositor':'Detalhe da campanha');
   if (pathname.startsWith('/artigos/')) {
-    const nomes: Record<string,string> = {sites:'Sites e regras',percurso:'Percurso editorial',pesquisa:'Pesquisa SEO',plano:'Plano editorial',automacao:'Automação',custos:'Custos de pesquisa'};
+    const nomes: Record<string,string> = {glossarios:'Glossários educativos',integracoes:'Integrações dos artigos',sites:'Perfis dos sites',percurso:'Publicações e resultados',pesquisa:'Pesquisa SEO',plano:'Plano de artigos',lotes:'Séries e calendário',automacao:'Automação',custos:'Custos de pesquisa'};
     const migalhas = detalhe('/artigos',nomes[pathname.split('/')[2]] ?? 'Artigo');
     const secoes: Record<string,string> = {conhecimento:'Conhecimento da marca',limites:'Serviços e limites',ciclos:'Ciclos de produção'};
-    const label = pathname === '/artigos/plano' && params.has('id') ? (params.get('secao') === 'texto' ? 'Rever artigo' : 'Preparar artigo') : pathname === '/artigos/automacao' ? secoes[params.get('secao') ?? ''] : null;
+    const label = pathname === '/artigos/plano' && params.has('novo') ? 'Novo tema' : pathname === '/artigos/plano' && params.has('id') ? (params.get('secao') === 'texto' ? 'Rever artigo' : 'Preparar artigo') : pathname === '/artigos/automacao' ? secoes[params.get('secao') ?? ''] : null;
     if (pathname.startsWith('/artigos/sites/')) { migalhas[migalhas.length-1].path = '/artigos/sites'; migalhas.push({label:'Configuração guiada',path:null}); }
     if (label) { migalhas[migalhas.length-1].path = pathname; migalhas.push({label,path:null}); }
     return migalhas;

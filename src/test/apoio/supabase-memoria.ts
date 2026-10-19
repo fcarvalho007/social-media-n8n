@@ -21,7 +21,8 @@ export function supabaseMemoria(iniciais: Record<string, Linha[]> = {}) {
         private ascendente = true;
         constructor(private t: string) { }
         select() { return this; }
-        eq(k: string, v: unknown) { this.filtros.push(r => r[k] === v); return this; }
+        eq(k: string, v: unknown) { this.filtros.push(r => (k.includes('->>') ? (r[k.split('->>')[0]] as Record<string,unknown>)?.[k.split('->>')[1]] : r[k]) === v); return this; }
+        is(k:string,v:unknown){this.filtros.push(r=>(r[k]??null)===v);return this;}
         neq(k: string, v: unknown) { this.filtros.push(r => r[k] !== v); return this; }
         gt(k: string, v: string) { this.filtros.push(r => String(r[k]) > v); return this; }
         in(k: string, v: unknown[]) { this.filtros.push(r => v.includes(r[k])); return this; }
@@ -33,6 +34,7 @@ export function supabaseMemoria(iniciais: Record<string, Linha[]> = {}) {
         range(i: number, f: number) { this.inicio = i; this.max = f - i + 1; return this; }
         insert(d: Linha | Linha[]) { this.op = 'insert'; this.dados = Array.isArray(d) ? d : [d]; return this; }
         upsert(d: Linha) { this.op = 'upsert'; this.dados = [d]; return this; }
+        delete() { this.op='delete'; return this; }
         update(d: Linha) { this.op = 'update'; this.dados = [d]; return this; }
         single() { this.unica = true; return this; }
         maybeSingle() { this.unica = true; this.opcional = true; return this; }
@@ -50,11 +52,11 @@ export function supabaseMemoria(iniciais: Record<string, Linha[]> = {}) {
             if (this.op === 'insert' || this.op === 'upsert') {
                 linhas = [];
                 for (const d of this.dados) {
-                    const keys = this.t === 'hub_publicacoes' ? ['project_id', 'pauta_id', 'site_id', 'versao', 'destino'] : this.t === 'hub_documentos' ? ['project_id', 'hash'] : ['id'];
+                    const keys = this.t === 'hub_editorial_artefactos'?['project_id','tipo','chave']:this.t === 'hub_publicacoes' ? ['project_id', 'pauta_id', 'site_id', 'versao', 'destino'] : this.t === 'hub_wp_imagens'?['project_id','site_id','hash']:this.t === 'hub_artigo_imagens'?['project_id','hash']:this.t === 'hub_documentos' ? ['project_id', 'hash'] : this.t === 'hub_jobs' ? ['project_id', 'tipo', 'dedup'] : ['id'];
                     const existe = todas.find(r => keys.every(k => r[k] === d[k]));
                     if (existe) {
                         if (this.op === 'upsert') {
-                            linhas = [existe];
+                            Object.assign(existe,structuredClone(d)); linhas = [existe];
                             continue;
                         }
                         return { data: null, error: { code: '23505' } };
@@ -64,6 +66,7 @@ export function supabaseMemoria(iniciais: Record<string, Linha[]> = {}) {
                     linhas.push(nova);
                 }
             }
+            else if (this.op === 'delete') { for(const r of linhas)todas.splice(todas.indexOf(r),1); }
             else if (this.op === 'update') {
                 for (const r of linhas)
                     Object.assign(r, structuredClone(this.dados[0]));
@@ -99,7 +102,7 @@ export function supabaseMemoria(iniciais: Record<string, Linha[]> = {}) {
                 return { data: r?.revisao ?? 1, error: null };
             }
             return { data: true, error: null };
-        }, storage: { from: () => ({ upload: async (p: string, b: Uint8Array) => {
+        }, storage: { from: () => ({ list:async(prefix:string,o:{offset:number;limit:number})=>({data:[...objetos.keys()].filter(p=>p.startsWith(prefix+'/')).slice(o.offset,o.offset+o.limit).map(p=>({name:p.slice(prefix.length+1)})),error:null}), remove:async(ps:string[])=>{ps.forEach(p=>objetos.delete(p));return{data:[],error:null};}, upload: async (p: string, b: Uint8Array) => {
                     if (objetos.has(p))
                         return { data: null, error: { code: '409' } };
                     objetos.set(p, new Blob([new Uint8Array(b)]));

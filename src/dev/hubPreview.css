@@ -10,8 +10,9 @@
   align-items: center;
   gap: .4rem 1rem;
   padding: .7rem 1rem;
-  background: hsl(var(--foreground));
-  color: hsl(var(--background));
+  background: hsl(var(--primary-light));
+  border-bottom: 1px solid hsl(var(--primary) / .15);
+  color: hsl(var(--primary-hover));
   font-size: .75rem;
   line-height: 1.5;
   height: var(--hub-banner-height);

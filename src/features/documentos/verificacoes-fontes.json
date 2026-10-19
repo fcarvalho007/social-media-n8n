@@ -1,0 +1,64 @@
+[
+  {
+    "url": "https://hai.stanford.edu/ai-index",
+    "em": "2026-10-19T13:19:35.439Z",
+    "estado": "concluida",
+    "pdfs": 2,
+    "detalhes": []
+  },
+  {
+    "url": "https://www.microsoft.com/worklab",
+    "em": "2026-10-19T13:19:35.439Z",
+    "estado": "concluida",
+    "pdfs": 0,
+    "detalhes": [
+      "Nenhuma ligação PDF encontrada nas páginas consultadas. Isto não prova que o site não tenha PDFs."
+    ]
+  },
+  {
+    "url": "https://economicgraph.linkedin.com/research",
+    "em": "2026-10-19T13:19:35.439Z",
+    "estado": "concluida",
+    "pdfs": 2,
+    "detalhes": []
+  },
+  {
+    "url": "https://apan.pt/conhecimento/estudosquestionarios/",
+    "em": "2026-10-19T13:19:35.439Z",
+    "estado": "concluida",
+    "pdfs": 2,
+    "detalhes": []
+  },
+  {
+    "url": "https://www.iapmei.pt/",
+    "em": "2026-10-19T13:19:35.439Z",
+    "estado": "concluida",
+    "pdfs": 8,
+    "detalhes": []
+  },
+  {
+    "url": "https://ffms.pt/pt-pt/estudos",
+    "em": "2026-10-19T13:19:35.439Z",
+    "estado": "concluida",
+    "pdfs": 5,
+    "detalhes": []
+  },
+  {
+    "url": "https://www.eurofound.europa.eu/en/topics/teleworking",
+    "em": "2026-10-19T13:19:35.439Z",
+    "estado": "bloqueada",
+    "pdfs": 0,
+    "detalhes": [
+      "Não foi possível confirmar o robots.txt (HTTP 429). · https://www.eurofound.europa.eu/en/topics/teleworking"
+    ]
+  },
+  {
+    "url": "https://www.gsma.com/solutions-and-impact/connectivity-for-good/mobile-economy/",
+    "em": "2026-10-19T13:19:35.439Z",
+    "estado": "erro",
+    "pdfs": 0,
+    "detalhes": [
+      "HTTP 403: https://www.gsma.com/solutions-and-impact/connectivity-for-good/mobile-economy/"
+    ]
+  }
+]

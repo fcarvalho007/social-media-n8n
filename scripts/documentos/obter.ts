@@ -28,7 +28,7 @@ export async function resolverPublico(url: URL, resolver: Resolver = h => lookup
 }
 
 /** DNS is checked at each hop and pinned in lookup; TLS still verifies the original hostname. */
-export interface RespostaPublica { bytes: Buffer; tipo: string; url: string; status: number; etag?: string; modificadoEm?: string }
+export interface RespostaPublica { bytes: Buffer; tipo: string; url: string; status: number; etag?: string; modificadoEm?: string; xRobotsTag?: string }
 export interface OpcoesObter { maxBytes?: number; aceitarErroHttp?: boolean; antesDeVisitar?: (url: URL) => Promise<void> }
 export async function obterPublico(bruto: string, signal: AbortSignal, opcoes: OpcoesObter = {}): Promise<RespostaPublica> {
   let u = validarDestino(bruto);
@@ -59,7 +59,7 @@ export async function obterPublico(bruto: string, signal: AbortSignal, opcoes: O
         const stream = decoder ? res.pipe(decoder) : res;
         const partes: Buffer[] = []; let total = 0;
         stream.on('data', (chunk: Buffer) => { total += chunk.length; if (total > max) { stream.destroy(new Error('O ficheiro excede o limite de leitura local.')); res.destroy(); } else partes.push(chunk); });
-        stream.on('end', () => resolve({ bytes: Buffer.concat(partes), tipo, status, etag: res.headers.etag, modificadoEm: res.headers['last-modified'] }));
+        stream.on('end', () => resolve({ bytes: Buffer.concat(partes), tipo, status, etag: res.headers.etag, modificadoEm: res.headers['last-modified'], xRobotsTag: Array.isArray(res.headers['x-robots-tag']) ? res.headers['x-robots-tag'].join(',') : res.headers['x-robots-tag'] }));
         stream.on('error', e => { res.destroy(); reject(e); });
         res.on('error', reject);
       });
@@ -67,7 +67,7 @@ export async function obterPublico(bruto: string, signal: AbortSignal, opcoes: O
       req.on('error', reject);
     });
     if (r.redirecionar) { u = validarDestino(r.redirecionar); continue; }
-    return { bytes: r.bytes!, tipo: r.tipo!, status: r.status!, url: u.href, etag: r.etag, modificadoEm: r.modificadoEm };
+    return { bytes: r.bytes!, tipo: r.tipo!, status: r.status!, url: u.href, etag: r.etag, modificadoEm: r.modificadoEm, xRobotsTag: r.xRobotsTag };
   }
   throw new Error('O site excedeu o limite de redirecionamentos.');
 }

@@ -3,8 +3,8 @@ import {useProjetoOpcional} from '@/contexts/ProjetoContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { EstadoPublicoSeo } from './contratos';
 export async function apiSeo<T>(acao:string,dados:unknown={},opcoes:{projeto?:string}={}):Promise<T>{
-  if(BACKEND_NUVEM)return apiBackend<T>(`/seo/${acao}`,{...dados as Record<string,unknown>,...(acao==='executar-ciclo'?{pedidoId:crypto.randomUUID()}:{})},{...opcoes,timeout:acao==='executar'?120000:25000});
-  let r:Response;try{r=await fetch(`/__hub-seo/${acao}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(dados),signal:AbortSignal.timeout(acao === 'executar' ? 120000 : 25000)});}catch{throw new Error('O servidor local não respondeu. Reabre o Hub e consulta o histórico antes de repetir um pedido pago.');}
+  if(BACKEND_NUVEM)return apiBackend<T>(`/seo/${acao}`,{...dados as Record<string,unknown>,...(acao==='executar-ciclo'?{pedidoId:crypto.randomUUID()}:{})},{...opcoes,timeout:(acao==='executar'||acao==='campanha-ideias-executar')?120000:acao.startsWith('inventario-')?90000:25000});
+  let r:Response;try{r=await fetch(`/__hub-seo/${acao}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(dados),signal:AbortSignal.timeout((acao === 'executar'||acao==='campanha-ideias-executar') ? 120000 : acao.startsWith('inventario-') ? 90000 : 25000)});}catch{throw new Error('O servidor local não respondeu. Reabre o Hub e consulta o histórico antes de repetir um pedido pago.');}
   let j:unknown;try{j=await r.json();}catch{throw new Error('A resposta local não é válida. Confirma que npm run dev:hub está ligado.');}
   if(!r.ok)throw new Error((j as {erro?:string})?.erro??'Não foi possível concluir a operação local.');return j as T;
 }

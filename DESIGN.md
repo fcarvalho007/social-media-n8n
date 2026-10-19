@@ -2,16 +2,16 @@
 name: Hub de conteúdo
 description: Sistema visual existente para trabalho editorial, revisão e publicação.
 colors:
-  primary: "hsl(239 84% 66%)"
+  primary: "hsl(211 96% 43%)"
   primary-foreground: "hsl(0 0% 100%)"
-  background: "hsl(210 20% 98%)"
-  foreground: "hsl(222 47% 11%)"
+  background: "hsl(212 43% 97%)"
+  foreground: "hsl(216 35% 16%)"
   card: "hsl(0 0% 100%)"
-  muted: "hsl(210 16% 93%)"
-  muted-foreground: "hsl(215 16% 42%)"
-  border: "hsl(214 18% 86%)"
-  success: "hsl(160 84% 39%)"
-  destructive: "hsl(0 84% 60%)"
+  muted: "hsl(214 35% 95%)"
+  muted-foreground: "hsl(215 18% 40%)"
+  border: "hsl(214 32% 90%)"
+  success: "hsl(158 70% 30%)"
+  destructive: "hsl(0 72% 45%)"
   warning: "hsl(38 92% 50%)"
 typography:
   body:
@@ -19,9 +19,9 @@ typography:
   display:
     fontFamily: "Inter, sans-serif"
 rounded:
-  lg: "1rem"
-  md: "calc(1rem - 2px)"
-  sm: "calc(1rem - 4px)"
+  lg: "0.75rem"
+  md: "calc(0.75rem - 2px)"
+  sm: "calc(0.75rem - 4px)"
 spacing:
   field-label: "8px"
   field-group: "16px"
@@ -33,7 +33,7 @@ components:
     backgroundColor: "{colors.primary}"
     textColor: "{colors.primary-foreground}"
     rounded: "{rounded.md}"
-    height: "40px"
+    height: "44px"
     padding: "8px 16px"
   card:
     backgroundColor: "{colors.card}"
@@ -46,13 +46,13 @@ components:
 
 ## Overview
 
-Este documento descreve o sistema existente em `src/index.css`, `tailwind.config.ts` e nos componentes partilhados. Não estabelece uma identidade nova. A aplicação é uma área de trabalho editorial: navegação estável, texto legível, ações claras e indicação explícita do que foi guardado, falhou ou ainda está a carregar.
+Este documento descreve o sistema existente em `src/index.css`, `tailwind.config.ts` e nos componentes partilhados. A atualização local de 19/10/2026 aplica a direção azul e clara pedida pelo proprietário, inspirada nas referências do Iconosquare. A aplicação é uma área de trabalho editorial: navegação estável, texto legível, ações claras e indicação explícita do que foi guardado, falhou ou ainda está a carregar.
 
-A interface do Hub e as peças gráficas produzidas pelo Hub têm sistemas distintos. O indigo da aplicação não substitui as cores editoriais dos carrosséis, Stories ou newsletters. As preferências visuais guardadas em cada documento continuam a determinar a sua apresentação.
+A interface do Hub e as peças gráficas produzidas pelo Hub têm sistemas distintos. O azul da aplicação não substitui as cores editoriais dos carrosséis, Stories ou newsletters. As preferências visuais guardadas em cada documento continuam a determinar a sua apresentação.
 
 ## Colors
 
-O indigo identifica ações e foco. Os fundos claros, cartões brancos e texto escuro sustentam a leitura de listas, filtros e formulários. Texto secundário usa o token próprio; estados de erro, aviso e sucesso têm cores semânticas acompanhadas por texto.
+O azul identifica ações e foco. Os fundos claros, cartões brancos e texto escuro sustentam a leitura de listas, filtros e formulários. Texto secundário usa o token próprio; estados de erro, aviso e sucesso têm cores semânticas acompanhadas por texto.
 
 Usar os tokens de `src/index.css` através das classes semânticas. Os valores do frontmatter representam o tema claro; não devem ser copiados como cores literais para os componentes. Os tokens de sidebar de grafite e verde continuam disponíveis para superfícies legadas. Na proposta local de navegação, o menu lateral partilha a superfície clara e a cor de ação da aplicação. O tema escuro fica fora do âmbito desta ronda, por decisão do proprietário.
 
@@ -78,7 +78,7 @@ Cartões usam contorno e sombra discreta. Menus, diálogos e painéis sobreposto
 
 ## Shapes
 
-O raio base é de 1rem, com variantes menores derivadas do mesmo token. Botões, campos e cartões mantêm os cantos arredondados existentes. Ícones de ação precisam de nome acessível; o ícone não substitui a mensagem de erro ou o estado do conteúdo.
+O raio base é de 0,75rem, com variantes menores derivadas do mesmo token. Botões, campos e cartões mantêm os cantos arredondados existentes. Ícones de ação precisam de nome acessível; o ícone não substitui a mensagem de erro ou o estado do conteúdo.
 
 ## Components
 
@@ -116,3 +116,18 @@ O padrão aprovado continua sem retrato. Notícias e opinião são identificadas
 ## Contraste dos controlos partilhados · 18/10/2026
 
 A revisão de Documentos mediu 4,41:1 no botão principal. A luminosidade do indigo partilhado passou de 67% para 66%, mantendo a mesma família de cor e garantindo pelo menos 4,5:1 com texto branco. O hover do botão principal usa o token existente `--primary-hover`, mais escuro, em vez de reduzir a opacidade e clarear o fundo. O ajuste aplica-se ao componente comum, para não criar uma paleta própria em Documentos.
+
+
+## Direção azul e superfícies claras · 19/10/2026
+
+Inspiração autorizada: cores, clareza e organização modular das referências Iconosquare fornecidas pelo proprietário. A identidade é do Hub; não se copiam logótipos, ilustrações ou métricas da referência.
+
+- Fundo uniforme azul muito claro, sem gradiente; cartões brancos, bordas discretas e sombra azulada leve.
+- Azul principal `211 96% 43%`: contraste de 5,18:1 com branco. Hover `211 100% 36%`; azul claro reservado a seleção, contexto e informação. Cor não substitui texto, ícone ou `aria-current`.
+- `--input: 214 20% 57%`: contorno de campo com 3,33:1 sobre branco. Texto secundário `215 18% 40%`: 6,12:1 sobre branco.
+- `CabecalhoPagina` define título, descrição, ícone opcional e ações; tipografia fluida de 24–30px e espaço para títulos longos. Navegação de área usa sublinhado azul e `aria-current`, sem competir com os botões de ação.
+- Primitivos existentes: campos e botões padrão de 44px; `sm` permanece disponível para ferramentas densas. Cartões, tabelas, separadores e diálogos partilham os tokens. Não se declara conformidade integral de todos os componentes legados.
+- Resultados usa atalhos horizontais para secções, em vez de uma segunda barra lateral escura. Observador de secções e preferência por movimento reduzido preservam a navegação.
+- O cabeçalho da Newsletter usa a banda de ação azul e uma faixa de validação clara. O código é alterado na origem inerte e regenerado. Só os controlos autenticados partilham o tema; email, edição pública, carrossel e Story conservam a sua direção editorial.
+
+A atualização é local e reversível. As verificações e limites desta ronda constam de `docs/auditoria-visual-iconosquare-2026-10-19.md`.

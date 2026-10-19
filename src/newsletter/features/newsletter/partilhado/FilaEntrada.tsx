@@ -17,7 +17,7 @@ import { correrCuradoriaAgora } from "@/newsletter/lib/curadoria.functions";
 const T = {
   card: "#FFFFFF", shell: "#F7F8FA", line: "#E4E7EC",
   ink: "#101828", muted: "#667085", faint: "#98A2B3",
-  primary: "#6366F1", warn: "#B54708", warnBg: "#FFFAEB", ok: "#12B76A",
+  primary: "hsl(var(--primary, 211 96% 43%))", warn: "#B54708", warnBg: "#FFFAEB", ok: "#12B76A",
 };
 
 const LOTES = [10, 20, 30, 50] as const;
@@ -134,7 +134,7 @@ export function FilaEntrada({ compacto = false, recolherAntes = false, onConclui
     <section className="rounded-[16px] p-4" style={{ background: T.card, border: `1px solid ${T.line}` }}>
       <header className="flex items-start gap-3">
         <span className="grid place-items-center h-8 w-8 rounded-xl shrink-0"
-          style={{ background: "#6366F11F", color: T.primary }}>
+          style={{ background: "hsl(var(--accent, 210 100% 96%))", color: T.primary }}>
           <Inbox size={15} />
         </span>
         <div className="min-w-0 flex-1">
