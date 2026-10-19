@@ -534,6 +534,47 @@ export type Database = {
         }
         Relationships: []
       }
+      hub_artigo_imagens: {
+        Row: {
+          bytes: number
+          caminho: string
+          criado_em: string
+          hash: string
+          id: string
+          nome: string
+          project_id: string
+          tipo: string
+        }
+        Insert: {
+          bytes: number
+          caminho: string
+          criado_em?: string
+          hash: string
+          id: string
+          nome: string
+          project_id: string
+          tipo: string
+        }
+        Update: {
+          bytes?: number
+          caminho?: string
+          criado_em?: string
+          hash?: string
+          id?: string
+          nome?: string
+          project_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_artigo_imagens_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hub_documentos: {
         Row: {
           atualizado_em: string
@@ -765,8 +806,11 @@ export type Database = {
           atualizado_em: string
           criado_em: string
           destino: string
+          escrita_iniciada: boolean | null
           estado: string
+          evento_estado: string | null
           id: string
+          imagem_esperada: number | null
           pauta_id: string
           project_id: string
           remoto_id: number | null
@@ -780,8 +824,11 @@ export type Database = {
           atualizado_em?: string
           criado_em?: string
           destino?: string
+          escrita_iniciada?: boolean | null
           estado: string
+          evento_estado?: string | null
           id?: string
+          imagem_esperada?: number | null
           pauta_id: string
           project_id: string
           remoto_id?: number | null
@@ -795,8 +842,11 @@ export type Database = {
           atualizado_em?: string
           criado_em?: string
           destino?: string
+          escrita_iniciada?: boolean | null
           estado?: string
+          evento_estado?: string | null
           id?: string
+          imagem_esperada?: number | null
           pauta_id?: string
           project_id?: string
           remoto_id?: number | null
@@ -864,6 +914,50 @@ export type Database = {
           url?: string
         }
         Relationships: []
+      }
+      hub_wp_imagens: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          estado: string
+          hash: string
+          metadados: Json
+          project_id: string
+          remoto_id: number | null
+          remoto_url: string | null
+          site_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          estado: string
+          hash: string
+          metadados?: Json
+          project_id: string
+          remoto_id?: number | null
+          remoto_url?: string | null
+          site_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          estado?: string
+          hash?: string
+          metadados?: Json
+          project_id?: string
+          remoto_id?: number | null
+          remoto_url?: string | null
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_wp_imagens_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       idempotency_keys: {
         Row: {

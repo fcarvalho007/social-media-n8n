@@ -1,0 +1,2 @@
+COMMENT ON TABLE public.hub_artigo_imagens IS 'Private article images; read via mc_pode_ler(project_id), writes service-role only (0067).';
+COMMENT ON TABLE public.hub_wp_imagens IS 'WordPress image upload receipts; read via mc_pode_ler(project_id), writes service-role only (0067).';
