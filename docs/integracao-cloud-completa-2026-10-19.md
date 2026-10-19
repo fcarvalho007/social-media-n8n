@@ -59,7 +59,46 @@ O artigo de teste reabriu na versão 4, preservando texto, focus keyword, slug, 
 
 A verificação de ligação WordPress pela UI encontrou o mesmo `ClientRequest.options.lookup` não implementado. A correção reutiliza a via TLS nativa também no WordPress e nos webhooks, preservando autenticação só no domínio exato, corpo binário/JSON, assinatura HMAC e identificador de evento. Nunca segue redirects autenticados nem repete escritas automaticamente. Seis novos casos cobrem POST 201, bytes UTF-8, autenticação restrita, HMAC, IP privado e enquadramento de headers. Não foram enviados artigos nem webhooks reais.
 
-A publicação final e a conclusão dos dois PDFs com o pacote final são registadas depois dos ensaios; esta secção não declara concluídos esses testes antes de os executar.
+## Resultado observado antes da revisão final de desempenho
+
+Código Cloud: PRs [13](https://github.com/fcarvalho007/social-media-n8n/pull/13), [14](https://github.com/fcarvalho007/social-media-n8n/pull/14) e [15](https://github.com/fcarvalho007/social-media-n8n/pull/15) integradas. HEAD `ce8d64c0890363277ed79012e364609a8b7740b8`, árvore `049fc78010e1d2a38f89f25b96f8cfa815e19a1b`, confirmados na Cloud e reconciliados no checkout local. Ambas as funções reinstaladas a partir dos runtimes, sem edições manuais. **52/52 testes Cloud aprovados** nos cinco ficheiros finais. Build real Cloud com código 0 em 17,8 s; Bun frozen aprovado, lockfile inalterado. Auditoria HTTP repetida após o último deploy: API/worker anónimos 401, Origin alheio 403, leituras autenticadas 200 (31 documentos, 99 fontes, uma imagem privada).
+
+Validação local final: **1 305 testes aprovados**, dois opcionais ignorados, tipos interface/backend, grafo Edge 255, arranque isolado e lint do novo transporte aprovados. A compilação de interface tinha passado após as alterações de dependências e leitor; a compilação final do mesmo código foi também comprovada na Cloud.
+
+Ensaios no navegador com backend real:
+
+- Campanha de teste criada, reaberta e editada; apenas Artigo e Story incluídos. Verificação de fonte gravada. Story criado sem IA paga, editado no compositor, guardado e reaberto com o design preservado.
+- Artigo ligado, versão 4 reaberta com texto visual, focus keyword, slug, descrição, capa privada, alt e crédito. ZIP descarregado e validado sem erros, com texto/HTML/imagem/metadados. Rascunho incompleto continua bloqueado para aprovação/publicação.
+- **Ligação real ao fredericocarvalho.pt verificada com sucesso** pela interface após corrigir o transporte. Não foi criada/alterada publicação WordPress.
+- **State of Search Q4 2025 concluído: 35/35 páginas com texto pesquisável e capa**, recuperado dos 5/35 históricos sem apagar texto ou histórico. Confirmado após reabrir.
+- **WFA DEI Portugal 2021 concluído: 28/28 páginas com texto pesquisável e capa real**, importado por escolha explícita após descoberta APAN. Imagem carregada e renderizada a 600 × 338.
+- Nova importação do mesmo PDF devolveu «Este PDF já está no acervo. Não foi duplicado.» e preservou 31 entradas e a identidade do documento.
+- Estado «Lido» guardado e reaberto; reposto em «Por ler» depois do ensaio. Importação legada indica 28/28 PDFs no projeto.
+
+### Publicação da interface
+
+A tentativa de abrir «Publish» foi bloqueada pela revisão automática: considerou necessária nova autorização explícita devido à instrução anterior do proprietário para só publicar quando voltasse a pedir. Foi pedida autorização para atualizar `hub-conteudo.lovable.app`; não foi tentado nenhum contorno. **Código e backend estão instalados na pré-visualização Cloud; a aplicação pública não foi atualizada nesta ronda enquanto a resposta estiver pendente.**
+
+### Custos e linhas da integração
+
+Saldo inicial: 3 654,219970703125; saldo observado antes da reabertura da auditoria de desempenho: 3 631,6099999999997 créditos do plano. Créditos diários: zero em ambos. **Variação parcial observada: 22,609970703125 ≈ 22,61 créditos; a 0,30 €/crédito: 6,7829912109375 ≈ 6,78 €.** O fecho inclui ainda o diagnóstico/correção de desempenho abaixo; medir novamente ao terminar. É a variação do saldo partilhado do workspace, não uma fatura individual por prompt; não é possível excluir atividade simultânea noutros projetos só com este indicador. Nesta ronda não foram executados pedidos pagos de conteúdo/SEO. Cloud e fornecedores têm contabilidade separada. Não é inferida uma poupança contrafactual por linha de código.
+
+Diferença instalada face à base Cloud `ed53aa40`: **215 ficheiros, 14 363 linhas acrescentadas e 7 119 removidas**. Inclui 6 664 linhas acrescentadas nos dois bundles gerados (não escritas duas vezes), 2 387 em dependências/locks e 898 em testes. Ficheiros de fonte/DB: 3 210 acrescentadas e 842 removidas, incluindo 94 linhas de tipos Supabase gerados. Documentação, referências inertes, metadados e configurações completam o total. A atualização deste relatório final fica registada localmente à parte desses números; não muda o código da aplicação.
+
+### Limites reais que permanecem
+
+- A UI da pesquisa mostra **DataForSEO por configurar e serviços pagos pausados**; sem pesquisas reais guardadas no DIGITALSPRINT. Nenhum volume sintético é apresentado. O piloto pago depende de credenciais/configuração e limites confirmados; não foi executado nesta ronda.
+- Não foi feito envio real de newsletter nem publicação de artigo/social ou entrega real a webhook. O fluxo pós-envio e a prevenção de duplicados WordPress têm testes, mas não são aqui apresentados como um ensaio externo realizado.
+- Não foi acrescentado mapa de temas/GSC. OCR de digitalizações continua no navegador, com persistência privada; não foi transformado num serviço OCR permanente nesta ronda.
+- Mantêm-se 13 alertas npm em ferramentas de desenvolvimento e avisos de chunks grandes, sem alertas npm de produção na medição realizada. Não constituem declaração de ausência de vulnerabilidades.
+
+## Revisão final de desempenho do acervo
+
+Foi observado um alerta de leitura depois do processamento. O ensaio Cloud reproduziu um 422 em 21,8 s seguido de leituras 200 em 6,3 e 2,8 s. A causa foi confirmada nos registos SQL: `statement timeout` (57014) ao agregar os dados completos de 31 PDFs numa única página de 100 linhas (2,4 MB, um documento com 759 kB). O histórico de recolhas não falhou. Não se ignorou este erro como se fosse uma biblioteca vazia.
+
+A correção local preserva os contratos e a pesquisa existente: lê no máximo oito documentos por consulta, com cursor UUID estável e projeção explícita das colunas necessárias, sem trazer caminhos internos do original. Se a base de dados indicar timeout, reduz o lote até uma linha; não repete falhas de permissão nem devolve sucesso parcial. Não aumenta timeouts nem relaxa permissões. Cinco testes verificam leitura completa, isolamento de projeto, cursores, redução do lote e falha explícita sem ciclos infinitos. Uma futura biblioteca muito maior deve passar a índice leve e carregamento do texto ao abrir; esta correção resolve a agregação observada mantendo compatibilidade com os seletores de fontes, campanhas e pesquisa atual.
+
+A instalação e as medições repetidas deste ajuste são registadas após o ensaio Cloud.
 
 Saldo inicial desta ronda: 3 654,219970703125 créditos do plano; zero diários. A medição anterior de 3 654,85 pertence à ronda interrompida e não é usada como débito desta instalação. Valor indicado pelo proprietário: 0,30 €/crédito. Infraestrutura Cloud e fornecedores são custos separados.
 
