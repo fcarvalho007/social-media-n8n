@@ -6,8 +6,11 @@ import { criarServidor, type ServicosBackend } from '../../scripts/backend/servi
 import { FalhaHttp, type ContextoBackend } from '../../scripts/backend/seguranca';
 import { supabaseMemoria } from './apoio/supabase-memoria';
 const projeto = '00000000-0000-4000-8000-000000000001', user = '00000000-0000-4000-8000-000000000002';
-async function chamar({ origem = 'https://hub.example', metodo = 'POST', url = '/seo/estado', corpo = '{}', tipo = 'application/json', autenticado = true, editor = true, privado = false } = {}) {
+async function chamar({ origem = 'https://hub.example', metodo = 'POST', url = '/seo/estado', corpo = '{}', tipo = 'application/json', autenticado = true, editor = true, privado = false, libertacaoLenta = false } = {}) {
     const mem = supabaseMemoria({ hub_leases: privado ? [{ project_id: projeto, recurso: 'backup', ate: '2999-01-01', token: 'lease' }] : [] });
+    let libertada = false;
+    const rpc = mem.sb.rpc.bind(mem.sb);
+    mem.sb.rpc = (async (nome: string, args: Record<string, unknown>) => { if (nome === 'hub_lease_libertar') { if (libertacaoLenta) await new Promise(r => setTimeout(r, 30)); libertada = true; } return rpc(nome, args); }) as typeof mem.sb.rpc;
     const operar = vi.fn(async () => ({ ok: true })), autorizar = vi.fn(async () => {
         if (!autenticado)
             throw new FalhaHttp('Sessão expirada.', 401);
@@ -30,9 +33,10 @@ async function chamar({ origem = 'https://hub.example', metodo = 'POST', url = '
     }>(r => acabar = r);
     const res = { destroyed: false, setHeader: (k: string, v: unknown) => { headers[k] = v; }, writeHead: (s: number, h: Record<string, unknown> = {}) => { status = s; Object.assign(headers, h); }, end: (b?: unknown) => acabar({ status, body: b === undefined ? '' : String(b), headers }) } as unknown as ServerResponse;
     servidor.emit('request', req, res);
-    return { ...await fim, operar, autorizar };
+    return { ...await fim, operar, autorizar, libertada };
 }
 describe('serviço HTTP autenticado', () => {
+    it('liberta a reserva antes de responder, permitindo a próxima gravação sem corrida', async () => { const r = await chamar({ url: '/documentos/legado-relatorio', libertacaoLenta: true }); expect(r.status).toBe(200); expect(r.libertada).toBe(true); });
     it('recusa origem estranha antes de tocar em autenticação ou dados', async () => { const r = await chamar({ origem: 'https://outro.example' }); expect(r.status).toBe(403); expect(r.autorizar).not.toHaveBeenCalled(); expect(r.operar).not.toHaveBeenCalled(); expect(r.headers['Access-Control-Allow-Origin']).toBeUndefined(); });
     it('recusa uma sessão inválida sem chegar ao motor', async () => { const r = await chamar({ autenticado: false }); expect(r.status).toBe(401); expect(r.operar).not.toHaveBeenCalled(); });
     it('faz preflight apenas para origens explicitamente configuradas', async () => { const r = await chamar({ metodo: 'OPTIONS' }); expect(r.status).toBe(204); expect(r.headers['Access-Control-Allow-Origin']).toBe('https://hub.example'); expect(r.autorizar).not.toHaveBeenCalled(); });

@@ -72,6 +72,7 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
             return;
         }
         let libertar: (() => Promise<void>) | undefined;
+        const concluirEscrita = async () => { const fn = libertar; libertar = undefined; await fn?.(); };
         try {
             const caminho = new URL(req.url ?? '/', 'http://backend.invalid').pathname.match(/^\/(seo|documentos|operacao|wordpress)\/(.+)$/);
             if (!caminho)
@@ -101,7 +102,7 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
                     throw new FalhaHttp('Já existe uma edição ou cópia de documentos neste projeto. Aguarda antes de repetir.', 409);
                 const timer = setInterval(() => { void Promise.resolve(servicos.sb.rpc('hub_lease_renovar', { _projeto: ctx.projeto, _recurso: 'documentos', _token: lease.data })).catch(() => { }); }, 30000);
                 timer.unref();
-                libertar = async () => { clearInterval(timer); await servicos.sb.rpc('hub_lease_libertar', { _projeto: ctx.projeto, _recurso: 'documentos', _token: lease.data }); };
+                libertar = async () => { clearInterval(timer); const r = await servicos.sb.rpc('hub_lease_libertar', { _projeto: ctx.projeto, _recurso: 'documentos', _token: lease.data }); if (r.error) throw new Error('A escrita terminou, mas a reserva ainda não foi libertada. Atualiza antes de repetir.'); };
             }
             const tipo = req.headers['content-type'] ?? '';
             if (caminho[1] === 'documentos' && caminho[2] === 'guardar') {
@@ -113,7 +114,9 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
                 if (!(pdf instanceof File))
                     throw new FalhaHttp('Ficheiro PDF em falta.');
                 const meta = JSON.parse(String(partes.get('metadados') ?? '{}')) as Record<string, unknown>;
-                json(res, await servicos.documentos.guardar(ctx, new Uint8Array(await pdf.arrayBuffer()), { ...meta, ficheiro: pdf.name }));
+                const guardado = await servicos.documentos.guardar(ctx, new Uint8Array(await pdf.arrayBuffer()), { ...meta, ficheiro: pdf.name });
+                await concluirEscrita();
+                json(res, guardado);
                 return;
             }
             if (!tipo.startsWith('application/json'))
@@ -129,6 +132,7 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
                     ambitoAutorizado(ctx, a.ambito);
                 resultado = await servicos.documentos.operar(ctx, caminho[2], a);
                 if (resultado instanceof Blob) {
+                    await concluirEscrita();
                     res.setHeader('Content-Type', resultado.type || 'application/octet-stream');
                     res.end(Buffer.from(await resultado.arrayBuffer()));
                     return;
@@ -139,6 +143,7 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
                         tipo: string;
                         url: string;
                     };
+                    await concluirEscrita();
                     res.setHeader('Content-Type', r.tipo);
                     res.setHeader('X-Hub-Url-Final', encodeURIComponent(r.url));
                     res.setHeader('Access-Control-Expose-Headers', 'X-Hub-Url-Final');
@@ -174,14 +179,16 @@ export function criarServidor(config: ConfigBackend, servicos: ServicosBackend) 
                         throw new FalhaHttp('Operação WordPress desconhecida.', 404);
                 }
             }
+            await concluirEscrita();
             json(res, resultado);
         }
         catch (e) {
+            await concluirEscrita().catch(() => {});
             const status = e instanceof FalhaHttp ? e.status : e instanceof z.ZodError || e instanceof SyntaxError ? 400 : 422;
             json(res, { erro: e instanceof z.ZodError ? 'Confere os campos do pedido.' : e instanceof Error ? e.message : 'Não foi possível concluir o pedido.' }, status);
         }
         finally {
-            await libertar?.();
+            await concluirEscrita();
         }
     });
 }

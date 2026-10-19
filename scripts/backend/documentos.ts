@@ -253,7 +253,16 @@ export class DocumentosNuvem {
             if (r.error)
                 throw new Error('O histórico de recolhas não pôde ser lido.');
             const tarefas = (r.data ?? []).map(j => ({ ...((j.resultado ?? {}) as Record<string, unknown>), id: j.id, ambito: JSON.stringify([ctx.userId, ctx.projeto]), modo: j.pedido.modo, iniciadaEm: j.criado_em, total: j.resultado?.total ?? j.pedido.ids?.length ?? 0,
-                estado: ['fila', 'em_curso'].includes(j.estado) ? 'em_curso' : j.estado === 'concluido' ? 'concluida' : 'interrompida', atual: j.resultado?.atual ?? (j.estado === 'fila' ? 'Na fila do servidor…' : 'Consulta o resultado do trabalho.'), fontes: j.resultado?.fontes ?? [], descobertas: j.resultado?.descobertas ?? [], pdfs: j.resultado?.pdfs ?? [], erros: j.resultado?.erros ?? [] }));
+                estado: ['fila', 'em_curso'].includes(j.estado) ? 'em_curso' : j.estado === 'concluido' ? 'concluida' : 'interrompida', atual: j.resultado?.atual ?? (j.estado === 'fila' ? 'Na fila do servidor…' : 'Consulta o resultado do trabalho.'), fontes: j.resultado?.fontes ?? [], descobertas: j.resultado?.descobertas ?? [], pdfs: j.resultado?.pdfs ?? [], erros: [...(j.resultado?.erros ?? []), ...(j.resultado?.erro ? [j.resultado.erro] : j.erro ? [j.erro] : [])] }));
+            const ids = [...new Set<string>(tarefas.flatMap(t => t.pdfs.map((p: { documentoId?: string }) => p.documentoId).filter(Boolean)))];
+            if (ids.length) {
+                const atuais = await this.sb.from('hub_documentos').select('id,capa_path,dados').eq('project_id', ctx.projeto).in('id', ids);
+                if (atuais.error) throw new Error('Não foi possível conferir os documentos da recolha.');
+                for (const tarefa of tarefas) tarefa.pdfs = tarefa.pdfs.map((p: { documentoId?: string; capaCriada?: boolean; capaErro?: string }) => {
+                    const d = atuais.data?.find(d => d.id === p.documentoId);
+                    return d ? { ...p, capaCriada: !!d.capa_path, capaErro: d.dados?.capaErro } : p;
+                });
+            }
             if (acao === 'ler') {
                 if (!tarefas[0])
                     throw new FalhaHttp('Recolha não encontrada.', 404);

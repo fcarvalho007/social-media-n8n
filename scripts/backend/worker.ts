@@ -146,8 +146,9 @@ export class WorkerHub {
             throw new Error('A autoria do trabalho não corresponde ao projeto.');
         const ctx: ContextoBackend = { userId: String(owner.data.owner_id), projeto: job.project_id, escrever: true, user: this.sb };
         const pasta = path.join(this.pasta, job.id);
-        await mkdir(pasta, { recursive: true, mode: 0o700 });
-        const motor = new MotorDocumentos(pasta, fontes, continuar), ambito = JSON.stringify([ctx.userId, ctx.projeto]);
+        // Edge /tmp is isolated by the platform; chmod is blocklisted there.
+        await mkdir(pasta, { recursive: true, ...(!this.prepararDocumento ? { mode: 0o700 } : {}) });
+        const motor = new MotorDocumentos(pasta, fontes, continuar, { temporarioIsolado: !!this.prepararDocumento }), ambito = JSON.stringify([ctx.userId, ctx.projeto]);
         let tarefa: TarefaDocumentos | undefined;
         const anteriores = job.resultado, ids = job.pedido.ids as number[], agregar = () => ({ ...structuredClone(tarefa!), id: job.id, total: anteriores?.total ?? ids.length, fontes: [...(anteriores?.fontes ?? []), ...(tarefa?.fontes ?? [])], descobertas: [...(anteriores?.descobertas ?? []), ...(tarefa?.descobertas ?? [])], pdfs: [...(anteriores?.pdfs ?? []), ...(tarefa?.pdfs ?? [])].filter((p, i, a) => a.findIndex(x => x.hash === p.hash) === i), erros: [...(anteriores?.erros ?? []), ...(tarefa?.erros ?? [])] });
         const progresso = async () => {

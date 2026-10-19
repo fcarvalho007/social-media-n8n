@@ -2650,10 +2650,11 @@ function fonteUtilizavel(f) {
   }
 }
 var MotorDocumentos = class {
-  constructor(pasta, fontes, continuar = () => true) {
+  constructor(pasta, fontes, continuar = () => true, opcoes = {}) {
     this.pasta = pasta;
     this.fontes = fontes;
     this.continuar = continuar;
+    this.opcoes = opcoes;
     this.prontos = this.carregar();
   }
   jobs = /* @__PURE__ */ new Map();
@@ -2706,7 +2707,7 @@ var MotorDocumentos = class {
     const p = (this.escritas.get(j.id) ?? Promise.resolve()).catch(() => void 0).then(async () => {
       const destino = path2.join(this.pasta, `tarefa-${j.id}.json`);
       const tmp = `${destino}.${randomUUID3()}.tmp`;
-      await writeFile(tmp, dados, { mode: 384 });
+      await writeFile(tmp, dados, this.opcoes.temporarioIsolado ? {} : { mode: 384 });
       await rename2(tmp, destino);
     });
     this.escritas.set(j.id, p);
@@ -2893,7 +2894,7 @@ var MotorDocumentos = class {
             if (!j.pdfs.some((x) => x.hash === hash)) {
               const destino = path2.join(this.pasta, "pdfs", `${hash}.pdf`);
               const tmp = `${destino}.${randomUUID3()}.tmp`;
-              await writeFile(tmp, r.bytes, { mode: 384 });
+              await writeFile(tmp, r.bytes, this.opcoes.temporarioIsolado ? {} : { mode: 384 });
               await rename2(tmp, destino);
               j.pdfs.push({ ...p, url: r.url, hash, bytes: r.bytes.length, categoria: f.group_category, estado: "descarregado" });
               guardadosFonte++;
@@ -4459,8 +4460,17 @@ var DocumentosNuvem = class {
         fontes: j.resultado?.fontes ?? [],
         descobertas: j.resultado?.descobertas ?? [],
         pdfs: j.resultado?.pdfs ?? [],
-        erros: j.resultado?.erros ?? []
+        erros: [...j.resultado?.erros ?? [], ...j.resultado?.erro ? [j.resultado.erro] : j.erro ? [j.erro] : []]
       }));
+      const ids = [...new Set(tarefas.flatMap((t) => t.pdfs.map((p) => p.documentoId).filter(Boolean)))];
+      if (ids.length) {
+        const atuais = await this.sb.from("hub_documentos").select("id,capa_path,dados").eq("project_id", ctx.projeto).in("id", ids);
+        if (atuais.error) throw new Error("N\xE3o foi poss\xEDvel conferir os documentos da recolha.");
+        for (const tarefa of tarefas) tarefa.pdfs = tarefa.pdfs.map((p) => {
+          const d = atuais.data?.find((d2) => d2.id === p.documentoId);
+          return d ? { ...p, capaCriada: !!d.capa_path, capaErro: d.dados?.capaErro } : p;
+        });
+      }
       if (acao === "ler") {
         if (!tarefas[0])
           throw new FalhaHttp("Recolha n\xE3o encontrada.", 404);
@@ -5086,8 +5096,8 @@ var WorkerHub = class {
       throw new Error("A autoria do trabalho n\xE3o corresponde ao projeto.");
     const ctx = { userId: String(owner.data.owner_id), projeto: job.project_id, escrever: true, user: this.sb };
     const pasta = path4.join(this.pasta, job.id);
-    await mkdir3(pasta, { recursive: true, mode: 448 });
-    const motor = new MotorDocumentos(pasta, fontes_originais_default, continuar), ambito = JSON.stringify([ctx.userId, ctx.projeto]);
+    await mkdir3(pasta, { recursive: true, ...!this.prepararDocumento ? { mode: 448 } : {} });
+    const motor = new MotorDocumentos(pasta, fontes_originais_default, continuar, { temporarioIsolado: !!this.prepararDocumento }), ambito = JSON.stringify([ctx.userId, ctx.projeto]);
     let tarefa;
     const anteriores = job.resultado, ids = job.pedido.ids, agregar = () => ({ ...structuredClone(tarefa), id: job.id, total: anteriores?.total ?? ids.length, fontes: [...anteriores?.fontes ?? [], ...tarefa?.fontes ?? []], descobertas: [...anteriores?.descobertas ?? [], ...tarefa?.descobertas ?? []], pdfs: [...anteriores?.pdfs ?? [], ...tarefa?.pdfs ?? []].filter((p, i, a) => a.findIndex((x) => x.hash === p.hash) === i), erros: [...anteriores?.erros ?? [], ...tarefa?.erros ?? []] });
     const progresso = async () => {
@@ -5450,6 +5460,11 @@ function criarServidor(config, servicos) {
       return;
     }
     let libertar;
+    const concluirEscrita = async () => {
+      const fn = libertar;
+      libertar = void 0;
+      await fn?.();
+    };
     try {
       const caminho = new URL(req.url ?? "/", "http://backend.invalid").pathname.match(/^\/(seo|documentos|operacao|wordpress)\/(.+)$/);
       if (!caminho)
@@ -5485,7 +5500,8 @@ function criarServidor(config, servicos) {
         timer.unref();
         libertar = async () => {
           clearInterval4(timer);
-          await servicos.sb.rpc("hub_lease_libertar", { _projeto: ctx.projeto, _recurso: "documentos", _token: lease.data });
+          const r = await servicos.sb.rpc("hub_lease_libertar", { _projeto: ctx.projeto, _recurso: "documentos", _token: lease.data });
+          if (r.error) throw new Error("A escrita terminou, mas a reserva ainda n\xE3o foi libertada. Atualiza antes de repetir.");
         };
       }
       const tipo = req.headers["content-type"] ?? "";
@@ -5498,7 +5514,9 @@ function criarServidor(config, servicos) {
         if (!(pdf instanceof File))
           throw new FalhaHttp("Ficheiro PDF em falta.");
         const meta2 = JSON.parse(String(partes.get("metadados") ?? "{}"));
-        json(res, await servicos.documentos.guardar(ctx, new Uint8Array(await pdf.arrayBuffer()), { ...meta2, ficheiro: pdf.name }));
+        const guardado = await servicos.documentos.guardar(ctx, new Uint8Array(await pdf.arrayBuffer()), { ...meta2, ficheiro: pdf.name });
+        await concluirEscrita();
+        json(res, guardado);
         return;
       }
       if (!tipo.startsWith("application/json"))
@@ -5514,12 +5532,14 @@ function criarServidor(config, servicos) {
           ambitoAutorizado(ctx, a.ambito);
         resultado = await servicos.documentos.operar(ctx, caminho[2], a);
         if (resultado instanceof Blob) {
+          await concluirEscrita();
           res.setHeader("Content-Type", resultado.type || "application/octet-stream");
           res.end(Buffer13.from(await resultado.arrayBuffer()));
           return;
         }
         if (caminho[2] === "obter") {
           const r = resultado;
+          await concluirEscrita();
           res.setHeader("Content-Type", r.tipo);
           res.setHeader("X-Hub-Url-Final", encodeURIComponent(r.url));
           res.setHeader("Access-Control-Expose-Headers", "X-Hub-Url-Final");
@@ -5552,12 +5572,15 @@ function criarServidor(config, servicos) {
             throw new FalhaHttp("Opera\xE7\xE3o WordPress desconhecida.", 404);
         }
       }
+      await concluirEscrita();
       json(res, resultado);
     } catch (e) {
+      await concluirEscrita().catch(() => {
+      });
       const status = e instanceof FalhaHttp ? e.status : e instanceof z18.ZodError || e instanceof SyntaxError ? 400 : 422;
       json(res, { erro: e instanceof z18.ZodError ? "Confere os campos do pedido." : e instanceof Error ? e.message : "N\xE3o foi poss\xEDvel concluir o pedido." }, status);
     } finally {
-      await libertar?.();
+      await concluirEscrita();
     }
   });
 }

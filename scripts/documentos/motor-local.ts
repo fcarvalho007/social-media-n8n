@@ -22,7 +22,7 @@ export class MotorDocumentos {
   private descargas: Promise<unknown> = Promise.resolve();
   private escritas = new Map<string,Promise<void>>();
   private execucoes = new Map<string,Promise<unknown>>();
-  constructor(readonly pasta: string, readonly fontes: FonteDocumento[],private continuar:()=>boolean|Promise<boolean>=()=>true) { this.prontos = this.carregar(); }
+  constructor(readonly pasta: string, readonly fontes: FonteDocumento[],private continuar:()=>boolean|Promise<boolean>=()=>true, private opcoes: { temporarioIsolado?: boolean } = {}) { this.prontos = this.carregar(); }
   private async carregar() {
     await mkdir(path.join(this.pasta, 'pdfs'), { recursive: true });
     for (const nome of (await readdir(this.pasta)).filter(n => /^tarefa-[a-f0-9-]+\.json$/.test(n))) {
@@ -43,7 +43,7 @@ export class MotorDocumentos {
     const dados = JSON.stringify(j);
     const p = (this.escritas.get(j.id) ?? Promise.resolve()).catch(()=>undefined).then(async()=>{
       const destino = path.join(this.pasta, `tarefa-${j.id}.json`); const tmp = `${destino}.${randomUUID()}.tmp`;
-      await writeFile(tmp, dados, { mode: 0o600 }); await rename(tmp, destino);
+      await writeFile(tmp, dados, this.opcoes.temporarioIsolado ? {} : { mode: 0o600 }); await rename(tmp, destino);
     });
     this.escritas.set(j.id,p); await p;
   }
@@ -162,7 +162,7 @@ export class MotorDocumentos {
           const hash = createHash('sha256').update(r.bytes).digest('hex');
           if (!j.pdfs.some(x=>x.hash===hash)) {
             const destino=path.join(this.pasta,'pdfs',`${hash}.pdf`);const tmp=`${destino}.${randomUUID()}.tmp`;
-            await writeFile(tmp,r.bytes,{mode:0o600});await rename(tmp,destino);
+            await writeFile(tmp,r.bytes,this.opcoes.temporarioIsolado ? {} : {mode:0o600});await rename(tmp,destino);
             j.pdfs.push({...p,url:r.url,hash,bytes:r.bytes.length,categoria:f.group_category,estado:'descarregado'});
             guardadosFonte++;
           }
