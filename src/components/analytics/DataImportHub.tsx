@@ -51,7 +51,8 @@ interface ImportProgress {
 }
 
 export function DataImportHub() {
-  const projetoId = useProjetoOpcional()?.projetoId ?? null;
+  const contextoProjeto = useProjetoOpcional();
+  const projetoId = contextoProjeto?.projetoId ?? null;
   const queryClient = useQueryClient();
   const { importProfilesAsync, isImporting: isImportingProfiles } = useInstagramProfiles();
   
@@ -369,7 +370,7 @@ export function DataImportHub() {
             <Database className="h-5 w-5 text-primary" />
             Importar dados do Instagram
           </DialogTitle>
-          <DialogDescription>Carrega um ficheiro que já possuis; o Hub não recolhe dados do Instagram. Publicações desde janeiro de 2025. Destino: {projetoId ? "projeto selecionado no Hub" : "a tua conta, sem projeto associado"}. Novas medições de publicações já importadas não são atualizadas automaticamente.</DialogDescription>
+          <DialogDescription>Carrega um ficheiro que já possuis; o Hub não recolhe dados do Instagram. Publicações desde janeiro de 2025. Destino: {projetoId ? contextoProjeto?.projeto?.name || "projeto selecionado no Hub" : "a tua conta, sem projeto associado"}. Novas medições de publicações já importadas não são atualizadas automaticamente.</DialogDescription>
         </DialogHeader>
 
         {MODO_HUB_LOCAL && <p role="note" className="rounded-lg border bg-accent p-3 text-sm">Podes rever um ficheiro nesta demonstração. A gravação e os pedidos ao servidor estão desligados; os teus dados Cloud não são consultados nem alterados.</p>}
@@ -469,7 +470,7 @@ export function DataImportHub() {
                   <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg hover:bg-muted/50 transition-colors">
                     <FileJson className="h-10 w-10 text-muted-foreground mb-3" />
                     <span className="text-sm font-medium">Carregar ficheiro JSON</span>
-                    <span className="text-xs text-muted-foreground mt-1">Instagram Post Scraper</span>
+                    <span className="text-xs text-muted-foreground mt-1">Publicações no formato documentado</span>
                   </div>
                   <input
                     type="file"
@@ -557,7 +558,7 @@ export function DataImportHub() {
                   <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg hover:bg-muted/50 transition-colors">
                     <Users className="h-10 w-10 text-muted-foreground mb-3" />
                     <span className="text-sm font-medium">Carregar ficheiro JSON</span>
-                    <span className="text-xs text-muted-foreground mt-1">Instagram Profile Scraper</span>
+                    <span className="text-xs text-muted-foreground mt-1">Perfis no formato documentado</span>
                   </div>
                   <input
                     type="file"

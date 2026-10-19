@@ -740,10 +740,10 @@ export default function Analytics() {
 
             {/* 9. FOOTER */}
             <footer className="mt-12 pt-6 border-t text-center text-xs text-muted-foreground">
-              <p>Dados extraídos via Instagram Scraper • Plataforma de Analytics v1.0</p>
+              <p>Dados de ficheiros importados pelo utilizador · sem recolha automática do Instagram</p>
               {lastUpdate && (
                 <p className="mt-1">
-                  Última sincronização: {format(lastUpdate, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}
+                  Última importação: {format(lastUpdate, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}
                 </p>
               )}
             </footer>

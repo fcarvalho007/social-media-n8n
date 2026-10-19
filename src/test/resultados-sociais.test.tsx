@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { InstagramAnalyticsItem } from '@/hooks/useInstagramAnalytics';
 import { filtrarPeriodoSocial, formatoSocial, resumirContasSociais } from '@/lib/analytics/resultadosSociais';
+vi.mock('recharts', async importar => ({...await importar<typeof import('recharts')>(), ResponsiveContainer: () => null}));
 const h = vi.hoisted(() => ({
   user: {id:'conta-teste',email:'editor@example.test'},
   projeto: {projetoId:'projeto-teste',projeto:{name:'Marca teste'}},
@@ -22,6 +23,7 @@ vi.mock('@/integrations/supabase/client',()=>({supabase:{functions:{invoke:h.inv
 import Analytics from '@/pages/Analytics';
 import Benchmark from '@/pages/Benchmark';
 import Insights from '@/pages/Insights';
+import { ContentTypeBreakdown } from '@/components/analytics/ContentTypeBreakdown';
 import { KPICards } from '@/components/analytics/KPICards';
 import { DataImportHub } from '@/components/analytics/DataImportHub';
 const post = (nome:string, gostos:number, comentarios=0):InstagramAnalyticsItem => ({id:nome,user_id:'conta-teste',owner_username:nome,likes_count:gostos,comments_count:comentarios,posted_at:'2026-10-18T10:00:00Z',imported_at:'2026-10-19T10:00:00Z',caption:'Legenda de teste',post_type:'Carrossel',hashtags:[],media_urls:[],post_url:'https://www.instagram.com/p/Teste/',shortcode:'Teste',views_count:0,engagement_rate:0,thumbnail_url:null,location_name:null,is_video:false,video_duration:null,created_at:'2026-10-19T10:00:00Z'});
@@ -46,6 +48,14 @@ describe('Estatísticas descritivas sem inventar métricas',()=>{
     expect(screen.queryByText('Posts/Semana')).not.toBeInTheDocument();
     expect(screen.getByRole('article',{name:'Visualizações registadas: indisponível'})).toHaveTextContent('—');
     expect(screen.getByText('Formatos na amostra')).toBeInTheDocument();
+  });
+  it('descreve a amostra por formato sem recomendar causalidade ou dividir por zero',()=>{
+    abrir(<ContentTypeBreakdown data={[{type:'Sidecar',count:1,avgEngagement:15},{type:'Image',count:1,avgEngagement:0}]} />);
+    expect(screen.getByText('Leitura da amostra')).toBeInTheDocument();
+    expect(screen.getByText(/15 gostos \+ comentários por publicação, em 1 publicações/)).toBeInTheDocument();
+    expect(screen.getByText(/Estes valores não demonstram/)).toBeInTheDocument();
+    expect(screen.queryByText('Recomendação')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Infinity|Considere aumentar/)).not.toBeInTheDocument();
   });
   it('não cria um ranking nem seguidores zero quando faltam perfis',()=>{
     h.posts.analytics=[post('marca_a',100),post('marca_b',10)];abrir(<Benchmark />);

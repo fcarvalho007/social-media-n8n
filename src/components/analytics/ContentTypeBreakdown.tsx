@@ -80,7 +80,7 @@ export const ContentTypeBreakdown = memo(function ContentTypeBreakdown({ data }:
         </div>
         <div className="space-y-1 text-sm text-muted-foreground">
           <p><span className="font-medium text-foreground">{data.count}</span> posts ({percentage}%)</p>
-          <p>~<span className="font-medium text-foreground">{data.avgEngagement}</span> engagement/post</p>
+          <p>~<span className="font-medium text-foreground">{data.avgEngagement}</span> interações/publicação</p>
         </div>
       </div>
     );
@@ -204,7 +204,7 @@ export const ContentTypeBreakdown = memo(function ContentTypeBreakdown({ data }:
                       >
                         ~{item.avgEngagement}
                       </div>
-                      <div className="text-xs text-muted-foreground">engagement/post</div>
+                      <div className="text-xs text-muted-foreground">interações/publicação</div>
                     </div>
                   </div>
                 </div>
@@ -245,33 +245,20 @@ export const ContentTypeBreakdown = memo(function ContentTypeBreakdown({ data }:
           </div>
         </div>
 
-        {/* Smart recommendation - enhanced */}
-        {sortedData.length > 1 && (() => {
-          const sorted = [...sortedData].sort((a, b) => b.avgEngagement - a.avgEngagement);
-          const best = sorted[0];
-          const worst = sorted[sorted.length - 1];
-          
-          if (best && worst && best.avgEngagement > worst.avgEngagement * 1.1) {
-            const improvement = Math.round(((best.avgEngagement - worst.avgEngagement) / worst.avgEngagement) * 100);
-            return (
-              <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-amber-500/15 to-orange-500/10 border border-amber-500/30">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-full bg-amber-500/20">
-                    <Lightbulb className="h-5 w-5 text-amber-500" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-amber-700 dark:text-amber-300 mb-1">Recomendação</div>
-                    <p className="text-sm text-amber-700/80 dark:text-amber-400/80">
-                      <strong>{best.name}</strong> geram <strong>+{improvement}%</strong> mais engagement que {worst.name.toLowerCase()}. 
-                      Considere aumentar a frequência deste formato nas suas publicações.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })()}
+        <div className="mt-6 rounded-xl border bg-muted/30 p-4">
+          <div className="flex items-start gap-3">
+            <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+            <div>
+              <div className="mb-1 font-semibold">Leitura da amostra</div>
+              <p className="text-sm text-muted-foreground">
+                Nesta amostra, {bestType.name.toLowerCase()} tem a maior média registada:
+                {' '}{bestType.avgEngagement} gostos + comentários por publicação, em {bestType.count} publicações.
+                {' '}A quantidade, as datas e as contas podem diferir por formato. Estes valores não demonstram
+                que escolher esse formato vai melhorar os resultados.
+              </p>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
