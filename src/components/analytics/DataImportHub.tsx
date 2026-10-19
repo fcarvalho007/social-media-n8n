@@ -4,6 +4,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogDescription,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -14,6 +15,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { MODO_HUB_LOCAL } from "@/lib/backendHub";
+import { useProjetoOpcional } from "@/contexts/ProjetoContext";
 import { useInstagramProfiles } from "@/hooks/useInstagramProfiles";
 import {
   Upload,
@@ -29,20 +32,15 @@ import {
   Database,
 } from "lucide-react";
 
-const ALLOWED_ACCOUNTS = [
-  "frederico.m.carvalho",
-  "mariiana.ai",
-  "marcogouveia.pt",
-  "martimsilvai",
-  "robs.cortez",
-  "escolamarketingdigital.pt",
-  "paulofaustino",
-  "samurairt",
-];
-
 const MIN_DATE = new Date("2025-01-01T00:00:00Z");
 const MY_ACCOUNT = "frederico.m.carvalho";
 const BATCH_SIZE = 25;
+function contagemFicheiro(valor: unknown): number {
+  if ((typeof valor !== 'number' && typeof valor !== 'string') || String(valor).trim() === '') throw new Error('Faltam contagens no ficheiro. Usa gostos e comentários explícitos, incluindo zero quando confirmado.');
+  const numero = Number(valor);
+  if (!Number.isSafeInteger(numero) || numero < 0) throw new Error('As contagens têm de ser números inteiros iguais ou superiores a zero.');
+  return numero;
+}
 
 interface ImportProgress {
   current: number;
@@ -52,14 +50,10 @@ interface ImportProgress {
   failed: number;
 }
 
-interface DataImportHubProps {
-  onImport?: (posts: any[]) => void;
-  isImporting?: boolean;
-}
-
-export function DataImportHub({ onImport, isImporting: externalIsImporting }: DataImportHubProps) {
+export function DataImportHub() {
+  const projetoId = useProjetoOpcional()?.projetoId ?? null;
   const queryClient = useQueryClient();
-  const { importProfiles, isImporting: isImportingProfiles } = useInstagramProfiles();
+  const { importProfilesAsync, isImporting: isImportingProfiles } = useInstagramProfiles();
   
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("excel");
@@ -84,7 +78,7 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
   // Helper functions
   const isAllowedAccount = useCallback((username: string) => {
     const normalized = username?.toLowerCase().replace(/^@/, "").trim();
-    return ALLOWED_ACCOUNTS.some(acc => acc.toLowerCase() === normalized);
+    return typeof normalized === "string" && /^[a-z0-9._]{1,30}$/.test(normalized);
   }, []);
 
   const isValidDate = useCallback((timestamp: string) => {
@@ -125,7 +119,7 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
     jsonPostsData.forEach(post => {
       const username = normalizeUsername(post.ownerUsername);
       
-      if (!isAllowedAccount(username)) {
+      if (!isAllowedAccount(username) || typeof post.shortCode !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(post.shortCode)) {
         excludedByAccount++;
         return;
       }
@@ -175,7 +169,9 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
   const handleExcelFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 20 * 1024 * 1024) { toast.error("O ficheiro excede 20 MB. Divide-o em ficheiros mais pequenos."); return; }
 
+    setExcelData(null); setExcelStats(null);
     setExcelFileName(file.name);
 
     try {
@@ -189,12 +185,12 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
       // Map and filter data
       const mappedData = jsonData.map((row: any) => ({
         url: row.url || row.URL || row.postUrl || row.inputUrl || row.link,
-        shortCode: row.shortCode || row.shortcode || row.code,
+        shortCode: row.shortCode || row.shortcode || row.code || String(row.url || row.URL || row.postUrl || row.inputUrl || row.link || "").match(/\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/)?.[1],
         type: normalizePostType(row.type || row.Type || row.postType),
         caption: row.caption || row.Caption || "",
         hashtags: parseHashtags(row.hashtags || row.caption),
-        likesCount: parseInt(row.likesCount || row.likes || 0),
-        commentsCount: parseInt(row.commentsCount || row.comments || 0),
+        likesCount: contagemFicheiro(row.likesCount ?? row.likes),
+        commentsCount: contagemFicheiro(row.commentsCount ?? row.comments),
         videoViewCount: parseInt(row.videoViewCount || row.views || row.videoPlayCount || 0),
         displayUrl: row.displayUrl || row.imageUrl || row.thumbnailUrl,
         timestamp: row.timestamp || row.date || row.postedAt,
@@ -202,8 +198,8 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
         locationName: row.locationName || row.location,
       }));
 
-      const filtered = mappedData.filter(p => 
-        isAllowedAccount(p.ownerUsername) && isValidDate(p.timestamp)
+      const filtered = mappedData.filter(p =>
+        isAllowedAccount(p.ownerUsername) && isValidDate(p.timestamp) && typeof p.shortCode === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(p.shortCode)
       );
 
       setExcelData(filtered);
@@ -213,7 +209,7 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
       });
     } catch (error) {
       console.error("Error parsing Excel:", error);
-      toast.error("Erro ao ler ficheiro Excel");
+      toast.error(error instanceof Error ? error.message : "Erro ao ler ficheiro Excel");
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -223,17 +219,21 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
   const handleJsonPostsFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 20 * 1024 * 1024) { toast.error("O ficheiro excede 20 MB. Divide-o em ficheiros mais pequenos."); return; }
 
+    setJsonPostsData(null);
     setJsonPostsFileName(file.name);
 
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        setJsonPostsData(Array.isArray(json) ? json : [json]);
+        const itens = Array.isArray(json) ? json : [json];
+        if (!itens.length || itens.length > 10000 || itens.some(p => !p || typeof p !== 'object' || Array.isArray(p))) throw new Error('Formato inválido.');
+        setJsonPostsData(itens.map(p => ({...p, likesCount: contagemFicheiro(p.likesCount), commentsCount: contagemFicheiro(p.commentsCount), ownerUsername: normalizeUsername(p.ownerUsername), shortCode: p.shortCode || String(p.url || '').match(/\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/)?.[1]})));
       } catch (err) {
         console.error("Error parsing JSON:", err);
-        toast.error("Erro ao ler ficheiro JSON");
+        toast.error(err instanceof Error ? err.message : "Erro ao ler ficheiro JSON");
       }
     };
     reader.readAsText(file);
@@ -243,17 +243,21 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
   const handleJsonProfilesFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 20 * 1024 * 1024) { toast.error("O ficheiro excede 20 MB. Divide-o em ficheiros mais pequenos."); return; }
 
+    setJsonProfilesData(null);
     setJsonProfilesFileName(file.name);
 
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        setJsonProfilesData(Array.isArray(json) ? json : [json]);
+        const itens = Array.isArray(json) ? json : [json];
+        if (!itens.length || itens.length > 1000 || itens.some(p => !p || typeof p !== 'object' || Array.isArray(p))) throw new Error('Formato inválido.');
+        setJsonProfilesData(itens.map(p => ({...p, username: normalizeUsername(p.username)})));
       } catch (err) {
         console.error("Error parsing JSON:", err);
-        toast.error("Erro ao ler ficheiro JSON");
+        toast.error(err instanceof Error ? err.message : "Erro ao ler ficheiro JSON");
       }
     };
     reader.readAsText(file);
@@ -261,7 +265,7 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
 
   // Import Excel/JSON Posts
   const handleImportPosts = async (data: any[]) => {
-    if (!data || data.length === 0) return;
+    if (MODO_HUB_LOCAL || !data || data.length === 0) return;
 
     setIsImporting(true);
     setProgress({ current: 0, total: data.length, imported: 0, duplicates: 0, failed: 0 });
@@ -275,14 +279,15 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
 
       try {
         const { data: result, error } = await supabase.functions.invoke("import-instagram-data", {
-          body: { posts: batch },
+          body: { posts: batch, project_id: projetoId },
         });
 
-        if (error) {
+        if (error || result?.success === false || !result || result.error) {
           totalFailed += batch.length;
         } else {
           totalImported += result?.imported || 0;
           totalDuplicates += result?.duplicates || 0;
+          totalFailed += Math.max(0, batch.length - (result.imported || 0) - (result.duplicates || 0) - (result.skippedOldPosts || 0));
         }
       } catch (err) {
         totalFailed += batch.length;
@@ -305,17 +310,20 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
 
     queryClient.invalidateQueries({ queryKey: ["instagram-analytics"] });
     
-    setTimeout(() => {
-      resetState();
-    }, 1500);
+    setIsImporting(false);
+    if (totalFailed > 0) toast.error(`${totalFailed} registos sem confirmação. Os ficheiros foram preservados para revisão.`);
   };
 
   // Import Profiles
-  const handleImportProfiles = () => {
-    if (!jsonProfilesData) return;
-    importProfiles(jsonProfilesData);
-    setJsonProfilesData(null);
-    setJsonProfilesFileName("");
+  const handleImportProfiles = async () => {
+    if (MODO_HUB_LOCAL || !jsonProfilesData) return;
+    setIsImporting(true);
+    try {
+      const validos = jsonProfilesData.filter(p => isAllowedAccount(p.username));
+      for (let i = 0; i < validos.length; i += BATCH_SIZE) await importProfilesAsync(validos.slice(i, i + BATCH_SIZE));
+      resetState();
+    } catch { /* The mutation reports the error; preserve the file for explicit retry. */ }
+    finally { setIsImporting(false); }
   };
 
   const resetState = () => {
@@ -352,21 +360,28 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Database className="h-4 w-4" />
-          Importar Dados
+          Importar Instagram
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Database className="h-5 w-5 text-primary" />
-            Centro de Importação de Dados
+            Importar dados do Instagram
           </DialogTitle>
+          <DialogDescription>Carrega um ficheiro que já possuis; o Hub não recolhe dados do Instagram. Publicações desde janeiro de 2025. Destino: {projetoId ? "projeto selecionado no Hub" : "a tua conta, sem projeto associado"}. Novas medições de publicações já importadas não são atualizadas automaticamente.</DialogDescription>
         </DialogHeader>
 
-        {isImporting && progress ? (
+        {MODO_HUB_LOCAL && <p role="note" className="rounded-lg border bg-accent p-3 text-sm">Podes rever um ficheiro nesta demonstração. A gravação e os pedidos ao servidor estão desligados; os teus dados Cloud não são consultados nem alterados.</p>}
+        <details className="rounded-lg border bg-muted/40 p-3 text-sm">
+          <summary className="cursor-pointer font-medium">Que ficheiros posso carregar?</summary>
+          <p className="mt-2 text-muted-foreground">Excel: colunas ownerUsername (ou username), shortCode (ou URL da publicação), timestamp (data ISO), likesCount e commentsCount. JSON: lista de publicações com os mesmos nomes. Perfis JSON: username, id e followersCount. Os formatos das exportações variam; não aceitamos automaticamente qualquer exportação da Meta.</p>
+          <p className="mt-2 text-muted-foreground">As datas e contagens vêm do teu ficheiro. Revê os totais antes de importar. Imagens referidas podem ser copiadas para a biblioteca pelo servidor; não é uma pesquisa de novas publicações.</p>
+        </details>
+        {progress ? (
           <div className="space-y-4 py-6">
             <div className="text-center">
-              <div className="text-lg font-medium mb-2">A importar...</div>
+              <div className="text-lg font-medium mb-2">{isImporting ? "A importar…" : progress.failed ? "Importação por rever" : "Importação concluída"}</div>
               <div className="text-sm text-muted-foreground">{progressPercent}%</div>
             </div>
             <Progress value={progressPercent} />
@@ -384,21 +399,22 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
                 <div className="text-xs text-muted-foreground">Falhados</div>
               </div>
             </div>
+            {!isImporting && <Button variant="outline" onClick={() => setProgress(null)}>Voltar aos ficheiros</Button>}
           </div>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="flex h-auto w-full flex-wrap gap-1">
               <TabsTrigger value="excel" className="gap-2 text-xs sm:text-sm">
                 <FileSpreadsheet className="h-4 w-4" />
-                <span className="hidden sm:inline">Excel</span>
+                <span>Excel</span>
               </TabsTrigger>
               <TabsTrigger value="json-posts" className="gap-2 text-xs sm:text-sm">
                 <FileJson className="h-4 w-4" />
-                <span className="hidden sm:inline">JSON Posts</span>
+                <span>Publicações JSON</span>
               </TabsTrigger>
               <TabsTrigger value="json-profiles" className="gap-2 text-xs sm:text-sm">
                 <Users className="h-4 w-4" />
-                <span className="hidden sm:inline">JSON Perfis</span>
+                <span>Perfis JSON</span>
               </TabsTrigger>
             </TabsList>
 
@@ -438,7 +454,7 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
                     <Button variant="outline" className="flex-1" onClick={() => { setExcelData(null); setExcelFileName(""); }}>
                       Cancelar
                     </Button>
-                    <Button className="flex-1" onClick={() => handleImportPosts(excelData)}>
+                    <Button className="flex-1" disabled={MODO_HUB_LOCAL || excelData.length === 0} onClick={() => { void handleImportPosts(excelData); }}>
                       Importar {excelStats?.toImport} posts
                     </Button>
                   </div>
@@ -486,7 +502,7 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
                       </div>
                       <div className="p-2 bg-red-500/10 rounded-lg text-center">
                         <div className="text-lg font-bold text-red-600">{jsonPostsStats.excludedByAccount}</div>
-                        <div className="text-xs text-muted-foreground">Outras</div>
+                        <div className="text-xs text-muted-foreground">Identificação inválida</div>
                       </div>
                     </div>
 
@@ -520,11 +536,11 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
                         className="flex-1" 
                         onClick={() => {
                           const filtered = jsonPostsData.filter(p => 
-                            isAllowedAccount(normalizeUsername(p.ownerUsername)) && isValidDate(p.timestamp)
+                            isAllowedAccount(normalizeUsername(p.ownerUsername)) && isValidDate(p.timestamp) && typeof p.shortCode === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(p.shortCode)
                           );
                           handleImportPosts(filtered);
                         }}
-                        disabled={jsonPostsStats.toImport === 0}
+                        disabled={MODO_HUB_LOCAL || jsonPostsStats.toImport === 0}
                       >
                         Importar {jsonPostsStats.toImport} posts
                       </Button>
@@ -605,8 +621,8 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
                       </Button>
                       <Button
                         className="flex-1"
-                        onClick={handleImportProfiles}
-                        disabled={jsonProfilesStats.allowed === 0 || isImportingProfiles}
+                        onClick={() => { void handleImportProfiles(); }}
+                        disabled={MODO_HUB_LOCAL || jsonProfilesStats.allowed === 0 || isImporting || isImportingProfiles}
                       >
                         {isImportingProfiles ? "A importar..." : `Importar ${jsonProfilesStats.allowed} perfis`}
                       </Button>

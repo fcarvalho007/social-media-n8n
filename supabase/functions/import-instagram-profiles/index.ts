@@ -6,18 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Allowed accounts for analytics
-const ALLOWED_ACCOUNTS = [
-  "frederico.m.carvalho",
-  "mariiana.ai",
-  "marcogouveia.pt",
-  "martimsilvai",
-  "robs.cortez",
-  "escolamarketingdigital.pt",
-  "paulofaustino",
-  "samurairt",
-];
-
 const MIN_DATE = new Date("2025-01-01T00:00:00Z");
 
 interface ProfileData {
@@ -92,18 +80,15 @@ Deno.serve(async (req) => {
 
     console.log(`Processing ${profiles.length} profiles`);
 
-    // Filter to allowed accounts only
-    const filteredProfiles = profiles.filter((p: ProfileData) => 
-      ALLOWED_ACCOUNTS.includes(p.username)
-    );
+    // Filter to valid accounts only
+    const filteredProfiles = profiles.filter((p: unknown): p is ProfileData => !!p && typeof p === "object" && !Array.isArray(p)).map((p: ProfileData) => ({...p, username: typeof p.username === 'string' ? p.username.replace(/^@/, '').trim().toLowerCase() : ''})).filter((p: ProfileData) => /^[a-z0-9._]{1,30}$/.test(p.username));
 
-    console.log(`Filtered to ${filteredProfiles.length} allowed profiles`);
+    console.log(`Filtered to ${filteredProfiles.length} valid profiles`);
 
     if (filteredProfiles.length === 0) {
       return new Response(
         JSON.stringify({ 
-          error: "No allowed accounts found in data",
-          allowedAccounts: ALLOWED_ACCOUNTS 
+          error: "Nenhum perfil com nome válido no ficheiro."
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

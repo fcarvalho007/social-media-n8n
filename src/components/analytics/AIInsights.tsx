@@ -35,24 +35,24 @@ export const AIInsights = memo(function AIInsights({ analytics }: AIInsightsProp
         id="ai-insights" 
         className="card-premium"
         role="region"
-        aria-label="Insights automáticos de conteúdo"
+        aria-label="Padrões calculados sobre dados importados"
       >
         <CardHeader className="card-premium-header">
           <CardTitle className="flex items-center gap-2 text-lg">
             <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/20" aria-hidden="true">
               <Sparkles className="h-5 w-5 text-violet-600" />
             </div>
-            Insights Automáticos
+            Padrões da amostra
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <Lightbulb className="h-12 w-12 text-muted-foreground/30 mb-4" aria-hidden="true" />
             <p className="text-muted-foreground">
-              Importe mais dados para gerar insights automáticos
+              Importa mais publicações para calcular padrões descritivos
             </p>
             <p className="text-xs text-muted-foreground/70 mt-1">
-              Mínimo de 10 posts necessários
+              Mínimo de 10 publicações. Sem chamada de IA; associações não comprovam causalidade.
             </p>
           </div>
         </CardContent>
@@ -73,7 +73,7 @@ export const AIInsights = memo(function AIInsights({ analytics }: AIInsightsProp
             <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/20" aria-hidden="true">
               <Sparkles className="h-5 w-5 text-violet-600" />
             </div>
-            Insights Automáticos
+            Padrões da amostra
           </CardTitle>
           <Badge variant="secondary" className="gap-1" role="status">
             <Sparkles className="h-3 w-3" aria-hidden="true" />
@@ -82,6 +82,7 @@ export const AIInsights = memo(function AIInsights({ analytics }: AIInsightsProp
         </div>
       </CardHeader>
       <CardContent>
+        <p className="mb-4 text-xs text-muted-foreground">Cálculos locais sobre os ficheiros importados; não são previsões nem resultados de uma consulta a IA. Associações não demonstram causalidade.</p>
         <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2" role="list" aria-label="Lista de insights">
           {insights.map((insight, index) => (
             <InsightCard key={insight.id} insight={insight} index={index} />

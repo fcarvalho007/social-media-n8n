@@ -8,6 +8,7 @@ const h=vi.hoisted(()=>({
 vi.mock('@/hooks/useInstagramAnalytics',()=>({useInstagramAnalytics:()=>h.posts}));
 vi.mock('@/hooks/useInstagramProfiles',()=>({useInstagramProfiles:()=>h.profiles}));
 vi.mock('@/hooks/useAnalyticsBookmarks',()=>({useAnalyticsBookmarks:()=>({isBookmarked:()=>false,toggleBookmark:vi.fn()})}));
+vi.mock('@/hooks/useUserRoles',()=>({useCurrentUserRoles:()=>({isAdmin:false,isEditor:false})}));
 vi.mock('@/contexts/AuthContext',()=>({useAuth:()=>({user:null})}));
 import Analytics from '@/pages/Analytics';
 import Benchmark from '@/pages/Benchmark';

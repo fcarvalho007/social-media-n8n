@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { Heart, MessageCircle, Eye, TrendingUp, BarChart3, ArrowUp, ArrowDown, Calendar } from "lucide-react";
+import { Heart, MessageCircle, Eye, TrendingUp, BarChart3, ArrowUp, ArrowDown, Layers } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip,
@@ -20,11 +20,6 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
     if (!previous || previous === 0) return null;
     return ((current - previous) / previous) * 100;
   };
-
-  // Calculate posts per week (assuming data covers at least a week)
-  const postsPerWeek = stats.totalPosts > 0 
-    ? Math.round((stats.totalPosts / 30) * 7) 
-    : 0;
 
   // Calculate engagement rate
   const engagementRate = stats.totalPosts > 0 
@@ -60,7 +55,7 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
       tooltip: "Soma de todos os comentários",
     },
     {
-      label: "Eng. Médio",
+      label: "Interações / publicação",
       value: engagementRate,
       previousValue: previousStats ? Math.round((previousStats.totalLikes + previousStats.totalComments) / (previousStats.totalPosts || 1)) : undefined,
       icon: TrendingUp,
@@ -69,24 +64,24 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
       tooltip: "Engagement médio por post (likes + comentários)",
     },
     {
-      label: "Visualizações",
-      value: stats.totalViews,
+      label: "Visualizações registadas",
+      value: stats.totalViews > 0 ? stats.totalViews : null,
       previousValue: previousStats?.totalViews,
       icon: Eye,
       iconBg: "bg-accent",
       iconColor: "text-primary",
-      tooltip: "Total de visualizações (vídeos)",
+      tooltip: "Soma das visualizações no ficheiro. Sem valores positivos, o histórico não permite distinguir zero de dados ausentes.",
     },
     {
-      label: "Posts/Semana",
-      value: postsPerWeek,
+      label: "Formatos na amostra",
+      value: stats.contentTypeBreakdown.length,
       previousValue: undefined,
-      icon: Calendar,
+      icon: Layers,
       iconBg: "bg-cyan-500/10",
       iconColor: "text-cyan-500",
-      tooltip: "Média de posts por semana (estimado)",
+      tooltip: "Quantidade de formatos diferentes presentes nas publicações importadas",
     },
-  ], [stats, previousStats, engagementRate, postsPerWeek]);
+  ], [stats, previousStats, engagementRate]);
 
   return (
     <TooltipProvider>
@@ -114,7 +109,7 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
                   }}
                   tabIndex={0}
                   role="article"
-                  aria-label={`${kpi.label}: ${typeof kpi.value === "number" ? formatCompactNumber(kpi.value) : kpi.value}${change !== null ? `, ${isPositive ? 'aumento' : 'diminuição'} de ${Math.abs(change).toFixed(0)}%` : ''}`}
+                  aria-label={`${kpi.label}: ${typeof kpi.value === "number" ? formatCompactNumber(kpi.value) : "indisponível"}${change !== null ? `, ${isPositive ? 'aumento' : 'diminuição'} de ${Math.abs(change).toFixed(0)}%` : ''}`}
                 >
                   <CardContent className="p-4 sm:p-5">
                     {/* Header with icon and change badge */}
@@ -145,10 +140,7 @@ export const KPICards = memo(function KPICards({ stats, previousStats }: KPICard
                     
                     {/* Value - large and bold with animation */}
                     <p className="text-2xl sm:text-3xl font-semibold tracking-tight tabular-nums text-foreground mb-1">
-                      <AnimatedNumber 
-                        value={typeof kpi.value === "number" ? kpi.value : 0}
-                        formatFn={formatCompactNumber}
-                      />
+                      {typeof kpi.value === "number" ? <AnimatedNumber value={kpi.value} formatFn={formatCompactNumber} /> : <span>—</span>}
                     </p>
                     
                     {/* Label - uppercase tracking */}

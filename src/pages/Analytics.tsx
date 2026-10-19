@@ -1,8 +1,10 @@
 import { AvisoResultados } from '@/components/analytics/AvisoResultados';
 import { useState, useMemo, useCallback } from "react";
 import { BarChart3, Trash2, Users, UserCircle, Download, Clock, Trophy } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCurrentUserRoles } from "@/hooks/useUserRoles";
+import { ContextoResultados, NavegacaoResultados } from "@/components/analytics/ContextoResultados";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,19 +64,17 @@ export default function Analytics() {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Admin emails allowed to manage data (import/delete)
-  const ADMIN_EMAILS = ["frederico.m.carvalho@gmail.com"];
-  const canManageData = user?.email && ADMIN_EMAILS.includes(user.email);
+  const { isAdmin, isEditor } = useCurrentUserRoles();
+  const canManageData = !!user && (isAdmin || isEditor);
+  const [params] = useSearchParams();
   
   const {
     analytics,
     stats,
     isLoading, isFetching: aAtualizarAnalytics, error: erroAnalytics, refetch: recarregarAnalytics,
-    importPosts,
-    isImporting,
     deleteAnalytics,
     isDeleting,
-  } = useInstagramAnalytics({ publicMode: true });
+  } = useInstagramAnalytics();
 
   // Bookmarks hook
   const { isBookmarked, toggleBookmark } = useAnalyticsBookmarks();
@@ -84,11 +84,11 @@ export default function Analytics() {
     profiles: allProfiles,
     latestProfiles,
     isLoading: isLoadingProfiles, isFetching: aAtualizarPerfis, error: erroPerfis, refetch: recarregarPerfis,
-  } = useInstagramProfiles({ publicMode: true });
+  } = useInstagramProfiles();
 
   // Filters state
   const [period, setPeriod] = useState<PeriodFilter>("all");
-  const [account, setAccount] = useState("all");
+  const [account, setAccount] = useState(params.get("conta") || "all");
   const [contentTypes, setContentTypes] = useState<ContentTypeFilter[]>(["Image", "Video", "Sidecar"]);
   
   // Post detail drawer state
@@ -99,18 +99,6 @@ export default function Analytics() {
   const MY_ACCOUNT_USERNAME = "frederico.m.carvalho";
   const [selectedCompetitorAccounts, setSelectedCompetitorAccounts] = useState<string[]>([]);
   const [myAccount, setMyAccount] = useState<string | null>(MY_ACCOUNT_USERNAME);
-
-  // Contas permitidas (principal + 7 concorrentes)
-  const ALLOWED_ACCOUNTS = [
-    'frederico.m.carvalho',
-    'mariiana.ai',
-    'marcogouveia.pt',
-    'martimsilvai',
-    'robs.cortez',
-    'escolamarketingdigital.pt',
-    'paulofaustino',
-    'samurairt'
-  ];
 
   // Handle post selection from search or gallery
   const handleSelectPost = useCallback((post: InstagramAnalyticsItem) => {
@@ -135,11 +123,11 @@ export default function Analytics() {
     }
   }, [selectedPost, analytics]);
 
-  // Get unique accounts (filtered to allowed only)
+  // Imported accounts are scoped by owner and project, never by a fixed competitor list.
   const accounts = useMemo(() => {
     const usernames = new Set<string>();
     analytics.forEach((p) => {
-      if (p.owner_username && ALLOWED_ACCOUNTS.includes(p.owner_username)) {
+      if (p.owner_username) {
         usernames.add(p.owner_username);
       }
     });
@@ -174,7 +162,7 @@ export default function Analytics() {
 
     // Content type filter
     if (contentTypes.length < 3) {
-      result = result.filter((p) => contentTypes.includes((p.post_type || "Image") as ContentTypeFilter));
+      result = result.filter((p) => contentTypes.includes((p.post_type === "Carrossel" ? "Sidecar" : p.post_type || "Image") as ContentTypeFilter));
     }
 
     return result;
@@ -231,7 +219,7 @@ export default function Analytics() {
     // Content type breakdown
     const typeMap = new Map<string, { count: number; totalEngagement: number }>();
     filteredAnalytics.forEach((post) => {
-      const type = post.post_type || "Image";
+      const type = post.post_type === "Carrossel" ? "Sidecar" : post.post_type || "Image";
       const existing = typeMap.get(type) || { count: 0, totalEngagement: 0 };
       typeMap.set(type, {
         count: existing.count + 1,
@@ -289,7 +277,7 @@ export default function Analytics() {
     });
 
     const stats: AccountStats[] = accounts.map((username, index) => {
-      const accountPosts = analytics.filter((p) => p.owner_username === username);
+      const accountPosts = filteredAnalytics.filter((p) => p.owner_username === username);
       const totalLikes = accountPosts.reduce((sum, p) => sum + (p.likes_count || 0), 0);
       const totalComments = accountPosts.reduce((sum, p) => sum + (p.comments_count || 0), 0);
       const totalViews = accountPosts.reduce((sum, p) => sum + (p.views_count || 0), 0);
@@ -313,7 +301,7 @@ export default function Analytics() {
     });
 
     return { accountStats: stats, accountColorMap: colorMap, accountStatsMap: statsMap };
-  }, [analytics, accounts]);
+  }, [filteredAnalytics, accounts]);
 
   // Build profile avatars map for AccountSelector
   const profileAvatarsMap = useMemo(() => {
@@ -380,9 +368,10 @@ export default function Analytics() {
       post.post_url || "",
     ]);
 
+    const escaparCSV = (cell: unknown) => `"${String(cell).replace(/"/g, '""')}"`;
     const csvContent = [
       headers.join(","),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+      ...rows.map(row => row.map(escaparCSV).join(","))
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -390,13 +379,14 @@ export default function Analytics() {
     link.href = URL.createObjectURL(blob);
     link.download = `instagram-analytics-${format(new Date(), "yyyy-MM-dd")}.csv`;
     link.click();
+    URL.revokeObjectURL(link.href);
   };
 
-  if (erroAnalytics || erroPerfis) return <AvisoResultados titulo="Resultados do Instagram" ocupado={aAtualizarAnalytics || aAtualizarPerfis} repetir={() => {void Promise.all([recarregarAnalytics(),recarregarPerfis()]);}} />;
+  if (erroAnalytics || erroPerfis) return <AvisoResultados titulo="Resultados sociais" ocupado={aAtualizarAnalytics || aAtualizarPerfis} repetir={() => {void Promise.all([recarregarAnalytics(),recarregarPerfis()]);}} />;
   if (isLoading || isLoadingProfiles) {
     return (
       <div className="hub-page" role="status" aria-label="A carregar resultados">
-        <h1 className="sr-only">Resultados do Instagram</h1>
+        <h1 className="sr-only">Resultados sociais</h1>
         <div className="flex justify-between items-center">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
@@ -426,10 +416,10 @@ export default function Analytics() {
                 <BarChart3 className="size-5 text-primary" />
               </div>
               <div>
-                <h1 className="hub-page-title">Resultados do Instagram</h1>
+                <h1 className="hub-page-title">Resultados sociais</h1>
                 <p className="text-sm text-muted-foreground">
                   {isEmpty
-                    ? "Importe os dados das suas publicações"
+                    ? "Analisa o Instagram a partir de ficheiros importados"
                     : `${filteredStats.totalPosts} publicações analisadas`}
                 </p>
               </div>
@@ -450,7 +440,7 @@ export default function Analytics() {
               {!isEmpty && (
                 <Button variant="outline" size="sm" onClick={() => navigate("/benchmark")} className="gap-2">
                   <Trophy className="h-4 w-4" />
-                  <span className="hidden sm:inline">Benchmark</span>
+                  <span>Comparar contas</span>
                 </Button>
               )}
 
@@ -472,7 +462,7 @@ export default function Analytics() {
 
               {canManageData && (
                 <>
-                  <DataImportHub onImport={importPosts} isImporting={isImporting} />
+                  <DataImportHub />
                   {!isEmpty && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -507,21 +497,19 @@ export default function Analytics() {
           </div>
         </div>
 
+        <NavegacaoResultados ativa="resultados" />
+        <ContextoResultados datas={[...analytics.map(p => p.imported_at), ...allProfiles.map(p => p.scraped_at)]} />
         {isEmpty ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="p-4 rounded-full bg-muted mb-4">
-                <BarChart3 className="h-10 w-10 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Sem dados de analytics</h3>
-              <p className="text-muted-foreground mb-6 max-w-md">
-                {canManageData 
-                  ? "Importe um ficheiro Excel ou JSON com os dados das suas publicações do Instagram."
-                  : "Os dados de analytics ainda não foram carregados."}
-              </p>
-              {canManageData && (
-                <DataImportHub onImport={importPosts} isImporting={isImporting} />
-              )}
+          <Card>
+            <CardContent className="space-y-5 p-6 sm:p-8">
+              <h2 className="text-xl font-semibold">Começa por importar as publicações</h2>
+              <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">A biblioteca deste projeto ainda não tem publicações Instagram. Importa um ficheiro para comparar formatos, consultar gostos e comentários e encontrar temas a desenvolver.</p>
+              <ol className="grid gap-5 text-sm sm:grid-cols-3">
+                <li><span className="font-semibold text-primary">1. Importar</span><p className="mt-1 text-muted-foreground">Carrega Excel ou JSON. Revê os registos antes de guardar.</p></li>
+                <li><span className="font-semibold text-primary">2. Comparar</span><p className="mt-1 text-muted-foreground">Usa o mesmo período e verifica a amostra de cada conta.</p></li>
+                <li><span className="font-semibold text-primary">3. Criar</span><p className="mt-1 text-muted-foreground">Leva um tema para uma campanha e revê as peças antes de publicar.</p></li>
+              </ol>
+              {canManageData ? <DataImportHub /> : <p className="text-sm text-muted-foreground">A importação requer o papel de editor ou administrador. Os dados continuam privados por conta e projeto.</p>}
             </CardContent>
           </Card>
         ) : (
@@ -550,7 +538,7 @@ export default function Analytics() {
                 <TabsTrigger value="overview" className="flex-1 sm:flex-none font-medium">Visão Geral</TabsTrigger>
                 <TabsTrigger value="competition" className="gap-1.5 flex-1 sm:flex-none font-medium">
                   <Users className="h-4 w-4 hidden sm:block" />
-                  Concorrência
+                  Contas importadas
                 </TabsTrigger>
                 <TabsTrigger value="profiles" className="gap-1.5 flex-1 sm:flex-none font-medium">
                   <UserCircle className="h-4 w-4 hidden sm:block" />

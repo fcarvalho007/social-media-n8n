@@ -1,226 +1,58 @@
+import { useState, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { BarChart3, Users, ArrowRight } from 'lucide-react';
+import { useProjetoOpcional } from '@/contexts/ProjetoContext';
+import { CabecalhoPagina } from '@/components/CabecalhoPagina';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AvisoResultados } from '@/components/analytics/AvisoResultados';
-import { useState, useMemo } from "react";
-import { BarChart3, Users, Trophy, TrendingUp, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useInstagramAnalytics } from "@/hooks/useInstagramAnalytics";
-import { useInstagramProfiles } from "@/hooks/useInstagramProfiles";
-import { ComparisonRadarChart } from "@/components/benchmark/ComparisonRadarChart";
-import { BenchmarkRankingTable } from "@/components/benchmark/BenchmarkRankingTable";
-import { BenchmarkMetricCards } from "@/components/benchmark/BenchmarkMetricCards";
+import { ContextoResultados, NavegacaoResultados } from '@/components/analytics/ContextoResultados';
+import { useInstagramAnalytics } from '@/hooks/useInstagramAnalytics';
+import { useInstagramProfiles } from '@/hooks/useInstagramProfiles';
+import { filtrarPeriodoSocial, resumirContasSociais } from '@/lib/analytics/resultadosSociais';
 
+const numero = (n: number) => n.toLocaleString('pt-PT', { maximumFractionDigits: 1 });
+const data = (n: number | null) => n === null ? 'Sem data' : new Date(n).toLocaleDateString('pt-PT');
 export default function Benchmark() {
-  const navigate = useNavigate();
-  const { analytics, isLoading, isFetching:aAtualizarAnalytics, error:erroAnalytics, refetch:recarregarAnalytics } = useInstagramAnalytics({ publicMode: true });
-  const { latestProfiles, isLoading:perfisACarregar, isFetching:aAtualizarPerfis, error:erroPerfis, refetch:recarregarPerfis } = useInstagramProfiles({ publicMode: true });
-  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
-
-  // Get unique accounts
-  const accounts = useMemo(() => {
-    const usernames = new Set<string>();
-    analytics.forEach((p) => {
-      if (p.owner_username) usernames.add(p.owner_username);
-    });
-    return Array.from(usernames).sort();
-  }, [analytics]);
-
-  // Calculate stats for each account
-  const accountStats = useMemo(() => {
-    return accounts.map((username) => {
-      const posts = analytics.filter((p) => p.owner_username === username);
-      const profile = latestProfiles.find((p) => p.username === username);
-
-      const totalLikes = posts.reduce((sum, p) => sum + (p.likes_count || 0), 0);
-      const totalComments = posts.reduce((sum, p) => sum + (p.comments_count || 0), 0);
-      const totalViews = posts.reduce((sum, p) => sum + (p.views_count || 0), 0);
-      const postCount = posts.length;
-
-      // Content type breakdown
-      const videoCount = posts.filter((p) => p.post_type === "Video").length;
-      const carouselCount = posts.filter((p) => p.post_type === "Sidecar").length;
-      const imageCount = posts.filter((p) => p.post_type === "Image").length;
-
-      // Calculate posting frequency (posts per week)
-      const dates = posts.map((p) => p.posted_at).filter(Boolean).map((d) => new Date(d!));
-      let postsPerWeek = 0;
-      if (dates.length >= 2) {
-        const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
-        const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
-        const weeks = Math.max(1, (maxDate.getTime() - minDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-        postsPerWeek = postCount / weeks;
-      }
-
-      // Top hashtags
-      const hashtagMap = new Map<string, number>();
-      posts.forEach((p) => {
-        (p.hashtags || []).forEach((tag) => {
-          hashtagMap.set(tag, (hashtagMap.get(tag) || 0) + 1);
-        });
-      });
-      const topHashtags = Array.from(hashtagMap.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([tag]) => tag);
-
-      return {
-        username,
-        profile,
-        postCount,
-        totalLikes,
-        totalComments,
-        totalViews,
-        avgEngagement: postCount > 0 ? Math.round((totalLikes + totalComments) / postCount) : 0,
-        avgLikes: postCount > 0 ? Math.round(totalLikes / postCount) : 0,
-        engagementRate: profile?.followers_count
-          ? ((totalLikes + totalComments) / postCount / profile.followers_count) * 100
-          : 0,
-        videoPercent: postCount > 0 ? (videoCount / postCount) * 100 : 0,
-        carouselPercent: postCount > 0 ? (carouselCount / postCount) * 100 : 0,
-        imagePercent: postCount > 0 ? (imageCount / postCount) * 100 : 0,
-        postsPerWeek,
-        topHashtags,
-        followers: profile?.followers_count || 0,
-      };
-    });
-  }, [accounts, analytics, latestProfiles]);
-
-  // Selected account stats
-  const selectedStats = useMemo(() => {
-    return accountStats.filter((s) => selectedAccounts.includes(s.username));
-  }, [accountStats, selectedAccounts]);
-
-  const toggleAccount = (username: string) => {
-    setSelectedAccounts((prev) => {
-      if (prev.includes(username)) {
-        return prev.filter((a) => a !== username);
-      }
-      if (prev.length >= 5) {
-        return prev;
-      }
-      return [...prev, username];
-    });
-  };
-
-  if (erroAnalytics || erroPerfis) return <AvisoResultados titulo="Comparar contas" ocupado={aAtualizarAnalytics || aAtualizarPerfis} repetir={() => {void Promise.all([recarregarAnalytics(),recarregarPerfis()]);}} />;
-  if (isLoading || perfisACarregar) {
-    return (
-      <div className="hub-page" role="status" aria-label="A carregar resultados">
-        <h1 className="sr-only">Comparar contas</h1>
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-[400px]" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="hub-page">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/analytics")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Trophy className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold">Comparar contas</h1>
-            <p className="text-sm text-muted-foreground">
-              Compare até 5 contas lado a lado
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-        {/* Account selector */}
-        <Card className="card-premium">
-          <CardHeader className="card-premium-header">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="h-4 w-4" />
-              Selecionar Contas
-              <Badge variant="secondary" className="ml-auto">
-                {selectedAccounts.length}/5
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[400px]">
-              <div className="p-4 space-y-2">
-                {accountStats.map((stat) => (
-                  <div
-                    key={stat.username}
-                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
-                      selectedAccounts.includes(stat.username)
-                        ? "border-primary bg-primary/5"
-                        : "border-transparent hover:bg-muted/50"
-                    }`}
-                    onClick={() => toggleAccount(stat.username)}
-                  >
-                    <Checkbox
-                      checked={selectedAccounts.includes(stat.username)}
-                      disabled={!selectedAccounts.includes(stat.username) && selectedAccounts.length >= 5}
-                    />
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {stat.profile?.profile_pic_url ? (
-                        <img
-                          src={stat.profile.profile_pic_url}
-                          alt={stat.username}
-                          className="w-8 h-8 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">@{stat.username}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {stat.postCount} posts · {stat.followers.toLocaleString()} seguidores
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        {/* Comparison area */}
-        <div className="space-y-6">
-          {selectedStats.length < 2 ? (
-            <Card className="card-premium">
-              <CardContent className="py-12">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <BarChart3 className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Selecione pelo menos 2 contas</h3>
-                  <p className="text-muted-foreground text-sm max-w-md">
-                    Escolha entre 2 e 5 contas na lista ao lado para visualizar a comparação
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              {/* Metric comparison cards */}
-              <BenchmarkMetricCards stats={selectedStats} />
-
-              {/* Radar chart */}
-              <ComparisonRadarChart stats={selectedStats} />
-
-              {/* Ranking table */}
-              <BenchmarkRankingTable stats={selectedStats} allStats={accountStats} />
-            </>
-          )}
-        </div>
-      </div>
+  const projetoId = useProjetoOpcional()?.projetoId;
+  const posts = useInstagramAnalytics();
+  const perfis = useInstagramProfiles();
+  const [periodo, setPeriodo] = useState('all');
+  const [selecionadas, setSelecionadas] = useState<string[]>([]);
+  useEffect(() => { setSelecionadas([]); }, [projetoId]);
+  const contas = useMemo(() => resumirContasSociais(filtrarPeriodoSocial(posts.analytics, periodo)), [posts.analytics, periodo]);
+  const comparadas = contas.filter(c => selecionadas.includes(c.username)).sort((a,b) => b.media-a.media);
+  const maximo = Math.max(1, ...comparadas.map(c => c.media));
+  if (posts.error || perfis.error) return <AvisoResultados titulo="Comparar contas" ocupado={posts.isFetching || perfis.isFetching} repetir={() => { void Promise.all([posts.refetch(), perfis.refetch()]); }} />;
+  if (posts.isLoading || perfis.isLoading) return <div className="hub-page" role="status" aria-label="A carregar resultados"><h1 className="sr-only">Comparar contas</h1><Skeleton className="h-48" /></div>;
+  return <div className="hub-page">
+    <CabecalhoPagina titulo="Comparar contas" icone={Users} descricao="Compara a amostra Instagram que importaste. Escolhe o mesmo período e verifica quantas publicações sustentam cada resultado."
+      acoes={<Button asChild variant="outline"><Link to="/analytics">Importar ou rever dados<ArrowRight className="ml-2 size-4" /></Link></Button>} />
+    <NavegacaoResultados ativa="comparar" />
+    <ContextoResultados datas={[...posts.analytics.map(p => p.imported_at), ...perfis.latestProfiles.map(p => p.scraped_at)]} />
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Uma comparação com a mesma base</h2>
+      <label className="flex items-center gap-3 text-sm">Período<Select value={periodo} onValueChange={setPeriodo}><SelectTrigger aria-label="Período da comparação" className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todo o histórico</SelectItem><SelectItem value="30">Últimos 30 dias</SelectItem><SelectItem value="90">Últimos 90 dias</SelectItem><SelectItem value="365">Últimos 12 meses</SelectItem></SelectContent></Select></label>
     </div>
-  );
+    {contas.length === 0 ? <Card><CardContent className="space-y-4 p-6 sm:p-8"><h2 className="text-xl font-semibold">Ainda não há contas para comparar neste período</h2><p className="max-w-2xl text-sm text-muted-foreground">Importa publicações de pelo menos duas contas ou alarga o período. Não são pesquisadas contas nem recolhidos dados de concorrentes automaticamente.</p><Button asChild><Link to="/analytics">Abrir importação do Instagram</Link></Button></CardContent></Card> :
+    <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(230px,300px)_minmax(0,1fr)]">
+      <section className="rounded-xl border bg-card p-5" aria-label="Contas disponíveis"><h3 className="mb-4 font-semibold">Escolhe de 2 a 5 contas</h3><div className="space-y-2">{contas.map(conta => <label key={conta.username} className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border p-3 hover:bg-accent">
+        <Checkbox aria-label={`Comparar @${conta.username}`} checked={selecionadas.includes(conta.username)} disabled={!selecionadas.includes(conta.username) && selecionadas.length >= 5} onCheckedChange={ativo => setSelecionadas(prev => ativo ? [...prev, conta.username] : prev.filter(n => n !== conta.username))} />
+        <span className="min-w-0"><span className="block break-all text-sm font-medium">@{conta.username}</span><span className="text-xs text-muted-foreground">{conta.quantidade} publicações na amostra</span></span>
+      </label>)}</div></section>
+      {comparadas.length < 2 ? <Card><CardContent className="space-y-3 p-6 sm:p-8"><BarChart3 className="size-6 text-primary" /><h3 className="text-xl font-semibold">{contas.length < 2 ? 'Falta uma segunda conta' : 'Escolhe as contas a comparar'}</h3><p className="text-sm text-muted-foreground">Vais ver interações registadas por publicação, dimensão da amostra e datas cobertas. Não calculamos uma pontuação global de autoridade.</p>{contas.length < 2 && <Button asChild variant="outline"><Link to="/analytics">Importar outra conta</Link></Button>}</CardContent></Card> :
+      <section className="min-w-0 space-y-5 rounded-xl border bg-card p-5 sm:p-6" aria-label="Comparação da amostra">
+        <div><h3 className="text-lg font-semibold">Gostos + comentários por publicação</h3><p className="mt-1 text-sm text-muted-foreground">Média aritmética dos valores registados nos ficheiros. Não é taxa de engagement por alcance nem garantia de resultados futuros.</p></div>
+        {comparadas.map(conta => { const perfil = perfis.latestProfiles.find(p => p.username.toLowerCase() === conta.username); return <div key={conta.username} className="space-y-2 border-t pt-4">
+          <div className="flex flex-wrap justify-between gap-2 text-sm"><span className="break-all font-medium">@{conta.username}</span><strong className="tabular-nums">{numero(conta.media)} interações/publicação</strong></div>
+          <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden><div className="h-full rounded-full bg-primary" style={{ width: `${100*conta.media/maximo}%` }} /></div>
+          <p className="text-xs leading-relaxed text-muted-foreground">{conta.quantidade} publicações · {numero(conta.total)} interações · {data(conta.primeira)} a {data(conta.ultima)}</p>
+          <p className="text-xs text-muted-foreground">{perfil ? `${numero(perfil.followers_count)} seguidores no perfil importado · registo ${new Date(perfil.scraped_at).toLocaleDateString('pt-PT')}` : 'Seguidores: sem perfil importado. Não estimamos este valor.'}</p>
+        </div>; })}
+        <p className="rounded-lg bg-muted p-3 text-xs leading-relaxed text-muted-foreground">Mesmo com o mesmo filtro, os ficheiros podem cobrir datas e quantidades diferentes. Uma exportação parcial não comprova a frequência de publicação. Usa a comparação para encontrar hipóteses editoriais e valida-as em novos conteúdos.</p>
+      </section>}
+    </div>}
+  </div>;
 }

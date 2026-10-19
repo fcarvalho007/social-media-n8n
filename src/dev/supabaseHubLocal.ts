@@ -30,6 +30,11 @@ export function criarClienteHubLocal(storage?: Pick<Storage, "getItem" | "setIte
     constructor(private tabela: string, private dados?: unknown) {}
     select(_colunas?: string, opcoes?: { head?: boolean; count?: string }) { this.head = opcoes?.head ?? false; return this; }
     eq(c: string, v: unknown) { this.filtros.push((r) => r[c] === v); return this; }
+    filter(c: string, op: string, v: unknown) {
+      if (op === 'eq') return this.eq(c, v);
+      if (op === 'is') return this.is(c, v === 'null' ? null : v);
+      this.erro = `o filtro ${op}`; return this;
+    }
     neq(c: string, v: unknown) { this.filtros.push((r) => r[c] !== v); return this; }
     in(c: string, vs: unknown[]) { this.filtros.push((r) => vs.includes(r[c])); return this; }
     match(v: DemoRow) { Object.entries(v).forEach(([c, x]) => this.eq(c, x)); return this; }

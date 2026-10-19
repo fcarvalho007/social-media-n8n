@@ -28,6 +28,7 @@ export function criarTabelasHub(): Record<string, DemoRow[]> {
     nl_edicoes: [{ id: "hub-local-edicao", numero: 320, assunto: "Exemplo · Uma rotina editorial mais simples", estado: "rascunho", identidade_id: "hub-local-identidade", created_at: data, data_envio_prevista: null, enviada_em: null, cronica: null, episodio: null }],
     nl_noticias: criarNoticiasHub().map(n=>({...n,updated_at:n.criado_em})), mc_documentos: [], nl_conteudos_derivados: [], nl_cronicas: [], nl_episodios_podcast: [], nl_secoes_edicao: [], nl_ferramentas_semana: [], nl_config: [], nl_perfis: [], nl_emails_recebidos: [], nl_email_mensagens: [], nl_curadoria_fila: [], nl_egoi_campanhas: [],
     nl_fontes_curadoria: [{ id: "hub-local-fonte", nome: "Fonte de demonstração", tipo: "rss", url: "https://example.invalid/feed", activa: true, created_at: data, ultimo_acesso: null }],
+    instagram_analytics: [], instagram_profiles: [], analytics_bookmarks: [], account_insights: [],
     user_notification_preferences: [], ai_user_settings: [], templates: [],
   };
 }
