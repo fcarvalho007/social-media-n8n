@@ -23,8 +23,10 @@ export const DESTINOS_NAVEGACAO: DestinoNavegacao[] = [
   { label: 'Início', url: '/', descricao: 'Retomar trabalho e escolher projeto', grupo: 'Trabalho', icon: LayoutDashboard },
   { label: 'Pesquisar no Hub', url: '/pesquisa', descricao: 'Pesquisar texto em PDFs, notícias, artigos e peças sociais', grupo: 'Trabalho', icon: Search, palavrasChave: ['pesquisa transversal','encontrar','busca'] },
   ...(SEO_DISPONIVEL ? [{ label: 'Plano de artigos', url: '/artigos/plano', pai: '/artigos', descricao: 'Fonte, pesquisa, artigo, aprovação, publicação e resultados', grupo: 'Trabalho' as const, icon: Route }] : []),
+  ...(SEO_DISPONIVEL ? [{ label: 'Pesquisa SEO', url: '/artigos/pesquisa', pai: '/artigos', descricao: 'Palavras-chave reais, histórico de pesquisas e oportunidades para os artigos', grupo: 'Trabalho' as const, icon: Search, palavrasChave: ['keywords','DataForSEO','volume','palavra-chave'] }] : []),
   ...(SEO_DISPONIVEL ? [{ label: 'Perfis dos sites', url: '/artigos/sites', pai: '/artigos', descricao: 'Configuração guiada de público, voz, temas, oferta, frequência e aprovação', grupo: 'Trabalho' as const, icon: SlidersHorizontal, palavrasChave: ['configurar site','assistente','público','voz','temas','oferta','frequência','aprovação'] }] : []),
   ...(SEO_DISPONIVEL ? [{ label: 'Séries e calendário', url: '/artigos/lotes', pai: '/artigos', descricao: 'Séries de artigos com calendário, orçamento e aprovação por site', grupo: 'Trabalho' as const, icon: FileText, palavrasChave: ['lotes','séries','bulk','Byword'] }] : []),
+  ...(SEO_DISPONIVEL ? [{ label: 'Automação editorial', url: '/artigos/automacao', pai: '/artigos', descricao: 'Regras de preparação, aprovação, frequência e limites dos artigos', grupo: 'Trabalho' as const, icon: Settings, palavrasChave: ['automação','agendamento','cadência','piloto automático'] }] : []),
   { label: 'Curadoria', url: '/curadoria', descricao: 'Escolher notícias, emails e documentos para criar conteúdo', grupo: 'Trabalho', icon: CheckCircle2 },
   ...(SEO_DISPONIVEL ? [{label:'Campanhas',url:'/campanhas',descricao:'Criar artigo, newsletter, carrossel, Story e continuidade a partir de uma descoberta',grupo:'Trabalho' as const,icon:Route,palavrasChave:['campanha','descoberta','sequência','multicanal']}] : []),
   { label: 'Criar publicação social', url: '/pending?tab=create', descricao: 'Redes sociais: criação manual ou com IA', grupo: 'Trabalho', icon: PlusCircle },
@@ -36,7 +38,7 @@ export const DESTINOS_NAVEGACAO: DestinoNavegacao[] = [
   { label: 'Rascunhos', url: '/drafts', descricao: 'Publicações sociais por concluir', grupo: 'Publicação', icon: FileText },
   { label: 'Divulgação da newsletter', url: '/estudio/redes-sociais', pai: '/newsletter', descricao: 'Story e carrossel após o envio', grupo: 'Publicação', icon: GalleryHorizontal },
   { label: 'Para aprovar', url: '/pending', descricao: 'Rever publicações das redes sociais', grupo: 'Publicação', icon: CheckCircle2, badge: true },
-  { label: 'Calendário', url: '/calendar', descricao: 'Publicações agendadas', grupo: 'Publicação', icon: Calendar },
+  { label: 'Calendário social', url: '/calendar', descricao: 'Publicações agendadas nas redes sociais', grupo: 'Publicação', icon: Calendar },
   { label: 'Histórico de publicações', url: '/publication-history', descricao: 'Consultar resultados e falhas', grupo: 'Publicação', icon: History },
   { label: 'Imagens e ficheiros', palavrasChave: ['Biblioteca', 'Média', 'Media'], url: '/media-library', descricao: 'Imagens, vídeos e ficheiros', grupo: 'Trabalho', icon: Image },
   { label: 'Projetos', url: '/projects', descricao: 'Marcas, tarefas e equipa', grupo: 'Trabalho', icon: FolderKanban },
@@ -55,7 +57,7 @@ export const DESTINOS_NAVEGACAO: DestinoNavegacao[] = [
 /** Main tasks remain visible; account options live together in the footer. */
 export const SECOES_NAVEGACAO = [
   { titulo: 'Recolher conteúdo', urls: ['/pesquisa', '/curadoria', ...(DOCUMENTOS_DISPONIVEL ? ['/curadoria/documentos'] : [])] },
-  { titulo: 'Criar conteúdo', urls: [...(SEO_DISPONIVEL ? ['/campanhas'] : []), '/newsletter', '/estudio/redes-sociais', '/artigos', ...(SEO_DISPONIVEL ? ['/artigos/plano','/artigos/sites','/artigos/lotes'] : []), '/estudio/carrosseis', '/estudio/roteiros'] },
+  { titulo: 'Criar conteúdo', urls: [...(SEO_DISPONIVEL ? ['/campanhas'] : []), '/newsletter', '/estudio/redes-sociais', '/artigos', ...(SEO_DISPONIVEL ? ['/artigos/plano','/artigos/pesquisa','/artigos/sites','/artigos/lotes','/artigos/automacao'] : []), '/estudio/carrosseis', '/estudio/roteiros'] },
   { titulo: 'Rever e publicar nas redes', urls: ['/drafts', '/pending', '/calendar', '/publication-history'] },
   { titulo: 'Organizar', urls: ['/projects', '/media-library'] },
   { titulo: 'Resultados e custos', urls: ['/analytics', '/insights', '/benchmark', '/custos'] },
@@ -111,7 +113,7 @@ export function migalhasNavegacao(pathname: string, search = ''): Migalha[] {
   if (pathname.startsWith('/estudio/roteiros/')) return detalhe('/estudio/roteiros', pathname.endsWith('/novo') ? 'Novo roteiro' : 'Editor');
   if(pathname.startsWith('/campanhas/')) return detalhe('/campanhas',pathname.endsWith('/nova')?'Nova campanha':pathname.includes('/compositor/')?'Compositor':'Detalhe da campanha');
   if (pathname.startsWith('/artigos/')) {
-    const nomes: Record<string,string> = {glossarios:'Glossários educativos',integracoes:'Integrações dos artigos',sites:'Perfis dos sites',percurso:'Publicações e resultados',pesquisa:'Pesquisa SEO',plano:'Plano de artigos',lotes:'Séries e calendário',automacao:'Automação',custos:'Custos de pesquisa'};
+    const nomes: Record<string,string> = {glossarios:'Glossários educativos',integracoes:'Integrações dos artigos',sites:'Perfis dos sites',percurso:'Publicações e resultados',pesquisa:'Pesquisa SEO',plano:'Plano de artigos',lotes:'Séries e calendário',automacao:'Automação editorial',custos:'Custos de pesquisa'};
     const migalhas = detalhe('/artigos',nomes[pathname.split('/')[2]] ?? 'Artigo');
     const secoes: Record<string,string> = {conhecimento:'Conhecimento da marca',limites:'Serviços e limites',ciclos:'Ciclos de produção'};
     const label = pathname === '/artigos/plano' && params.has('novo') ? 'Novo tema' : pathname === '/artigos/plano' && params.has('id') ? (params.get('secao') === 'texto' ? 'Rever artigo' : 'Preparar artigo') : pathname === '/artigos/automacao' ? secoes[params.get('secao') ?? ''] : null;

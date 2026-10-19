@@ -123,7 +123,9 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
 
           return {
             thumbnail: primary.displayUrl,
+            mediaUrl: primary.url,
             mediaType: primary.mediaType,
+            hasPosterPreview: primary.hasPosterPreview,
             mediaCount: allMedia.length,
           };
         };
@@ -134,7 +136,9 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
             id: post.id,
             type: post.content_type === 'carousel' ? 'carousel' as const : 'post' as const,
             thumbnail: media.thumbnail,
+            mediaUrl: media.mediaUrl,
             mediaType: media.mediaType,
+            hasPosterPreview: media.hasPosterPreview,
             mediaCount: media.mediaCount,
             caption: post.caption,
             createdAt: post.created_at || '',
@@ -148,7 +152,9 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
             id: post.id,
             type: 'scheduled' as const,
             thumbnail: media.thumbnail,
+            mediaUrl: media.mediaUrl,
             mediaType: media.mediaType,
+            hasPosterPreview: media.hasPosterPreview,
             mediaCount: media.mediaCount,
             caption: post.caption,
             createdAt: post.created_at || '',

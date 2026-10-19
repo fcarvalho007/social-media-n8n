@@ -4,7 +4,7 @@ import { FileImage, ImagePlus, FileText, Calendar, Play, FileVideo, Files, Trash
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { MediaPreviewType } from '@/lib/mediaPreview';
+import { inferMediaType, type MediaPreviewType } from '@/lib/mediaPreview';
 import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
 
 interface PendingThumbnailProps {
@@ -38,7 +38,7 @@ const getTypeBadgeColor = (type: string) => {
   switch (type) {
     case 'draft': return 'bg-warning-light text-warning border-warning/30';
     case 'scheduled': return 'bg-primary-light text-primary border-primary/30';
-    default: return 'bg-accent/10 text-accent border-accent/30';
+    default: return 'bg-accent text-accent-foreground border-primary/30';
   }
 };
 
@@ -77,19 +77,25 @@ export function PendingThumbnail({
 }: PendingThumbnailProps) {
   const [imgError, setImgError] = useState(false);
   const [generatedPoster, setGeneratedPoster] = useState<string | null>(null);
-  const visualSource = generatedPoster || thumbnail;
-  const showVisualMedia = visualSource && !imgError && mediaType !== 'document';
+  const visualSource = generatedPoster || thumbnail || mediaUrl;
+  const capaDocumento = mediaType === 'document' && !!thumbnail && thumbnail !== mediaUrl && inferMediaType(thumbnail) !== 'document';
+  const showVisualMedia = !!visualSource && !imgError && (mediaType !== 'document' || capaDocumento);
   const FallbackIcon = getFallbackIcon(type, mediaType);
   const dateLabel = getDateLabel(type, createdAt, scheduledDate);
   const captionPreview = caption?.trim() || 'Sem legenda';
+  const mensagemPrevia = imgError ? 'Pré-visualização indisponível' : mediaType === 'document' ? 'Documento PDF' : 'Sem imagem associada';
+  const ajudaPrevia = imgError ? 'O conteúdo está guardado. Abre-o para verificar o ficheiro.' : mediaType === 'document' ? 'Abre o conteúdo para consultar o documento.' : 'Abre o conteúdo para rever o texto e os ficheiros.';
 
   useEffect(() => {
-    if (mediaType !== 'video' || hasPosterPreview || !thumbnail) return;
+    setImgError(false);
+    setGeneratedPoster(null);
+    const origemVideo = mediaUrl || thumbnail;
+    if (mediaType !== 'video' || hasPosterPreview || !origemVideo) return;
 
     let active = true;
     let objectUrl: string | null = null;
 
-    extractVideoFrame(thumbnail)
+    extractVideoFrame(origemVideo)
       .then((frame) => {
         if (!active) return;
         objectUrl = URL.createObjectURL(frame);
@@ -103,12 +109,12 @@ export function PendingThumbnail({
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [hasPosterPreview, mediaType, thumbnail]);
+  }, [hasPosterPreview, mediaType, thumbnail, mediaUrl]);
 
   return (
     <div className="group relative overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-primary/50">
       <button type="button" onClick={() => onNavigate(route)} className="absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" aria-label={`Abrir ${getTypeLabel(type)}: ${captionPreview.split('\n')[0]}`} />
-      <div className="pointer-events-none relative aspect-square overflow-hidden bg-muted">
+      <div className={`pointer-events-none relative overflow-hidden ${showVisualMedia ? 'aspect-square bg-muted' : 'min-h-44 bg-accent/40'}`}>
         {showVisualMedia ? (
           mediaType === 'video' && !hasPosterPreview && !generatedPoster ? (
             <video
@@ -129,8 +135,11 @@ export function PendingThumbnail({
             />
           )
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-muted">
-            <FallbackIcon className="h-8 w-8 text-muted-foreground/60" />
+          <div className="flex min-h-44 w-full flex-col items-center justify-center gap-2 px-4 pb-5 pt-14 text-center">
+            <FallbackIcon className="size-6 text-primary" aria-hidden />
+            <p className="text-sm font-semibold text-foreground">{mensagemPrevia}</p>
+            <p className="max-w-56 text-xs leading-relaxed text-muted-foreground">{ajudaPrevia}</p>
+            {imgError && <Button type="button" variant="outline" size="sm" className="pointer-events-auto min-h-11" aria-label="Recarregar pré-visualização" onClick={event=>{event.stopPropagation();setImgError(false);}}>Recarregar</Button>}
           </div>
         )}
 
@@ -156,7 +165,7 @@ export function PendingThumbnail({
           </Button>
         )}
 
-        {mediaType === 'video' && (
+        {mediaType === 'video' && showVisualMedia && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm">
               <Play className="h-4 w-4 fill-current" />
@@ -174,7 +183,7 @@ export function PendingThumbnail({
 
       <div className="pointer-events-none relative flex flex-col gap-1 border-t border-border/60 p-3">
         <p className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-5 text-foreground">{captionPreview.split('\n')[0]}</p>
-        <p className="truncate text-[11px] font-medium text-muted-foreground">{getTypeLabel(type)} · {dateLabel}</p>
+        <p className="truncate text-[11px] font-medium text-muted-foreground">{dateLabel}</p>
       </div>
     </div>
   );

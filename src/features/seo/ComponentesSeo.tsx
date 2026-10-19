@@ -13,7 +13,7 @@ import type { OrcamentoSeo, SiteEditorial } from './contratos';
 import { dataSeo, euroIndicativo, usd } from './precos';
 import { SEO_DISPONIVEL } from './local';
 const areasArtigos=[['/artigos/plano','Plano de artigos'],['/artigos/pesquisa','Pesquisa SEO'],['/artigos/lotes','Séries e calendário'],['/artigos/glossarios','Glossários'],['/artigos/sites','Perfis dos sites']];
-const gestaoArtigos=[['/artigos?livres=1','Rascunhos livres'],['/artigos/integracoes','Integrações'],['/artigos/automacao','Automação'],['/artigos/custos','Custos']];
+const gestaoArtigos=[['/artigos?livres=1','Rascunhos livres'],['/artigos/integracoes','Integrações'],['/artigos/automacao','Automação editorial'],['/artigos/custos','Custos']];
 export function NavegacaoArtigos(){
  const local=useLocation(),nav=useRef<HTMLElement>(null);
  const gestaoAtiva=gestaoArtigos.find(([to])=>to.includes('?')?local.pathname==='/artigos'&&new URLSearchParams(local.search).has('livres'):local.pathname===to);
