@@ -27,6 +27,19 @@ const SUPPORTED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/mov', 'vid
 const MAX_IMAGE_SIZE_MB = 50; // Accept up to 50MB (compressed on publish)
 const MAX_VIDEO_SIZE_MB = 650;
 
+export async function lerContextoErro(ctx: unknown): Promise<{ status?: number; body?: string } | undefined> {
+  if (!ctx) return undefined;
+  if (typeof Response !== 'undefined' && ctx instanceof Response) {
+    const body = await ctx.clone().text().catch(() => '');
+    return { status: ctx.status, body: body || undefined };
+  }
+  const c = ctx as { status?: unknown; body?: unknown };
+  return {
+    status: typeof c.status === 'number' ? c.status : undefined,
+    body: typeof c.body === 'string' ? c.body : undefined,
+  };
+}
+
 function enforceNetworkHashtagLimit(text: string, network: string) {
   const limit = NETWORK_HASHTAG_LIMITS[network as keyof typeof NETWORK_HASHTAG_LIMITS]?.max;
   if (!limit) return text;
@@ -759,7 +772,8 @@ if (imageUrlsForPdf.length > 0) {
           
           if (publishError) {
             // Extract detailed error from publishError.context when available (HTTP 500 responses)
-            const errorContext = publishError.context as { status?: number; body?: string } | undefined;
+            // supabase-js exposes the raw Response; read its text once so the real server reason surfaces.
+            const errorContext = await lerContextoErro(publishError.context);
             const httpStatus = errorContext?.status || 0;
             
             console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} failed:`, {
