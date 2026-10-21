@@ -1115,7 +1115,11 @@ if (imageUrlsForPdf.length > 0) {
         // Update existing post record
         // Build error_log for partial or total failures
         const errorLogText = hasFailed 
-          ? failedFormats.map(f => `${f.format}: ${f.errorMessage || 'Erro desconhecido'}`).join('; ')
+          ? failedFormats.map(f => {
+              // Keep the technical cause (truncated) so unclassified failures can be diagnosed later.
+              const tecnico = f.structuredError?.originalError ? ` [${String(f.structuredError.originalError).slice(0, 300)}]` : '';
+              return `${f.format}: ${f.errorMessage || 'Erro desconhecido'}${tecnico}`;
+            }).join('; ')
           : null;
         
         const updateData: Record<string, any> = {
