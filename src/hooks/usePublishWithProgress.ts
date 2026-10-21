@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getFormatConfig } from '@/types/social';
 import { FORMAT_TO_NETWORK } from '@/types/publishing';
 import { NETWORK_CONSTRAINTS } from '@/lib/socialNetworks';
-import { generateCarouselPDF } from '@/lib/pdfGenerator';
+import { generateCarouselPDF, validatePDFSize } from '@/lib/pdfGenerator';
 import { processMediaForInstagram } from '@/lib/canvas/instagramResize';
 import { 
   PublishProgress, 
@@ -200,6 +200,10 @@ function generateSemanticPdfFilename(caption: string): string {
   const slug = words.join('-').substring(0, 40) || 'carousel';
   
   return `${slug}-${month}-${year}-carousel.pdf`;
+}
+
+export function buildPdfStoragePath(userId: string, caption: string, now: number = Date.now()): string {
+  return `${userId}/${now}/${generateSemanticPdfFilename(caption)}`;
 }
 
 export function usePublishWithProgress() {
@@ -656,6 +660,7 @@ export function usePublishWithProgress() {
       }
       
       let pdfUrl: string | null = null;
+      let pdfFailure: string | null = null;
       
       // Track publishing start time for timeout warnings
       const publishingStartTime = Date.now();
@@ -723,26 +728,39 @@ if (imageUrlsForPdf.length > 0) {
                 quality: 0.9 
               });
               
-              // Generate semantic PDF filename from caption
-              const semanticFilename = generateSemanticPdfFilename(caption);
-              const pdfFileName = `${user.id}/${semanticFilename}`;
+              const pdfCheck = validatePDFSize(pdfBlob, imageUrlsForPdf.length);
+              if (!pdfCheck.valid) throw new Error(pdfCheck.errors.join('; '));
+              // Unique folder per attempt: the same caption must never collide with an earlier PDF.
+              const pdfFileName = buildPdfStoragePath(user.id, caption);
               const { error: pdfUploadError } = await supabase.storage
                 .from('pdfs')
                 .upload(pdfFileName, pdfBlob, { contentType: 'application/pdf' });
-              
-              if (!pdfUploadError) {
-                const { data: { publicUrl } } = supabase.storage
-                  .from('pdfs')
-                  .getPublicUrl(pdfFileName);
-                pdfUrl = publicUrl;
-              }
+              if (pdfUploadError) throw new Error(`Falha ao guardar o PDF: ${pdfUploadError.message}`);
+              const { data: { publicUrl } } = supabase.storage
+                .from('pdfs')
+                .getPublicUrl(pdfFileName);
+              pdfUrl = publicUrl;
             }
           } catch (pdfError) {
             console.error('PDF generation error:', pdfError);
+            pdfFailure = pdfError instanceof Error ? pdfError.message : String(pdfError);
           }
           
           if (pdfUrl) {
             finalMediaUrls = [pdfUrl];
+          } else {
+            // Fail closed: never send raw media as a LinkedIn document.
+            const structuredError: StructuredError = {
+              message: 'Não foi possível preparar o PDF do LinkedIn',
+              code: 'PDF_NOT_READY',
+              source: 'internal',
+              isRetryable: true,
+              originalError: pdfFailure ?? 'PDF não gerado',
+              suggestedAction: 'Nada foi enviado ao LinkedIn. Tenta novamente.',
+            };
+            platformResults.set(format, { ...platformResults.get(format)!, status: 'error', errorMessage: structuredError.message, structuredError });
+            updatePlatformStatus(format, 'error', structuredError.message, undefined, structuredError);
+            continue;
           }
         }
         
