@@ -37,3 +37,10 @@ describe("revisão das peças", () => {
     expect(screen.getByRole("button", { name: "Guardar Story" })).toBeEnabled();
   });
 });
+
+describe('revisão histórica antes da preparação',()=>{
+ it('mostra a revisão logo no Story e impede a chamada antes da confirmação',()=>{
+  const preparar=vi.fn(),rever=vi.fn();render(<DivulgacaoEditor id="historico" fonte={fonte} fontePendente onReverFonte={rever} onActualizar={vi.fn()} onAlterado={vi.fn()} api={{preparar,guardar:vi.fn()}}><p>Editor do carrossel</p></DivulgacaoEditor>);
+  expect(screen.getByRole('button',{name:'Preparar duas peças · sem IA'})).toBeDisabled();fireEvent.click(screen.getByRole('button',{name:'Rever fonte da crónica'}));expect(rever).toHaveBeenCalledOnce();expect(preparar).not.toHaveBeenCalled();
+ });
+});

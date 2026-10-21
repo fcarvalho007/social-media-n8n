@@ -25,3 +25,17 @@ dist-ssr
 
 # Local PostgreSQL preview data
 .roteiros-local/
+.documentos-local/
+
+# Local editorial research, billing evidence and worker state
+.seo-local/
+
+# Compiled backend output
+dist-backend/
+
+# Private portable backups
+.hub-backups/
+
+# Private design evidence; only the reusable design-system sidecar is versioned.
+.impeccable/*
+!.impeccable/design.json

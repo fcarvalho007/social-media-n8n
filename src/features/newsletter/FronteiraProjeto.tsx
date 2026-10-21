@@ -94,6 +94,7 @@ export function FronteiraProjetoNewsletter({ children }: { children: ReactNode }
   const dono = nome(d.projetoDono);
   return (
     <>
+      {pathname === '/newsletter' && <h1 className="sr-only">Newsletter</h1>}
       <p className="border-b px-4 py-1 text-xs text-muted-foreground">
         Newsletter {ident?.nome} · {dono ? `projeto ${dono}` : "sem projeto associado"}{ctx.projetoId === null ? " · a ver todos os projetos" : ""}
       </p>

@@ -116,3 +116,11 @@ verify_jwt = false
 # Roteiros: authenticated session + project ownership; no public generation.
 [functions.rv-roteiros]
 verify_jwt = false
+
+# Future native Hub backend. Session/project/role checks are inside the API;
+# the worker accepts only the private cron token, never a user-supplied project.
+[functions.hub-editorial]
+verify_jwt = false
+
+[functions.hub-editorial-worker]
+verify_jwt = false

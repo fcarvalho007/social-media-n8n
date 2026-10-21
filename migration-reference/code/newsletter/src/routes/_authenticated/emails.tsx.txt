@@ -153,7 +153,7 @@ export function EmailsPage({ embutido = false }: { embutido?: boolean } = {}) {
   };
 
   return (
-    <main className={embutido ? "" : "max-w-[1400px] mx-auto px-4 sm:px-6 py-5 sm:py-7"} style={{ background: embutido ? undefined : T.bg }}>
+    <section aria-label="Emails recebidos" className={embutido ? "" : "max-w-[1400px] mx-auto px-4 sm:px-6 py-5 sm:py-7"} style={{ background: embutido ? undefined : T.bg }}>
       {!embutido && <div className="mb-4"><FilaEntrada /></div>}
       <header className="mb-4 flex items-start justify-between gap-3 flex-wrap">
 
@@ -393,7 +393,7 @@ export function EmailsPage({ embutido = false }: { embutido?: boolean } = {}) {
           </section>
         </div>
       )}
-    </main>
+    </section>
   );
 }
 

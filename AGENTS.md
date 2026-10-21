@@ -11,9 +11,9 @@
 - Public Brief reads require explicit published state, complete editorial content and a public web edition; email delivery controls indexing, not direct-link access. Selective Brief publication uses the existing engine with explicit IDs, preserving historical snapshots and avoiding send side effects.
 - scripts/verificar-grafo-edge.py (run by the generator) walks every edge entrypoint including literal dynamic imports and runs deno check on nl-* functions; tsc/Vite alone miss Deno-only and lazily-loaded failures.
 - Send evidence on nl_edicoes (estado enviada, enviada_em, snapshot_envio, fecho_pendente_em) and nl_egoi_campanhas rows are writable only by the service role (trigger + RLS); client sessions can edit content only.
-- Social/analytics tables are readable by the owner or team members (social_membro(): any user_roles row); writes need admin/editor via social_pode_escrever() or ownership; no USING(true); server jobs use the service role.
+- Social publications, drafts, article drafts and analytics are owner-private after migration 0065. A global team role never bypasses ownership/project RLS. Historic unassigned rows stay unassigned. Reference caches and shared visual identities retain their separate team policies. Server jobs use the service role.
 - Updating an existing social draft never rewrites user_id or project_id; project_id is set only on insert from the persisted Studio choice, preserving authorship.
-- Social draft lists and Studio counts read team drafts filtered server-side by project only (cache keyed by user + project; old drafts without project only under "todos", never auto-assigned); keeps counts and lists consistent without narrowing team visibility.
+- Social draft lists and Studio counts use the same owner/project RLS (cache keyed by user + project; old drafts without project only under "todos", never auto-assigned).
 - DocumentoGrafico v1 stays separate from legacy flows; slide order follows logical ids across narrative and both variants.
 - Content engine (mc_*): clients only SELECT; writes via owner+editor RPCs; versions append-only; leases/AI service-role.
 - Chunk-load recovery retries each missing asset only once, preventing loops.
@@ -25,3 +25,6 @@
 - Animated media uses a still+MP4 pair; GIPHY shares it. Paid/redesign AI images are tracked, never auto-applied; redesign returns two text-free images under editable copy.
 - Visual system keeps direction, typography (sistema.tipografia) and palette as independent choices; absent tipografia falls back to the style's legacy pair so old documents render unchanged.
 - Subdirectories (e.g. supabase/functions/) have their own AGENTS.md; read it before changing files there.
+- Hub production may enable its public endpoint only after both native functions deploy successfully; never use local-mode aliases or edit the managed .env.
+
+- Social external writes use durable social_publicacoes reservations before the provider call; do not expire uncertain attempts, fall back to another transport, or bypass 409 with invisible characters. Getlate owns its schedules; send-scheduled-posts is retired (410). incoming requires the existing N8N server secret plus explicit ownership; callback only records authenticated rejections.

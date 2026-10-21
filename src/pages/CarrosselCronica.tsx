@@ -204,7 +204,7 @@ export default function CarrosselCronica() {
         </Alert>
       )}
 
-      {fontePorRever && (
+      {fontePorRever && !newsletter && (
         <Alert>
           <AlertTitle>A crónica integral não foi congelada no envio</AlertTitle>
           <AlertDescription className="space-y-2">
@@ -321,7 +321,7 @@ export default function CarrosselCronica() {
 
       </header>
 
-      {newsletter ? <DivulgacaoEditor id={c.id} fonte={fonte} inicial={c.divulgacao} versaoInicial={c.divulgacao_versao}
+      {newsletter ? <DivulgacaoEditor fontePendente={fontePorRever} onReverFonte={()=>setConfirmar("fonte")} id={c.id} fonte={fonte} inicial={c.divulgacao} versaoInicial={c.divulgacao_versao}
         onActualizar={() => carregar(() => !alteradoRef.current)} onAlterado={setStoryAlterado} abaInicial={query.get("peca") ?? "story"} onAba={peca => setQuery({ peca }, { replace: true })} onCompor={() => setQuery({ compositor: "story", peca: "story" })}>{conteudoEditor}</DivulgacaoEditor> : conteudoEditor}
 
       <AlertDialog open={!!sairPendente} onOpenChange={(o) => !o && setSairPendente(null)}>

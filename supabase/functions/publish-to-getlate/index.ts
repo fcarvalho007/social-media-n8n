@@ -1,4 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { exigirEditor, reservarSocial, concluirSocial, erroSocial } from '../_shared/social-seguro.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2.98.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -101,77 +102,6 @@ interface GetlatePostPayload {
     type: 'image' | 'video' | 'document';
     url: string;
   }>;
-}
-
-// Database-backed idempotency: reserve key BEFORE publishing to block concurrent requests
-async function reserveIdempotencyKey(supabase: any, key: string): Promise<{ reserved: boolean; cachedResult?: any; inProgress?: boolean }> {
-  try {
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
-
-    // Try to INSERT — if key already exists, unique constraint will fail
-    const { error: insertError } = await supabase
-      .from('idempotency_keys')
-      .insert({ key, result: null, expires_at: expiresAt });
-
-    if (insertError) {
-      // Key already exists — check if it has a result (completed) or is still in progress
-      if (insertError.code === '23505') {
-        console.log(`[publish-to-getlate] Idempotency key already reserved: ${key}`);
-        const { data } = await supabase
-          .from('idempotency_keys')
-          .select('result')
-          .eq('key', key)
-          .gt('expires_at', new Date().toISOString())
-          .maybeSingle();
-
-        if (data?.result) {
-          console.log(`[publish-to-getlate] ✅ Returning cached result for key: ${key}`);
-          return { reserved: false, cachedResult: data.result };
-        }
-        // result is null → first request is still running
-        console.log(`[publish-to-getlate] ⏳ Key exists but no result yet — publication in progress`);
-        return { reserved: false, inProgress: true };
-      }
-      console.error('[publish-to-getlate] Error reserving idempotency key:', insertError);
-      // Allow through on unexpected errors
-      return { reserved: true };
-    }
-
-    console.log(`[publish-to-getlate] 🔒 Reserved idempotency key: ${key}`);
-    return { reserved: true };
-  } catch (err) {
-    console.error('[publish-to-getlate] Exception reserving idempotency:', err);
-    return { reserved: true };
-  }
-}
-
-async function updateIdempotencyKeyResult(supabase: any, key: string, result: any): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('idempotency_keys')
-      .update({ result })
-      .eq('key', key);
-
-    if (error) {
-      console.error('[publish-to-getlate] Error updating idempotency key result:', error);
-    } else {
-      console.log(`[publish-to-getlate] Updated idempotency key result: ${key}`);
-    }
-  } catch (err) {
-    console.error('[publish-to-getlate] Exception updating idempotency:', err);
-  }
-}
-
-// Cleanup expired keys (called periodically)
-async function cleanupExpiredKeys(supabase: any): Promise<void> {
-  try {
-    await supabase
-      .from('idempotency_keys')
-      .delete()
-      .lt('expires_at', new Date().toISOString());
-  } catch (err) {
-    // Ignore cleanup errors
-  }
 }
 
 interface GetlateUsageStats {
@@ -365,7 +295,7 @@ function buildFailureResponse(message: string, status = 200): Response {
   return new Response(
     JSON.stringify({
       success: false,
-      fallback: errorClassification.isRetryable,
+      fallback: false,
       error: {
         message: message.includes('All platforms failed')
           ? 'O serviço de publicação rejeitou temporariamente esta rede. A publicação pode já estar em processamento; verifica o histórico antes de repetir.'
@@ -373,7 +303,7 @@ function buildFailureResponse(message: string, status = 200): Response {
         code: errorClassification.code,
         source: errorClassification.source,
         originalError: message,
-        isRetryable: errorClassification.isRetryable,
+        isRetryable: false,
         suggestedAction: errorClassification.suggestedAction,
       }
     }),
@@ -563,7 +493,9 @@ async function validateMediaUrls(urls: string[]): Promise<{ valid: boolean; inva
   
   for (const url of urls) {
     try {
-      const response = await fetch(url, { method: 'HEAD' });
+      const u=new URL(url);
+      if(u.protocol!=='https:'||u.username||u.password||u.port||u.hostname==='localhost'||/^(?:127\.|10\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2[0-9]|3[01])\.)/.test(u.hostname)||u.hostname.includes(':')) throw new Error('Endereço privado recusado.');
+      const response = await fetch(url, { method: 'HEAD',redirect:'error',signal:AbortSignal.timeout(10000) });
       if (!response.ok) {
         console.warn(`[publish-to-getlate] Media URL not accessible (${response.status}): ${url}`);
         invalidUrls.push(url);
@@ -690,7 +622,7 @@ async function publishToGetlate(
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       console.log(`[publish-to-getlate] Attempt ${attempt}/${retries} - Publishing to Getlate API`);
-      console.log(`[publish-to-getlate] Payload:`, JSON.stringify(payload, null, 2));
+
       
       const controller = new AbortController();
       const timeoutMs = computeApiTimeoutMs(payload);
@@ -720,7 +652,7 @@ async function publishToGetlate(
 
       const responseText = await response.text();
       console.log(`[publish-to-getlate] Response status: ${response.status}`);
-      console.log(`[publish-to-getlate] Response body: ${responseText}`);
+
 
       if (response.ok) {
         let data;
@@ -746,7 +678,7 @@ async function publishToGetlate(
         console.log(`[publish-to-getlate] ✅ Response validated as real success. PostURL: ${validated.postUrl || 'not provided'}`);
         return { 
           success: true, 
-          data,
+          data: validated.originalData,
       postUrl: validated.postUrl || extractExternalReference(data),
           statusCode: response.status,
         };
@@ -805,81 +737,19 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Cleanup stuck "pending" publication attempts older than 10 minutes
-    // This prevents orphaned attempts from accumulating
-    try {
-      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-      const { data: stuckAttempts, error: cleanupError } = await supabase
-        .from('publication_attempts')
-        .update({ 
-          status: 'failed', 
-          error_message: 'Timeout - publicação não concluída após 10 minutos' 
-        })
-        .eq('status', 'pending')
-        .lt('attempted_at', tenMinutesAgo)
-        .select('id');
-      
-      if (cleanupError) {
-        console.warn('[publish-to-getlate] Cleanup of stuck attempts failed:', cleanupError);
-      } else if (stuckAttempts && stuckAttempts.length > 0) {
-        console.log(`[publish-to-getlate] Cleaned up ${stuckAttempts.length} stuck pending attempts`);
-      }
-    } catch (cleanupErr) {
-      console.warn('[publish-to-getlate] Exception during cleanup:', cleanupErr);
-    }
-
+    const userId = await exigirEditor(req, supabase);
+    if(req.method!=='POST') return buildFailureResponse('Método não permitido.',405);
     // Get Getlate API token
     const getlateToken = Deno.env.get('GETLATE_API_TOKEN');
     if (!getlateToken) {
       return buildFailureResponse('GETLATE_API_TOKEN not configured', 500);
     }
 
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return buildFailureResponse('Missing authorization header', 401);
-    }
-
-    // Verify user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (authError || !user) {
-      return buildFailureResponse('Unauthorized', 401);
-    }
-
+    const user = {id:userId};
     const body = await req.json();
-    console.log(`[publish-to-getlate] BODY RECEIVED:`, JSON.stringify(body));
-    const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately, post_id, idempotency_key, network_options } = body as PublishPayload;
-
-    console.log(`[publish-to-getlate] Processing publication for format: ${format}`);
-    console.log(`[publish-to-getlate] post_id received: ${post_id || 'NULL ⚠️'}`);
-    console.log(`[publish-to-getlate] Idempotency key: ${idempotency_key || 'none'}`);
-
-    // Cleanup expired keys periodically (non-blocking)
-    cleanupExpiredKeys(supabase);
-
-    // PRE-PUBLICATION IDEMPOTENCY: Reserve key BEFORE calling Getlate API
-    // This blocks concurrent requests during the 5-30s API call window
-    if (idempotency_key) {
-      const reservation = await reserveIdempotencyKey(supabase, idempotency_key);
-
-      if (!reservation.reserved) {
-        if (reservation.cachedResult) {
-          console.log(`[publish-to-getlate] ⚠️ DUPLICATE REQUEST BLOCKED! Returning cached result for key: ${idempotency_key}`);
-          return new Response(
-            JSON.stringify(reservation.cachedResult),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
-        if (reservation.inProgress) {
-          console.log(`[publish-to-getlate] ⚠️ CONCURRENT REQUEST BLOCKED! Publication already in progress for key: ${idempotency_key}`);
-          return new Response(
-            JSON.stringify({ success: false, error: { message: 'Publicação já em curso para este conteúdo. Aguarda o resultado.', code: 'DUPLICATE_IN_PROGRESS', isRetryable: false } }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
-          );
-        }
-      }
+    const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately, post_id, network_options } = body as PublishPayload;
+    if (!Array.isArray(media_urls) || media_urls.length > 20 || !media_urls.every(u => typeof u === 'string' && u.startsWith('https://'))) {
+      return buildFailureResponse('Indica até 20 ficheiros HTTPS válidos.',400);
     }
 
     // Get network from format
@@ -973,32 +843,15 @@ Deno.serve(async (req) => {
       if (Number.isNaN(parsed.getTime())) {
         return buildFailureResponse(`Data/hora de agendamento inválida: ${scheduledDateTime}`, 400);
       }
+      if (parsed.getTime() <= Date.now()) return buildFailureResponse('A data de agendamento tem de estar no futuro.',400);
       getlatePayload.scheduledFor = parsed.toISOString();
       console.log(`[publish-to-getlate] Scheduled for: ${getlatePayload.scheduledFor} (raw time: "${scheduled_time}" → "${normalizedTime}")`);
     }
 
-    // DEDUP GUARD: Check if a recent attempt already exists for this post_id + format
-    // This prevents duplicates even without idempotency keys
+    const reserva = await reservarSocial(supabase,userId,post_id,`${network}:${format.endsWith('_stories')?'story':format.includes('reel')?'reel':'feed'}`,'publicar', {content:contentToSend,media:media_urls},corsHeaders);
+    if (reserva.repetida) return reserva.repetida;
+    const idempotency_key = reserva.key;
     let attemptId: string | null = null;
-    
-    if (post_id) {
-      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-      const { data: existingAttempt } = await supabase
-        .from('publication_attempts')
-        .select('id, status')
-        .eq('post_id', post_id)
-        .eq('format', format)
-        .gte('attempted_at', twoMinAgo)
-        .limit(1);
-
-      if (existingAttempt && existingAttempt.length > 0) {
-        console.log(`[publish-to-getlate] ⚠️ DEDUP: Recent attempt already exists for ${post_id}/${format} (status: ${existingAttempt[0].status}). Skipping duplicate.`);
-        return new Response(
-          JSON.stringify({ success: true, deduplicated: true, message: 'Publicação já registada recentemente', existingAttemptId: existingAttempt[0].id }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-    }
 
     // Log publication attempt - ALWAYS record, even without post_id
     const attemptRecord = {
@@ -1018,77 +871,14 @@ Deno.serve(async (req) => {
     
     attemptId = attemptData?.id;
     if (insertAttemptError) {
-      console.error('[publish-to-getlate] Failed to record attempt:', insertAttemptError);
+      // Fail closed: no external request without an auditable attempt.
+      throw new Error('Não foi possível registar a tentativa. Não foi enviado nenhum pedido externo.');
     } else {
       console.log(`[publish-to-getlate] Attempt recorded with ID: ${attemptId}`);
     }
 
-    // Publish to Getlate with idempotency key in header
-    let result = await publishToGetlate(getlateToken, getlatePayload, idempotency_key);
-    const retryLog: Array<{ strategy: string; original_error_code?: number; success: boolean; retried_at: string }> = [];
-
-    // 409 RETRY chain: Getlate blocks "exact content already scheduled within 24h".
-    // Strategy 1: append U+200B (zero-width space).
-    // Strategy 2: append U+2063 (invisible separator) if first retry still 409.
-    const isDuplicateFailure = (r: typeof result) =>
-      !r.success && (
-        r.statusCode === 409 ||
-        /409/.test(r.error || '') ||
-        /exact content/i.test(r.error || '') ||
-        /already (scheduled|posted|publishing)/i.test(r.error || '') ||
-        /duplicate/i.test(r.error || '')
-      );
-
-    if (isDuplicateFailure(result)) {
-      const originalErrorCode = result.statusCode;
-      console.warn(`[publish-to-getlate] 🔁 Duplicate detected (status=${originalErrorCode}) — retrying with U+200B suffix`);
-      const retryPayloadZwsp: GetlatePostPayload = {
-        ...getlatePayload,
-        content: `${getlatePayload.content}\u200B`,
-      };
-      const retryKeyZwsp = idempotency_key ? `${idempotency_key}-zwsp` : undefined;
-      result = await publishToGetlate(getlateToken, retryPayloadZwsp, retryKeyZwsp);
-      retryLog.push({
-        strategy: 'zwsp_u200b',
-        original_error_code: originalErrorCode,
-        success: result.success,
-        retried_at: new Date().toISOString(),
-      });
-      if (result.success) {
-        console.log('[publish-to-getlate] ✅ U+200B retry succeeded after duplicate');
-      } else if (isDuplicateFailure(result)) {
-        // Strategy 2: try invisible separator
-        console.warn('[publish-to-getlate] 🔁 U+200B still duplicate — retrying with U+2063 (invisible separator)');
-        const retryPayloadIs: GetlatePostPayload = {
-          ...getlatePayload,
-          content: `${getlatePayload.content}\u2063`,
-        };
-        const retryKeyIs = idempotency_key ? `${idempotency_key}-isep` : undefined;
-        result = await publishToGetlate(getlateToken, retryPayloadIs, retryKeyIs);
-        retryLog.push({
-          strategy: 'invisible_separator_u2063',
-          original_error_code: originalErrorCode,
-          success: result.success,
-          retried_at: new Date().toISOString(),
-        });
-        if (result.success) {
-          console.log('[publish-to-getlate] ✅ U+2063 retry succeeded after duplicate');
-        } else {
-          console.error('[publish-to-getlate] ❌ All duplicate-retry strategies failed:', result.error);
-        }
-      } else {
-        console.error('[publish-to-getlate] ❌ U+200B retry failed (non-duplicate):', result.error);
-      }
-    }
-
-    // Persist retry telemetry to publication_attempts.response_data for analysis
-    if (attemptId && retryLog.length > 0) {
-      await supabase
-        .from('publication_attempts')
-        .update({ response_data: { retry_log: retryLog } })
-        .eq('id', attemptId);
-    }
-
+    // Exactly one external request; a duplicate refusal must never be bypassed.
+    const result = await publishToGetlate(getlateToken, getlatePayload, idempotency_key);
     if (!result.success) {
       // Record failure
       console.error(`[publish-to-getlate] Publication failed: ${result.error}`);
@@ -1152,25 +942,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (idempotency_key) {
-        const failureResponse = {
-          success: false,
-          fallback: classifyPublishError(failureMessage).isRetryable,
-          error: {
-            message: failureMessage.includes('All platforms failed')
-              ? 'O serviço de publicação rejeitou temporariamente esta rede. A publicação pode já estar em processamento; verifica o histórico antes de repetir.'
-              : failureMessage,
-            code: classifyPublishError(failureMessage).code,
-            source: classifyPublishError(failureMessage).source,
-            originalError: failureMessage,
-            isRetryable: classifyPublishError(failureMessage).isRetryable,
-            suggestedAction: classifyPublishError(failureMessage).suggestedAction,
-          }
-        };
-        await updateIdempotencyKeyResult(supabase, idempotency_key, failureResponse);
-      }
-
-      return buildFailureResponse(failureMessage, classifyPublishError(failureMessage).isRetryable ? 200 : 400);
+      const failureResponse = {success:false,fallback:false,error:{message:'O envio não foi confirmado. Consulta o histórico antes de repetir.',code:'PUBLICATION_UNCONFIRMED',isRetryable:false}};
+      await concluirSocial(supabase,reserva,'incerto',failureResponse,409);
+      return new Response(JSON.stringify(failureResponse),{status:409,headers:{...corsHeaders,'Content-Type':'application/json'}});
     }
 
     // Update the existing pending attempt to success (no duplicate insert)
@@ -1178,7 +952,7 @@ Deno.serve(async (req) => {
     const successResponseData = {
       ...(result.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : { raw: result.data }),
       network_options_applied: platformSpecificData ?? {},
-      ...(retryLog.length > 0 ? { retry_log: retryLog } : {}),
+
     };
     if (attemptId) {
       console.log(`[publish-to-getlate] Updating attempt ${attemptId} to success (clearing error_message)`);
@@ -1223,8 +997,8 @@ Deno.serve(async (req) => {
         .from('posts')
         .update({
           external_post_ids: updatedExternalIds,
-          status: 'published',
-          published_at: new Date().toISOString(),
+          status: result.data?.pending === true ? 'pending' : getlatePayload.scheduledFor ? 'scheduled' : result.data?.post?.status === 'published' ? 'published' : 'pending',
+          published_at: result.data?.post?.status === 'published' ? new Date().toISOString() : null,
           failed_at: null,
         })
         .eq('id', post_id);
@@ -1238,7 +1012,7 @@ Deno.serve(async (req) => {
 
     // NOTE: We no longer increment local quota - Getlate tracks usage automatically
     const totalTimeMs = Date.now() - requestStartTime;
-    const isPending = result.data?.pending === true;
+    const isPending = result.data?.pending === true || (!getlatePayload.scheduledFor && result.data?.post?.status !== 'published');
     console.log(`[publish-to-getlate] ✅ ${isPending ? 'Accepted (pending)' : 'Successfully published'} to ${network} in ${(totalTimeMs / 1000).toFixed(2)}s`);
 
     const successResponse = { 
@@ -1246,17 +1020,14 @@ Deno.serve(async (req) => {
       pending: isPending,
       message: isPending 
         ? `Publicação aceite pelo ${network} — em processamento`
-        : `Publicado com sucesso em ${network}`,
+        : getlatePayload.scheduledFor ? `Agendado em ${network}` : `Publicado com sucesso em ${network}`,
       data: result.data,
       network,
       format,
       postUrl: externalReference,
     };
 
-    // Update idempotency key with the result (was reserved with null before API call)
-    if (idempotency_key) {
-      await updateIdempotencyKeyResult(supabase, idempotency_key, successResponse);
-    }
+    await concluirSocial(supabase,reserva,'aceite',successResponse,200);
 
     return new Response(
       JSON.stringify(successResponse),
@@ -1267,11 +1038,6 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('[publish-to-getlate] Error:', error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Erro ao publicar. Tenta novamente.';
-    const classification = classifyPublishError(errorMessage);
-    const status = classification.code === 'AUTH_ERROR' ? 401 : classification.isRetryable ? 200 : 400;
-    return buildFailureResponse(errorMessage, status);
+    return erroSocial(error,corsHeaders);
   }
 });

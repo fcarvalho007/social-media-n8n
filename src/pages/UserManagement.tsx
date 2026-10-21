@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { DashboardHeader } from '@/components/DashboardHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useProfiles } from '@/hooks/useProfiles';
@@ -267,10 +265,8 @@ const UserManagement = () => {
   }
 
   return (
-    <SidebarProvider>
-      <SidebarInset>
-        <DashboardHeader />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-background">
+    <>
+        <div className="min-w-0">
           <div className="max-w-6xl mx-auto space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -358,8 +354,7 @@ const UserManagement = () => {
               </CardContent>
             </Card>
           </div>
-        </main>
-      </SidebarInset>
+        </div>
 
       {/* Invite User Dialog */}
       <Dialog open={dialogType === 'invite'} onOpenChange={() => setDialogType(null)}>
@@ -548,7 +543,7 @@ const UserManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+    </>
   );
 };
 

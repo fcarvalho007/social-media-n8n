@@ -17,10 +17,11 @@ import { assinaturaComposicao } from "../../../supabase/functions/_shared/conteu
 
 const apiReal = { preparar: prepararDivulgacao, guardar: guardarStory };
 
-export function DivulgacaoEditor({ id, fonte, inicial, versaoInicial = 0, onActualizar, onAlterado, onCompor, abaInicial = "story", onAba, children, api = apiReal }: {
+export function DivulgacaoEditor({ id, fonte, inicial, versaoInicial = 0, onActualizar, onAlterado, onCompor, abaInicial = "story", onAba, fontePendente=false, onReverFonte, children, api = apiReal }: {
   id: string; fonte: FonteCronica; inicial?: DivulgacaoEdicao | null; versaoInicial?: number;
   onActualizar: () => void; onAlterado: (sujo: boolean) => void; children: ReactNode; api?: typeof apiReal;
   onCompor?: () => void;
+  fontePendente?:boolean; onReverFonte?:()=>void;
   abaInicial?: string;
   onAba?: (aba: string) => void;
 }) {
@@ -33,6 +34,7 @@ export function DivulgacaoEditor({ id, fonte, inicial, versaoInicial = 0, onActu
   const [erroPreview, setErroPreview] = useState<string | null>(null);
   const [recuperada, setRecuperada] = useState<StoryEdicao | null>(null);
   const [copiado, setCopiado] = useState(false);
+  useEffect(()=>{if(!fontePendente)setErro(null);},[fontePendente]);
   const canvas = useRef<HTMLCanvasElement>(null);
   const { user } = useAuth();
   const chave = user ? chaveRecuperacao(user.id, "story-newsletter", id, null) : null;
@@ -92,9 +94,10 @@ export function DivulgacaoEditor({ id, fonte, inicial, versaoInicial = 0, onActu
       <p className="max-w-prose text-sm text-muted-foreground">Duas peças com objetivos diferentes: levar à crónica no dia do envio e dar uma nova razão para ler a edição no dia seguinte. Sem IA paga; revê antes de publicar.</p>
       {fonte.teste && <p className="text-sm text-muted-foreground">Este é um ensaio. O envio interno não ativa a divulgação real nem define datas de publicação.</p>}
     </div>
+    {fontePendente&&<Alert><AlertTitle>Revê a fonte antes de preparar as peças</AlertTitle><AlertDescription><p>Esta edição não congelou a crónica integral no envio. Confirma que o texto guardado corresponde à versão publicada.</p><Button variant="outline" className="mt-3 min-h-11" disabled={ocupado} onClick={onReverFonte}>Rever fonte da crónica</Button></AlertDescription></Alert>}
     {!dados && <div className="flex flex-col items-start gap-3">
       <p className="text-sm">Prepara o Story e o carrossel dos destaques a partir desta fonte. Um carrossel já guardado é preservado.</p>
-      <Button disabled={ocupado} onClick={() => executar(async () => { await api.preparar(id); onActualizar(); })}>{ocupado && <Loader2 className="mr-2 size-4 animate-spin" />}Preparar duas peças · sem IA</Button>
+      <Button className="min-h-11" disabled={ocupado||fontePendente} onClick={() => executar(async () => { await api.preparar(id); onActualizar(); })}>{ocupado && <Loader2 className="mr-2 size-4 animate-spin" />}Preparar duas peças · sem IA</Button>
     </div>}
     {erro && <Alert variant="destructive"><AlertTitle>Não foi possível concluir</AlertTitle><AlertDescription>{erro}</AlertDescription></Alert>}
     <Tabs value={tab} onValueChange={v => { setTab(v); onAba?.(v); }} className="flex min-w-0 flex-col gap-4">

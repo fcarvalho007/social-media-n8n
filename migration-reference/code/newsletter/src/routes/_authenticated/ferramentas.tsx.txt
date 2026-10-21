@@ -148,7 +148,7 @@ function FerramentasPage() {
   };
 
   return (
-    <main className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6" style={{ background: T.bg }}>
+    <section aria-label="Ferramentas da newsletter" className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6" style={{ background: T.bg }}>
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[22px] sm:text-[26px] font-bold tracking-tight flex items-center gap-2" style={{ color: T.ink }}>
@@ -257,7 +257,7 @@ function FerramentasPage() {
       )}
 
       {showFontes && <ModalFontes onClose={() => setShowFontes(false)} />}
-    </main>
+    </section>
   );
 }
 

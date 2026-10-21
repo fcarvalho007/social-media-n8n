@@ -1,3 +1,5 @@
+import {useProjetoOpcional} from '@/contexts/ProjetoContext';
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,40 +35,33 @@ interface UseInstagramProfilesOptions {
 
 export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
   const { user } = useAuth();
+  const projectId=useProjetoOpcional()?.projetoId??null;
   const queryClient = useQueryClient();
   const isPublicMode = options?.publicMode === true;
 
-  const { data: profiles = [], isLoading, error } = useQuery({
-    queryKey: ["instagram-profiles", isPublicMode ? "public" : user?.id],
+  const { data: profiles = [], isLoading, isFetching, error, refetch } = useQuery({
+    queryKey: ["instagram-profiles", user?.id, projectId],
     queryFn: async () => {
-      // Public mode: ALWAYS fetch global dataset (for production app)
-      if (isPublicMode) {
-        const { data, error } = await supabase
-          .from("instagram_profiles")
-          .select("*")
-          .order("scraped_at", { ascending: false });
-
-        if (error) throw error;
-        return data as InstagramProfile[];
-      }
-
       // Private mode: filter by user_id
       if (!user?.id) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("instagram_profiles")
         .select("*")
         .eq("user_id", user.id)
         .order("scraped_at", { ascending: false });
+      if(projectId) query=query.filter('project_id','eq',projectId);
+      const {data,error}=await query;
 
       if (error) throw error;
       return data as InstagramProfile[];
     },
-    enabled: !!user?.id || isPublicMode,
+    enabled: !!user?.id,
+    retry: 1,
   });
 
   // Get latest profile for each account
-  const latestProfiles = (() => {
+  const latestProfiles = useMemo(() => {
     const profileMap = new Map<string, InstagramProfile>();
     
     profiles.forEach(profile => {
@@ -77,15 +72,16 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
     });
     
     return Array.from(profileMap.values());
-  })();
+  }, [profiles]);
 
   const importMutation = useMutation({
     mutationFn: async (profilesData: any[]) => {
       const { data, error } = await supabase.functions.invoke("import-instagram-profiles", {
-        body: { profiles: profilesData },
+        body: { profiles: profilesData,project_id:projectId },
       });
 
       if (error) throw error;
+      if(data?.success===false) throw new Error(data.errors?.join(" ")||data.error||"Importação incompleta. Revê os resultados antes de repetir.");
       return data;
     },
     onSuccess: (data) => {
@@ -118,7 +114,7 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
   });
 
   // Calculate stats
-  const stats = (() => {
+  const stats = useMemo(() => {
     if (latestProfiles.length === 0) {
       return {
         totalFollowers: 0,
@@ -149,13 +145,13 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
       verifiedCount: latestProfiles.filter(p => p.is_verified).length,
       businessCount: latestProfiles.filter(p => p.is_business_account).length,
     };
-  })();
+  }, [latestProfiles]);
 
   return {
     profiles,
     latestProfiles,
     stats,
-    isLoading,
+    isLoading, isFetching, refetch,
     error,
     importProfiles: importMutation.mutate,
     isImporting: importMutation.isPending,

@@ -107,8 +107,8 @@ export default function Carrosseis() {
   };
 
   return (
-    <div className="mc-estudio -m-0 min-h-[calc(100dvh-4rem)] sm:-m-4 md:-m-6">
-      <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
+    <div className="mc-estudio min-h-[calc(100dvh-4rem)]">
+      <div className="hub-page">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Conteúdos visuais</h1>

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+vi.mock('@/features/documentos/modelo', async () => ({...await vi.importActual('@/features/documentos/modelo'),DOCUMENTOS_LOCAL:true,DOCUMENTOS_DISPONIVEL:true}));
 import { useQuery } from '@tanstack/react-query';
-import { DESTINOS_NAVEGACAO, itemNavegacaoAtivo, migalhasNavegacao } from '@/lib/navegacao';
+import { DESTINOS_NAVEGACAO, SECOES_NAVEGACAO, itemNavegacaoAtivo, migalhasNavegacao } from '@/lib/navegacao';
 import { urlRecarga } from '@/components/ErrorBoundary';
 import { AccountQueryProvider } from '@/components/AccountQueryProvider';
 
@@ -12,7 +13,35 @@ describe('contexto coerente de navegação', () => {
   it('distingue Aprovar e Criar no mesmo pathname', () => {
     expect(itemNavegacaoAtivo('/pending', '?tab=create', '/pending')).toBe(false);
     expect(itemNavegacaoAtivo('/pending', '?tab=create', '/pending?tab=create')).toBe(true);
-    expect(migalhasNavegacao('/pending', '?tab=create').at(-1)?.label).toBe('Criar SM');
+    expect(migalhasNavegacao('/pending', '?tab=create').at(-1)?.label).toBe('Criar publicação social');
+  });
+  it('mantém cada destino acessível uma só vez no menu principal ou na conta', () => {
+    const urls = ['/', '/pending?tab=create', ...SECOES_NAVEGACAO.flatMap(s => s.urls), ...DESTINOS_NAVEGACAO.filter(d => d.grupo === 'Conta').map(d => d.url)];
+    expect(new Set(urls).size).toBe(urls.length);
+    expect([...urls].sort()).toEqual(DESTINOS_NAVEGACAO.map(d => d.url).sort());
+  });
+  it.each([['/manual-create', '/pending?tab=create'], ['/review/123', '/pending'], ['/failed-publications', '/publication-history']])('mantém o contexto ao abrir %s', (pathname, destino) => {
+    expect(DESTINOS_NAVEGACAO.filter(d => itemNavegacaoAtivo(pathname, '', d.url)).map(d => d.url)).toEqual([destino]);
+  });
+  it.each(['/documentos','/curadoria/documentos'])('seleciona só Documentos ao abrir %s, mantendo a relação com Curadoria', p => {
+    expect(DESTINOS_NAVEGACAO.filter(d => itemNavegacaoAtivo(p,'?documento=1',d.url)).map(d => d.url)).toEqual(['/curadoria/documentos']);
+    expect(migalhasNavegacao(p).map(m => m.label)).toEqual(['Início','Curadoria','Documentos e relatórios']);
+  });
+  it('voltar do leitor preserva os filtros e o projeto, sem reabrir o documento', () => {
+    const m = migalhasNavegacao('/curadoria/documentos','?projeto=p&q=IA&documento=pdf-1&pagina=2');
+    expect(m.at(-1)?.label).toBe('Ler documento');
+    expect(m[1]).toEqual({label:'Curadoria',path:'/curadoria'});
+    const volta = new URL(m[2].path!, 'http://localhost');
+    expect(volta.searchParams.get('q')).toBe('IA');
+    expect(volta.searchParams.get('projeto')).toBe('p');
+    expect(volta.searchParams.get('pagina')).toBe('2');
+    expect(volta.searchParams.has('documento')).toBe(false);
+  });
+  it('mostra o contexto de fontes, divulgação e preparação de artigos', () => {
+    expect(migalhasNavegacao('/curadoria','?separador=fontes').at(-1)?.label).toBe('Fontes de notícias');
+    expect(migalhasNavegacao('/estudio/redes-sociais').map(m => m.label)).toEqual(['Início','Newsletter','Divulgação da newsletter']);
+    expect(migalhasNavegacao('/artigos/plano','?id=1&secao=texto').at(-1)?.label).toBe('Rever artigo');
+    expect(migalhasNavegacao('/artigos/automacao','?secao=conhecimento').at(-1)?.label).toBe('Conhecimento da marca');
   });
   it('recarregar preserva artigo, compositor, filtros e fragmento', () => {
     vi.spyOn(Date, 'now').mockReturnValue(123);

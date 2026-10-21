@@ -47,6 +47,11 @@ describe('pesquisa na aplicação', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('/estudio/roteiros'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+  it.each([['analytics','Resultados'],['insights','Sugestões'],['benchmark','Comparar contas']])('mantém o nome anterior %s pesquisável', (termo,nome) => {
+    setup();
+    fireEvent.change(screen.getByRole('combobox',{name:'Pesquisar na aplicação'}),{target:{value:termo}});
+    expect(screen.getByRole('option',{name:new RegExp(`^${nome}`)})).toBeInTheDocument();
+  });
   it('distingue erro de ausência de resultados e permite repetir preservando os atalhos', () => {
     const client = setup(true, { error: new Error('offline') });
     const repetir = vi.spyOn(client, 'refetchQueries');

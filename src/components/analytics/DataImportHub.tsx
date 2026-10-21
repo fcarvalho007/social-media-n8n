@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useInstagramProfiles } from "@/hooks/useInstagramProfiles";
-import * as XLSX from "xlsx";
 import {
   Upload,
   FileSpreadsheet,
@@ -181,6 +180,7 @@ export function DataImportHub({ onImport, isImporting: externalIsImporting }: Da
 
     try {
       const data = await file.arrayBuffer();
+      const XLSX = await import("xlsx");
       const workbook = XLSX.read(data);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];

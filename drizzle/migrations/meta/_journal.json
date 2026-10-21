@@ -435,6 +435,20 @@
       "when": 1792015378595,
       "tag": "0061_newsletter_divulgacao",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1792350385663,
+      "tag": "0062_hub_backend_persistente_cloud",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1792350466806,
+      "tag": "0063_hub_worker_nuvem_cloud",
+      "breakpoints": true
     }
   ]
 }

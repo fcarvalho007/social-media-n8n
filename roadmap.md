@@ -1,5 +1,15 @@
 # Roadmap
 
+## Instalação consolidada Hub 18/10/2026
+- [x] Confirmar commit/árvore e auditar compatibilidade Cloud
+- [x] Aplicar 0062/0063 compatíveis, bucket privado e cron desligado
+- [x] Publicar as duas funções Hub da correção 958ccf05, sem regenerar código
+- [x] Validar HTTP real: API anónima 401, worker anónimo 401, origem estranha 403
+- [ ] Ativar URL pública — bloqueado: leitura autenticada de operacao/estado devolve 422, Buffer is not defined
+- [x] Instalar configuração privada do worker desligado; auditar RLS/bucket/cron privado/inativo e zero jobs
+- [x] Executar 26 testes isolados; auditar RLS, bucket privado, cron inativo e ausência de jobs
+- [x] Relatar publicação manual e limitação de importação privada
+
 ## Complemento obrigatório 319 — verificação final
 - [x] Confirmar três Briefs anónimos com noindex/nofollow e proteção dos restantes
 - [x] Verificar HTML/texto/site/preview backup, fontes, formação e leituras literais; leitura direta LearnDash devolve 403, sem nova escrita

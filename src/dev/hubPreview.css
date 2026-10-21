@@ -1,4 +1,10 @@
 .hub-local-banner {
+  --hub-banner-height: 44px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -8,7 +14,16 @@
   color: hsl(var(--background));
   font-size: .75rem;
   line-height: 1.5;
+  height: var(--hub-banner-height);
 }
+#root { --hub-banner-space: 44px; height: 100svh; overflow: auto; padding-top: var(--hub-banner-space); scroll-padding-top: var(--hub-banner-space); }
+#root > .hub-navigation, #root > .hub-navigation > .min-h-screen { min-height: calc(100svh - var(--hub-banner-space)); }
 .hub-local-banner > span { flex: 1 1 28rem; }
 .hub-local-banner a { padding-block: .25rem; color: inherit; text-decoration: underline; text-underline-offset: .2em; }
 .hub-local-banner a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.hub-navigation [data-sidebar-container] { top: 44px; height: calc(100svh - 44px); }
+.hub-navigation .hub-header { top: 0; }
+@media (max-width: 639px) {
+  #root { --hub-banner-space: 72px; }
+  .hub-local-banner { --hub-banner-height: 72px; gap: 0; padding-block: .5rem; }
+}

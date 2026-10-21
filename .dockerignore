@@ -1,0 +1,12 @@
+.git
+.env*
+*.local
+node_modules
+dist
+dist-backend
+.impeccable
+.hub-backups
+.documentos-local
+.seo-local
+.roteiros-local
+*.log

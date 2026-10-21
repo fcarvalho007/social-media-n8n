@@ -35,7 +35,7 @@ export interface ProjectTemplate {
 export const useTemplates = () => {
   const queryClient = useQueryClient();
 
-  const { data: templates = [], isLoading } = useQuery({
+  const { data: templates = [], isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['templates'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -115,7 +115,7 @@ export const useTemplates = () => {
 
   return {
     templates,
-    isLoading,
+    isLoading, isFetching, error, refetch,
     createTemplate,
     updateTemplate,
     deleteTemplate,

@@ -1,0 +1,5 @@
+{
+ "extends":"./tsconfig.app.json",
+ "compilerOptions":{"target":"ES2022","lib":["ES2023","DOM","DOM.Iterable"],"types":["node","vite/client"],"resolveJsonModule":true,"esModuleInterop":true},
+ "include":["scripts/backend/**/*.ts","src/vite-env.d.ts"]
+}

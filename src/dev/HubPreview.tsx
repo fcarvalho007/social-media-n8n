@@ -8,8 +8,7 @@ function HubPreview() {
   return <>
     <aside className="hub-local-banner" aria-label="Modo de demonstração local">
       <strong>Demonstração local</strong>
-      <span>Dados fictícios · alterações só neste navegador · envios, Cloud e IA paga desligados</span>
-      <a href="/">Painel</a><a href="/curadoria">Curadoria</a><a href="/drafts">Rascunhos</a><a href="/calendar">Calendário</a><a href="/artigos">Artigos</a>
+      <span>Dados locais · sem publicação · serviços pagos sujeitos a autorização</span>
     </aside>
     <App />
   </>;

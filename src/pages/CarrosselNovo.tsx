@@ -2,7 +2,9 @@ import { CONFIG_FORMATOS, type FormatoConteudo } from "../../supabase/functions/
 import { CuradoriaNoticias } from "@/features/curadoria/CuradoriaNoticias";
 import type { FonteCuradoria } from "@/services/curadoria";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { DOCUMENTOS_DISPONIVEL } from '@/features/documentos/modelo';
+import { lerFonteAcervo } from '@/features/documentos/transferencia';
 import { ArrowLeft, ArrowRight, FileText, FlaskConical, Link2, Loader2, Type, Upload } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -72,6 +74,9 @@ export default function CarrosselNovo() {
   const [usarIa, setUsarIa] = useState(params.get("modo") !== "manual");
   const configFormato = CONFIG_FORMATOS[formato];
   const { user } = useAuth();
+  const location = useLocation();
+  const fonteAcervo = DOCUMENTOS_DISPONIVEL ? lerFonteAcervo(location.state, user?.id) : null;
+  const [acervoImportado, setAcervoImportado] = useState(false);
   const { projetos, projetoId, estado } = useProjeto();
   const [etapa, setEtapa] = useState<"fonte" | "narrativa">("fonte");
   const [projeto, setProjeto] = useState<string>(projetoId ?? "");
@@ -274,6 +279,12 @@ export default function CarrosselNovo() {
         </div>
         <EtapasGrandes atual={etapa === "fonte" ? 0 : 1} onFonte={etapa === "narrativa" ? () => setEtapa("fonte") : undefined} />
         <div className={etapa === "narrativa" ? "mx-auto max-w-3xl" : undefined}>
+        {fonteAcervo && !acervoImportado && <div className="mb-5 space-y-3 rounded-lg border p-4"><p className="font-medium">Fonte do acervo: {fonteAcervo.titulo}</p><p className="text-sm text-muted-foreground">Carrega as páginas selecionadas. A referência fica no briefing e a leitura parcial precisa da tua confirmação.</p><Button variant="outline" disabled={!!texto.trim() || lendo || aCriar || projeto !== fonteAcervo.projetoId} onClick={() => {
+          if(fonteAcervo.modo==='excerto'){setTipoFonte('texto');setPdfLido(null);setPdfMeta(null);setTexto(fonteAcervo.texto);setOriginal(fonteAcervo.texto);setTitulo(fonteAcervo.titulo);setDetalhe(fonteAcervo.referencia);setSlides(null);setAcervoImportado(true);return;}
+          const ex = new Set(fonteAcervo.excluidas); const f = comporFontePdf(fonteAcervo.pdf, ex, false);
+          setTipoFonte('pdf'); setPdfLido(fonteAcervo.pdf); setPdfMeta(f.meta); setExcluidas(ex); setParcial(false);
+          setTexto(f.texto); setOriginal(f.texto); setTitulo(fonteAcervo.titulo); setDetalhe(fonteAcervo.referencia); setSlides(null); setAcervoImportado(true);
+        }}>Carregar fonte do acervo</Button>{!!texto.trim() && <p className="text-xs text-muted-foreground">Já tens texto no editor. Guarda o trabalho ou limpa o texto antes de carregar esta fonte.</p>}</div>}
         {etapa === "fonte" && (
           <section className="mc-entrar space-y-6" aria-labelledby="t-fonte">
             <div className="flex flex-col justify-between gap-6 border-b border-border pb-6 md:flex-row md:items-end">

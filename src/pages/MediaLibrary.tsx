@@ -553,7 +553,7 @@ export default function MediaLibrary() {
   if (error) {
     return (
       <div className="space-y-6 px-4 py-4 md:px-6">
-        <h1 className="text-2xl font-bold">Biblioteca de Média</h1>
+        <h1 className="text-2xl font-bold">Imagens e ficheiros</h1>
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" aria-hidden />
           <AlertTitle>Não foi possível carregar a biblioteca</AlertTitle>
@@ -574,7 +574,7 @@ export default function MediaLibrary() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <FolderOpen className="h-6 w-6 text-primary" />
-              Biblioteca de Média
+              Imagens e ficheiros
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {stats.total} ficheiros • {stats.images} imagens • {stats.videos} vídeos • {formatSize(stats.totalSize)}
@@ -680,7 +680,7 @@ export default function MediaLibrary() {
                 className="pl-9 h-9"
               />
             </div>
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+            <Select value={sortBy} onValueChange={(v) => { if (v === 'date' || v === 'name' || v === 'size') setSortBy(v); }}>
               <SelectTrigger className="w-32 h-9">
                 <SelectValue />
               </SelectTrigger>

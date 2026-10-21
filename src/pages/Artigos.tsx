@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
+import { DOCUMENTOS_DISPONIVEL } from '@/features/documentos/modelo';
+import { lerArtigoAcervo, lerFonteAcervo } from '@/features/documentos/transferencia';
 import { toast } from "sonner";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,9 @@ import { useProjeto } from "@/contexts/ProjetoContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { aplicarGravacao, chaveRecuperacao, guardarRecuperacao, lerRecuperacao, limparRecuperacao, type Recuperacao } from "@/lib/recuperacaoLocal";
 import { apagarArtigo, guardarArtigo, listarArtigos, type Artigo } from "@/services/estudio";
+
+import { TextosPlano } from "@/features/seo/TextosPlano";
+import { NavegacaoArtigos } from "@/features/seo/ComponentesSeo";
 
 type Edit = { id?: string; titulo: string; resumo: string; corpo: string; project_id: string | null };
 const SEM = "__sem__";
@@ -40,6 +45,9 @@ export default function Artigos() {
   const [pendente, setPendente] = useState<null | { tipo: "trocar"; alvo: Edit } | { tipo: "apagar"; artigo: Artigo }>(null);
   const sujo = !igual(edit, base);
   const { user } = useAuth();
+  const location = useLocation();
+  const fonteAcervo = DOCUMENTOS_DISPONIVEL ? (lerFonteAcervo(location.state, user?.id)??lerArtigoAcervo(location.state,user?.id)) : null;
+  const [acervoImportado, setAcervoImportado] = useState(false);
   const editRef = useRef(edit);
   editRef.current = edit;
   const chave = user ? chaveRecuperacao(user.id, "artigo", edit.id, ctx.projetoId) : null;
@@ -138,11 +146,16 @@ export default function Artigos() {
   const nomeProjeto = (id: string | null) => ctx.projetos.find((p) => p.id === id)?.name ?? "Sem projeto";
 
   return (
-    <div className="mx-auto grid w-full min-w-0 max-w-5xl grid-cols-1 gap-4 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-      <div className="flex min-w-0 flex-col gap-2">
-        <h1 className="text-2xl font-semibold">Artigos</h1>
-        <p className="text-xs text-muted-foreground">{ctx.projeto ? `Projeto ${ctx.projeto.name}` : "Todos os projetos"} · só rascunhos, nada é publicado</p>
-        <Button variant="outline" size="sm" disabled={ocupado} onClick={() => abrir(novo())}><Plus className="mr-1 h-4 w-4" />Novo rascunho</Button>
+    <div className="mx-auto grid w-full min-w-0 max-w-7xl grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      <header className="col-span-full flex min-w-0 flex-col gap-2">
+        <h1 className="text-3xl font-semibold tracking-tight">Artigos</h1>
+        <p className="max-w-prose text-sm text-muted-foreground">{ctx.projeto ? `Projeto ${ctx.projeto.name}` : "Todos os projetos"} · só rascunhos, nada é publicado</p>
+      </header>
+      <NavegacaoArtigos />
+      <div className="flex min-w-0 flex-col gap-4">
+        {fonteAcervo && !acervoImportado && <Alert><AlertTitle>Fonte do acervo disponível</AlertTitle><AlertDescription><p className="my-2 break-words">{fonteAcervo.titulo}. O texto e as referências serão colocados num novo rascunho para trabalhar.</p><Button size="sm" disabled={sujo || ocupado || !!oferta || ctx.projetoId !== fonteAcervo.projetoId} onClick={() => { const n = { titulo: fonteAcervo.titulo, resumo: '', corpo: fonteAcervo.artigo, project_id: fonteAcervo.projetoId }; setEdit(n); setBase({ ...n, titulo: '', corpo: '' }); setParams({}, { replace: true }); setAcervoImportado(true); }}>Carregar excertos no rascunho</Button>{(sujo || oferta) && <p className="mt-2">Guarda ou resolve o rascunho anterior antes de carregar a fonte.</p>}</AlertDescription></Alert>}
+        <Button variant="outline" className="min-h-11" disabled={ocupado} onClick={() => abrir(novo())}><Plus className="mr-1 h-4 w-4" />Novo rascunho</Button>
+        <TextosPlano />
         {lista.fase === "a_carregar" && <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-9 w-full" />)}</div>}
         {lista.fase === "erro" && (
           <Alert variant="destructive">

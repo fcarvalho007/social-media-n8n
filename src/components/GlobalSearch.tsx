@@ -24,7 +24,7 @@ function ResultadosPesquisa({ aoEscolher }: { aoEscolher: (url: string) => void 
   const queryClient = useQueryClient();
   const termo = normalizar(query);
   const coincide = (...campos: (string | null | undefined)[]) => campos.some((c) => normalizar(c ?? '').includes(termo));
-  const destinos = DESTINOS_NAVEGACAO.filter((d) => coincide(d.label, d.descricao, d.grupo));
+  const destinos = DESTINOS_NAVEGACAO.filter((d) => coincide(d.label, d.descricao, d.grupo, ...(d.palavrasChave ?? [])));
   const projetosFiltrados = termo ? projetos.projects.filter((p) => coincide(p.name, p.description)) : [];
   const tarefasFiltradas = termo ? tarefas.tasks.filter((t) => coincide(t.title, t.description)) : [];
   const aCarregar = projetos.isLoading || tarefas.isLoading;

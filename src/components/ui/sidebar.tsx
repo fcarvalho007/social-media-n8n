@@ -8,14 +8,14 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "104px"; // single source for both the reserved gap and the fixed sidebar
-const SIDEBAR_WIDTH_MOBILE = "7rem";
+const SIDEBAR_WIDTH_MOBILE = "min(20rem, 88vw)";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
@@ -27,6 +27,7 @@ type SidebarContext = {
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
   toggleSidebar: () => void;
+  triggerRef: React.RefObject<HTMLButtonElement>;
 };
 
 const SidebarContext = React.createContext<SidebarContext | null>(null);
@@ -50,6 +51,7 @@ const SidebarProvider = React.forwardRef<
 >(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props }, ref) => {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -78,7 +80,10 @@ const SidebarProvider = React.forwardRef<
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
+      const target = event.target;
+      // Preserve native bold/editing shortcuts inside fields and rich text editors.
+      if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]')) return;
+      if (event.key.toLowerCase() === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && !event.repeat) {
         event.preventDefault();
         toggleSidebar();
       }
@@ -101,6 +106,7 @@ const SidebarProvider = React.forwardRef<
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      triggerRef,
     }),
     [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
   );
@@ -136,7 +142,8 @@ const Sidebar = React.forwardRef<
     collapsible?: "offcanvas" | "icon" | "none";
   }
 >(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile, triggerRef } = useSidebar();
+  const mobilePanel = React.useRef<HTMLDivElement>(null);
 
   if (collapsible === "none") {
     return (
@@ -154,9 +161,24 @@ const Sidebar = React.forwardRef<
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
+          ref={mobilePanel}
+          onCloseAutoFocus={(event) => {
+            if (triggerRef.current) {
+              event.preventDefault();
+              triggerRef.current.focus();
+            }
+          }}
+          onOpenAutoFocus={(event) => {
+            const destination = mobilePanel.current?.querySelector<HTMLAnchorElement>('[aria-current="page"], a[href]');
+            const current = mobilePanel.current?.querySelector<HTMLAnchorElement>('[aria-current="page"]');
+            if (current ?? destination) {
+              event.preventDefault();
+              (current ?? destination)?.focus();
+            }
+          }}
           data-sidebar="sidebar"
           data-mobile="true"
-          className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          className={cn("w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground", className)}
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -164,6 +186,8 @@ const Sidebar = React.forwardRef<
           }
           side={side}
         >
+          <SheetTitle className="sr-only">Menu principal</SheetTitle>
+          <SheetDescription className="sr-only">Escolhe uma área de trabalho do Hub de conteúdo.</SheetDescription>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
       </Sheet>
@@ -191,6 +215,9 @@ const Sidebar = React.forwardRef<
         )}
       />
       <div
+        data-sidebar-container="true"
+        aria-hidden={state === 'collapsed' && collapsible === 'offcanvas' ? true : undefined}
+        {...(state === 'collapsed' && collapsible === 'offcanvas' ? { inert: '' } : {})}
         className={cn(
           "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"

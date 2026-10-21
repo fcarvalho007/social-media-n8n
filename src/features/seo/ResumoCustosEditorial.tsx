@@ -1,0 +1,5 @@
+import { Link } from 'react-router-dom';
+import { useSeo } from './api';
+import { diaLisboa, totaisPesquisa, usd } from './precos';
+import { Button } from '@/components/ui/button';
+export function ResumoCustosEditorial(){const {data,error}=useSeo();const t=data?totaisPesquisa(data.pedidos,diaLisboa(new Date()).slice(0,7)):null;return <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-5"><div><h2 className="font-semibold">Pesquisa SEO e produção editorial · local</h2><p className="mt-1 text-sm text-muted-foreground">{error?'Não foi possível ler este registo local.':t?`${usd(t.custoMicro)} registados este mês · ${usd(t.reservaMicro)} reservados / por confirmar`:'A carregar o registo local…'}</p><p className="mt-1 text-xs text-muted-foreground">Registo separado em USD, com câmbio por pedido. Não está somado aos exemplos e custos do estúdio abaixo.</p></div><Button variant="outline" asChild className="min-h-11"><Link to="/artigos/custos">Abrir custos detalhados</Link></Button></section>;}

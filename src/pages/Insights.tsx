@@ -30,7 +30,7 @@ export default function Insights() {
     queryFn: async () => {
       const since = new Date(Date.now() - Number(period) * 24 * 60 * 60 * 1000).toISOString();
       const [{ data: insights }, { count }] = await Promise.all([
-        supabase.from('account_insights' as any).select('*').eq('user_id', user!.id).eq('never_show', false).gte('last_updated', since).order('confidence', { ascending: false }),
+        supabase.from('account_insights').select('*').eq('user_id', user!.id).eq('never_show', false).gte('last_updated', since).order('confidence', { ascending: false }),
         supabase.from('posts').select('id', { count: 'exact', head: true }).eq('user_id', user!.id).eq('status', 'published').not('performance_classification', 'is', null).gte('published_at', since),
       ]);
       return { insights: (insights ?? []) as unknown as AccountInsight[], classifiedCount: count ?? 0 };
@@ -66,10 +66,10 @@ export default function Insights() {
   if (!user) return null;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-3 sm:p-6">
+    <div className="hub-page">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-normal"><Lightbulb className="h-6 w-6 text-primary" />Os teus insights</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-normal"><Lightbulb className="h-6 w-6 text-primary" />Sugestões</h1>
           <p className="text-sm text-muted-foreground">Baseados em {data?.classifiedCount ?? 0} publicações dos últimos {period} dias.</p>
         </div>
         <Button type="button" variant="outline" className="gap-2" onClick={exportPdf} disabled={!filtered.length}><Download className="h-4 w-4" />Exportar relatório PDF</Button>

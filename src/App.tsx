@@ -9,19 +9,14 @@ import { ThemeProvider } from "next-themes";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PageLoading } from "@/components/PageLoading";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { ProjetoProviderPorConta } from "@/contexts/ProjetoContext";
 import type { ReactNode } from "react";
 
-function ProjetoDaConta({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  return <ProjetoProviderPorConta userId={user?.id ?? null}>{children}</ProjetoProviderPorConta>;
-}
 function DadosDaConta({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   return <AccountQueryProvider accountId={user?.id ?? null}>{children}</AccountQueryProvider>;
 }
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { MainLayout } from "@/components/MainLayout";
+const AuthenticatedLayout = lazy(() => import("@/components/AuthenticatedLayout"));
 const Pending = lazy(() => import("./pages/Pending"));
 const Review = lazy(() => import("./pages/Review"));
 const ReviewStory = lazy(() => import("./pages/ReviewStory"));
@@ -30,7 +25,7 @@ const ManualCreate = lazy(() => import("./pages/ManualCreate"));
 const Projects = lazy(() => import("./pages/Projects"));
 const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
 const Templates = lazy(() => import("./pages/Templates"));
-import Auth from "./pages/Auth";
+const Auth = lazy(() => import("./pages/Auth"));
 const Drafts = lazy(() => import("./pages/Drafts"));
 const Recovery = lazy(() => import("./pages/Recovery"));
 const PublicationHistory = lazy(() => import("./pages/PublicationHistory"));
@@ -49,7 +44,7 @@ const StoryLauncher = lazy(() => import("./pages/StoryLauncher"));
 const Estudio = lazy(() => import("./pages/Estudio"));
 const ConteudosSociais = lazy(() => import("./pages/ConteudosSociais"));
 const CarrosselCronica = lazy(() => import("./pages/CarrosselCronica"));
-import { FronteiraProjetoNewsletter } from "./features/newsletter/FronteiraProjeto";
+const FronteiraProjetoNewsletter = lazy(() => import("./features/newsletter/FronteiraProjeto").then(m => ({default:m.FronteiraProjetoNewsletter})));
 const Roteiros = lazy(() => import("./pages/Roteiros"));
 const Custos = lazy(() => import("./pages/Custos"));
 const NewsletterApp = lazy(() => import("./newsletter/NewsletterApp"));
@@ -58,6 +53,14 @@ const Carrosseis = lazy(() => import("./pages/Carrosseis"));
 const CarrosselNovo = lazy(() => import("./pages/CarrosselNovo"));
 const CarrosselTrabalho = lazy(() => import("./pages/CarrosselTrabalho"));
 const Artigos = lazy(() => import("./pages/Artigos"));
+import { SEO_DISPONIVEL } from "./features/seo/local";
+const PesquisaSeo = SEO_DISPONIVEL ? lazy(() => import("./pages/PesquisaSeo")) : () => null;
+const PlanoEditorial = SEO_DISPONIVEL ? lazy(() => import("./pages/PlanoEditorial")) : () => null;
+const AutomacaoEditorial = SEO_DISPONIVEL ? lazy(() => import("./pages/AutomacaoEditorial")) : () => null;
+const CustosEditorial = SEO_DISPONIVEL ? lazy(() => import("./pages/CustosEditorial")) : () => null;
+import { RedirecionarDocumentos } from "./components/CuradoriaNavegacao";
+import { DOCUMENTOS_DISPONIVEL } from "./features/documentos/modelo";
+const Documentos = DOCUMENTOS_DISPONIVEL ? lazy(() => import("./pages/Documentos")) : () => null;
 const SegurancaConta = lazy(() => import("./pages/SegurancaConta"));
 import { useParams } from "react-router-dom";
 const EdicoesArquivo = lazy(() => import("./pages/publico/EdicoesArquivo"));
@@ -93,7 +96,7 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <Routes>
-                <Route path="/auth" element={<Auth />} />
+                <Route path="/auth" element={<Suspense fallback={<PageLoading />}><Auth /></Suspense>} />
                 <Route path="/recovery/:token" element={<Suspense fallback={<PageLoading />}><Recovery /></Suspense>} />
                 <Route path="/stories/confirm" element={<Suspense fallback={<PageLoading />}><StoryConfirm /></Suspense>} />
                 {/* Public newsletter pages (anonymous; server returns published content only). */}
@@ -103,7 +106,7 @@ const App = () => (
                 <Route path="/brief/:slug" element={<Suspense fallback={<PageLoading />}><BriefPublico /></Suspense>} />
                 <Route path="/subscricao" element={<Suspense fallback={<PageLoading />}><SubscricaoPublica /></Suspense>} />
                 <Route path="/stories/launch/:id" element={<Suspense fallback={<PageLoading />}><StoryLauncher /></Suspense>} />
-                <Route element={<ProtectedRoute><ProjetoDaConta><MainLayout /></ProjetoDaConta></ProtectedRoute>}>
+                <Route element={<ProtectedRoute><Suspense fallback={<PageLoading />}><AuthenticatedLayout /></Suspense></ProtectedRoute>}>
                   <Route path="/" element={<Estudio />} />
                   <Route path="/redes-sociais" element={<Navigate to="/" replace />} />
                   <Route path="/dashboard" element={<Navigate to="/" replace />} />
@@ -118,6 +121,7 @@ const App = () => (
                   <Route path="/failed-publications" element={<Navigate to="/publication-history?tab=failed" replace />} />
                   <Route path="/publication-history" element={<PublicationHistory />} />
                   <Route path="/media-library" element={<MediaLibrary />} />
+                  {DOCUMENTOS_DISPONIVEL && <><Route path="/curadoria/documentos" element={<Documentos />} /><Route path="/documentos" element={<RedirecionarDocumentos />} /></>}
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
                   <Route path="/templates" element={<Templates />} />
@@ -144,6 +148,7 @@ const App = () => (
                   <Route path="/estudio/roteiros/:id" element={<Suspense fallback={<PageLoading />}><Roteiros /></Suspense>} />
                   <Route path="/curadoria" element={<Curadoria />} />
                   <Route path="/artigos" element={<Artigos />} />
+                  {SEO_DISPONIVEL && <><Route path="/artigos/pesquisa" element={<PesquisaSeo />} /><Route path="/artigos/plano" element={<PlanoEditorial />} /><Route path="/artigos/automacao" element={<AutomacaoEditorial />} /><Route path="/artigos/custos" element={<CustosEditorial />} /></>}
                   <Route path="/definicoes/seguranca" element={<SegurancaConta />} />
                   <Route path="/estudio/migracao" element={<Navigate to="/newsletter/migracao" replace />} />
                   <Route path="/estudio/ligacoes" element={<Suspense fallback={<PageLoading />}><NewsletterLigacoes /></Suspense>} />
