@@ -983,7 +983,9 @@ const Review = () => {
 
       if (error) {
         console.error('[Instagram] Edge function error:', error);
-        throw new Error(error.message || 'Failed to call publish proxy');
+        const ctx = (error as { context?: unknown }).context;
+        const corpo = ctx instanceof Response ? await ctx.clone().json().catch(() => null) : null;
+        throw new Error((corpo as { error?: { message?: string } } | null)?.error?.message || error.message || 'Falha ao contactar o serviço de publicação');
       }
 
       // ✅ Log resultado da publicação
