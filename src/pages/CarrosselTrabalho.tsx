@@ -490,7 +490,7 @@ export default function CarrosselTrabalho() {
         <EditorGrafico key={`${id}-${revisao}`} pacoteInicial={pacote} chaveLocal={chave} real projectId={dados!.trabalho.project_id}
           medidorSistema={medidor ?? undefined}
           titulo={<span className="truncate">{nome}</span>}
-          faixaTopo={
+          faixaTopo={<>
             <div className="flex items-center gap-2 border-b border-border px-2 py-1 sm:px-4">
               <Button asChild variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Voltar aos carrosséis"><Link to="/estudio/carrosseis"><ArrowLeft className="h-4 w-4" /></Link></Button>
               <div className="min-w-0 flex-1"><Etapas atual="composicao" disponiveis={disponiveis} onIr={irPara} compacto /></div>
@@ -506,7 +506,7 @@ export default function CarrosselTrabalho() {
                 <Button size="sm" className="h-9" onClick={acertarNarrativa}>Acertar com a Narrativa</Button>
               </div>
             )}
-          }
+          </>}
           estadoGravacao={<div className="flex items-center gap-2">{avisoBadge}<EstadoChip estado={estadoG} /></div>}
           menuExtra={<><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => abrirVersoes("A")}><History className="mr-2 h-4 w-4" />Versões da variante A</DropdownMenuItem><DropdownMenuItem onSelect={() => abrirVersoes("B")}><History className="mr-2 h-4 w-4" />Versões da variante B</DropdownMenuItem></>}
           pedirImagem={() => new Promise((res) => { resolverSeletor.current = res; setSeletor(true); })}
