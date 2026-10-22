@@ -204,6 +204,12 @@ export default function CarrosselTrabalho() {
     setRevisao((r) => r + 1);
   };
 
+  const usarReescrita = (sid: string, campo: "titulo" | "texto", valor: string) => {
+    const antes = pacote?.conteudo.slides.find((x) => x.id === sid)?.[campo] ?? "";
+    alterarSlide(sid, campo, valor);
+    toast("Proposta aplicada.", { action: { label: "Desfazer", onClick: () => alterarSlide(sid, campo, antes) } });
+  };
+
   /** Free, immediate: a new slide right after `apos`, kept in sync across narrative, A and B (undo in Composição). */
   const acrescentarSlide = (apos: string, modelo: "branco" | "texto") => {
     let novoIndice = -1;
