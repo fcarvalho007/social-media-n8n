@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, CloudOff, History, Loader2, Plus, RotateCw } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CloudOff, History, Loader2, Plus, RotateCw } from "lucide-react";
 import { apagarSlideLogico, inserirSlide, LIMITE_PAGINAS, moverSlideLogico } from "@/features/editor-grafico/estado";
 import { StoryboardOrdenavel } from "@/features/motor/StoryboardOrdenavel";
 import { BotaoReescrever } from "@/features/motor/ReescreverIA";
@@ -79,6 +79,7 @@ export default function CarrosselTrabalho() {
   const [vendoVersao, setVendoVersao] = useState<{ versao: number; pacote: PacoteProva; variante: Variante } | null>(null);
   const [polls, setPolls] = useState(0);
   const [slideSel, setSlideSel] = useState(0);
+  const [aba, setAba] = useState<"slide" | "legenda" | "alt" | "fontes">("slide");
   const passoDecidido = useRef(false);
   const assetsCache = useRef<Record<string, Asset>>({});
   const [assetsFalha, setAssetsFalha] = useState<string[]>([]);
@@ -621,7 +622,11 @@ export default function CarrosselTrabalho() {
                   </div>
                 ))}
                 {!psSel && <p className="text-xs text-muted-foreground">Slide acrescentado por ti: sem evidência § na fonte enquanto o texto for teu.</p>}
-                {slides.length > 1 && <Button variant="ghost" className="h-11 text-destructive" onClick={() => removerSlide(sSel.id)}>Remover slide</Button>}
+                <div className="flex flex-wrap items-center gap-1 border-t border-border pt-2">
+                  <Button variant="ghost" size="sm" className="h-11" disabled={iSel === 0} onClick={() => moverSlide(iSel, iSel - 1)}><ArrowUp className="mr-1.5 h-4 w-4" />Subir</Button>
+                  <Button variant="ghost" size="sm" className="h-11" disabled={iSel >= slides.length - 1} onClick={() => moverSlide(iSel, iSel + 1)}><ArrowDown className="mr-1.5 h-4 w-4" />Descer</Button>
+                  {slides.length > 1 && <Button variant="ghost" size="sm" className="ml-auto h-11 text-destructive" onClick={() => removerSlide(sSel.id)}>Remover slide</Button>}
+                </div>
                 <div className="flex justify-between gap-2 pt-1">
                   <Button variant="ghost" className="h-11" disabled={iSel === 0} onClick={() => setSlideSel(iSel - 1)}><ArrowLeft className="mr-1.5 h-4 w-4" />{iSel > 0 ? `Slide ${iSel}` : "Anterior"}</Button>
                   <Button variant="ghost" className="h-11" disabled={iSel >= slides.length - 1} onClick={() => setSlideSel(iSel + 1)}>{iSel < slides.length - 1 ? `Slide ${iSel + 2}` : "Seguinte"}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
