@@ -371,6 +371,13 @@ export async function lerEscolhaNarrativa(trabalhoId: string): Promise<"editoria
   return data?.framework === "editorial" || data?.framework === "pas" ? data.framework : null;
 }
 
+/** Read-only: a specific saved narrative version (used to restore the original Editorial text). */
+export async function lerPropostaVersao(propostaId: string, versao: number): Promise<unknown> {
+  const { data, error } = await supabase.from("mc_propostas_versoes").select("conteudo").eq("proposta_id", propostaId).eq("versao", versao).maybeSingle();
+  if (error || !data) throw new Error("Não foi possível ler a versão Editorial original.");
+  return data.conteudo;
+}
+
 export async function escolherNarrativa(trabalhoId: string, framework: "editorial" | "pas"): Promise<void> {
   const { error } = await supabase.rpc("mc_escolher_narrativa", { _trabalho_id: trabalhoId, _framework: framework });
   if (error) throw new Error(error.code === "42501" ? "Sem permissão para escolher esta narrativa." : error.code === "MC409" ? "A versão escolhida ainda não está disponível." : "Não foi possível guardar a escolha narrativa.");

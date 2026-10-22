@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { criarTrabalho, escolherNarrativa, lerEscolhaNarrativa, listarCandidatos, regenerarSlide, type CandidatoPool, type TrabalhoCompleto } from "@/services/motor";
+import { criarTrabalho, escolherNarrativa, lerEscolhaNarrativa, lerPropostaVersao, listarCandidatos, regenerarSlide, type CandidatoPool, type TrabalhoCompleto } from "@/services/motor";
 import { FRAMEWORKS, obterFramework, type Framework } from "../../../supabase/functions/_shared/motor/frameworks";
 import type { PropostaEditorial } from "../../../supabase/functions/_shared/motor/proposta";
 import { MODOS_REGEN, NOTA_MAX, type ModoRegen } from "../../../supabase/functions/_shared/motor/regenerar";
@@ -97,6 +97,10 @@ export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Pr
         const fundida = fundirSelecao(atual, [{ trabalho: candidato.trabalho, framework: "pas", conteudo: candidato.conteudo }], atual.slides.map(() => candidato.trabalho));
         if (fundida.ok === false) throw new Error(fundida.motivo);
         await aceitar(fundida.conteudo);
+      } else if (escolhaInicial === "pas") {
+        // Back to Editorial: restore the original Editorial text (version 1) as a new version; PAS stays in history.
+        const original = await lerPropostaVersao(dados.proposta.id, 1) as PropostaEditorial;
+        await aceitar({ ...original, slides: original.slides });
       }
       await escolherNarrativa(origem, framework);
       setEscolhaInicial(framework); setRever(false);
