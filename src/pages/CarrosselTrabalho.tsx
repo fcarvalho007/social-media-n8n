@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, CloudOff, History, Loader2, Plus, RotateCw } from "lucide-react";
-import { inserirSlide, LIMITE_PAGINAS } from "@/features/editor-grafico/estado";
+import { apagarSlide, inserirSlide, LIMITE_PAGINAS } from "@/features/editor-grafico/estado";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -213,6 +213,17 @@ export default function CarrosselTrabalho() {
     });
     setRevisao((r) => r + 1);
     setTimeout(() => { if (novoIndice >= 0) setSlideSel(novoIndice); }, 0);
+  };
+
+  const removerSlide = (sid: string) => {
+    const antes = pacote;
+    if (!antes || antes.conteudo.slides.length <= 1) return;
+    const i = antes.variantes.A.paginas.findIndex((pg) => pg.slide === sid);
+    if (i < 0) return;
+    setPacote(apagarSlide(antes, "A", i));
+    setSlideSel((x) => Math.max(0, x - 1));
+    setRevisao((r) => r + 1);
+    toast("Slide removido.", { action: { label: "Desfazer", onClick: () => { setPacote(antes); setRevisao((r) => r + 1); } } });
   };
 
   // ---------- framework proposal accept (explicit; composition kept, new version) ----------
@@ -491,7 +502,7 @@ export default function CarrosselTrabalho() {
                           sel ? "border-primary bg-primary/10" : "border-input hover:border-muted-foreground")}>
                         <span className="w-5 shrink-0 text-xs tabular-nums text-muted-foreground">{i + 1}</span>
                         <span className="min-w-0">
-                          <span className="block text-xs text-muted-foreground">{ps ? PAPEL[ps.papel] ?? ps.papel : "Slide"}</span>
+                          <span className="block text-xs text-muted-foreground">{ps ? PAPEL[ps.papel] ?? ps.papel : <span className="font-medium text-primary">Novo</span>}</span>
                           <span className="block truncate text-sm">{s.titulo || "Sem título"}</span>
                         </span>
                       </button>
@@ -531,6 +542,8 @@ export default function CarrosselTrabalho() {
                     </div>
                   </details>
                 )}
+                {!psSel && <p className="text-xs text-muted-foreground">Slide acrescentado por ti: sem evidência § na fonte enquanto o texto for teu.</p>}
+                {slides.length > 1 && <Button variant="ghost" className="h-11 text-destructive" onClick={() => removerSlide(sSel.id)}>Remover slide</Button>}
                 <div className="flex justify-between gap-2 pt-1">
                   <Button variant="ghost" className="h-11" disabled={iSel === 0} onClick={() => setSlideSel(iSel - 1)}><ArrowLeft className="mr-1.5 h-4 w-4" />{iSel > 0 ? `Slide ${iSel}` : "Anterior"}</Button>
                   <Button variant="ghost" className="h-11" disabled={iSel >= slides.length - 1} onClick={() => setSlideSel(iSel + 1)}>{iSel < slides.length - 1 ? `Slide ${iSel + 2}` : "Seguinte"}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
