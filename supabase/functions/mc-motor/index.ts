@@ -28,6 +28,8 @@ import { promptsPropostaImagemIA } from "../_shared/motor/propostaImagemIA.ts";
 import { validarPacote, type PacoteProva, type Variante } from "../_shared/documento-grafico/nucleo.ts";
 import { NOTA_MAX, obterModoRegen } from "../_shared/motor/regenerar.ts";
 import { avaliarFonte, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO, MODELO_IA, normalizarFonte } from "../_shared/motor/proposta.ts";
+import { LIMITE_CAMPO, lerAlternativas, promptReescrita } from "../_shared/motor/reescrever.ts";
+import { ErroDeepSeek, textoDeepSeek } from "../_shared/deepseek-direto.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -284,6 +286,35 @@ Deno.serve(async (req) => {
     const linha = (data as Array<{ trabalho_id: string }>)[0];
     emSegundoPlano(corridaWorker());
     return json({ ok: true, trabalho_id: linha.trabalho_id, simulado: demo });
+  }
+
+  if (acao === "reescrever_texto") {
+    // One short paid DeepSeek call returning 2 alternatives; never writes the carousel text.
+    const projectId = String(body.project_id ?? "");
+    const campo = body.campo === "titulo" ? "titulo" : body.campo === "texto" ? "texto" : null;
+    const texto = typeof body.texto === "string" ? body.texto.trim() : "";
+    if (!UUID.test(projectId) || !campo || !texto || texto.length > LIMITE_CAMPO[campo]) return json({ error: "Pedido inválido." }, 400);
+    if (body.confirmar !== true) return json({ error: "Reescrever é um pedido pago: confirma antes de continuar." }, 400);
+    const { data: pode } = await user.rpc("mc_pode_escrever", { _project_id: projectId });
+    if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
+    const sb = admin();
+    const { data: o } = await sb.from("mc_orcamentos").select("max_chamadas_dia").eq("project_id", projectId).maybeSingle();
+    if (!o || o.max_chamadas_dia < 1) return json({ error: "A IA está desligada neste projeto. Define um limite diário em «Limites da IA»." }, 409);
+    const desde = new Date(); desde.setUTCHours(0, 0, 0, 0);
+    const { count } = await sb.from("custos_ia").select("id", { count: "exact", head: true }).eq("project_id", projectId).eq("acao", "reescrever texto").gte("criado_em", desde.toISOString());
+    if ((count ?? 0) >= o.max_chamadas_dia * 5) return json({ error: "Limite diário de reescritas atingido. Tenta amanhã ou edita à mão." }, 429);
+    const s = (k: string, n: number) => (typeof body[k] === "string" ? String(body[k]).slice(0, n) : "");
+    const prompt = promptReescrita({ campo, texto, papel: s("papel", 40), tom: s("tom", 300), objetivo: s("objetivo", 200), publico: s("publico", 200), vizinhos: s("vizinhos", 1200) });
+    let r: Awaited<ReturnType<typeof textoDeepSeek>>;
+    try { r = await textoDeepSeek({ ...prompt, json: true, maxTokens: 1200 }); }
+    catch (e) {
+      if (e instanceof ErroDeepSeek) return json({ error: e.message }, [402, 429, 503].includes(e.status) ? e.status : 502);
+      return json({ error: "Não foi possível pedir a reescrita. O texto atual ficou igual." }, 502);
+    }
+    await sb.from("custos_ia").insert({ fornecedor: "deepseek", modelo: r.modelo, acao: "reescrever texto", estado: "concluido", project_id: projectId,
+      unidades: { tokens: r.tokens }, custo_eur: r.tokens == null ? null : Math.round(r.tokens * 1.2e-6 * 0.86 * 1e6) / 1e6, custo_origem: r.tokens == null ? "desconhecido" : "estimado" });
+    const { alternativas, descartadas } = lerAlternativas(r.texto, texto, campo);
+    return json({ ok: true, alternativas, descartadas });
   }
 
   if (acao === "fotos_pesquisar" || acao === "unsplash_usar") {

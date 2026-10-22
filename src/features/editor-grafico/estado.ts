@@ -364,6 +364,37 @@ export function apagarSlide(p: PacoteProva, variante: Variante, indice: number):
   return { ...p, conteudo: { ...p.conteudo, slides: p.conteudo.slides.filter((x) => x.id !== sid) }, variantes };
 }
 
+/** Narrative delete: removes the logical slide and every page of it in A and B (never leaves a variant empty). */
+export function apagarSlideLogico(p: PacoteProva, sid: string): PacoteProva {
+  if (p.conteudo.slides.length <= 1 || !p.conteudo.slides.some((s) => s.id === sid)) return p;
+  const variantes = { ...p.variantes };
+  for (const v of ["A", "B"] as Variante[]) {
+    const restantes = p.variantes[v].paginas.filter((pg) => slideId(pg) !== sid);
+    if (restantes.length < 1) return p;
+    variantes[v] = { ...p.variantes[v], paginas: restantes };
+  }
+  return { ...p, conteudo: { ...p.conteudo, slides: p.conteudo.slides.filter((x) => x.id !== sid) }, variantes };
+}
+
+/** Narrative reorder by narrative index; A and B pages follow the same slide order (pages of one slide stay together). */
+export function moverSlideLogico(p: PacoteProva, de: number, para: number): PacoteProva {
+  const slides = [...p.conteudo.slides];
+  if (de === para || de < 0 || para < 0 || de >= slides.length || para >= slides.length) return p;
+  const [m] = slides.splice(de, 1);
+  slides.splice(para, 0, m);
+  const ordem = new Map(slides.map((s, i) => [s.id, i]));
+  const ordenar = (paginas: Pagina[]) => {
+    let ult = -1;
+    // Pages without a slide id keep the position of the previous identified page.
+    return paginas.map((pg, i) => { const o = ordem.get(slideId(pg) ?? ""); if (o !== undefined) ult = o; return { pg, i, o: o ?? ult }; })
+      .sort((a, b) => a.o - b.o || a.i - b.i).map(({ pg }) => pg);
+  };
+  return { ...p, conteudo: { ...p.conteudo, slides }, variantes: {
+    A: { ...p.variantes.A, paginas: ordenar(p.variantes.A.paginas) },
+    B: { ...p.variantes.B, paginas: ordenar(p.variantes.B.paginas) },
+  } };
+}
+
 function topoZ(p: Pagina): number { return p.camadas.length ? Math.max(...p.camadas.map((x) => x.z)) : 0; }
 
 function animacaoDa(asset: Asset): { animacao_id?: string; duracao_ms?: number } {

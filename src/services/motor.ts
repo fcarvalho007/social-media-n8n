@@ -342,6 +342,10 @@ export async function lerEstadosPublicacao(trabalhoIds: string[]): Promise<{
 export const regenerarSlide = (n: { project_id: string; origem_trabalho: string; base_versao: number; slide_id: string; modo: string; nota: string }) =>
   invocar<{ trabalho_id: string; simulado: boolean }>({ acao: "regenerar_slide", confirmar: true, ...n });
 
+/** Paid (after explicit confirmation): 2 alternative rewrites of one slide field; nothing is saved. */
+export const reescreverTexto = (n: { project_id: string; campo: "titulo" | "texto"; texto: string; papel: string; tom: string; objetivo: string; vizinhos: string }) =>
+  invocar<{ ok: true; alternativas: string[]; descartadas: number }>({ acao: "reescrever_texto", confirmar: true, ...n });
+
 export interface CandidatoPool {
   /** Single-slide regeneration: slide id + mode; null for whole-framework proposals. */
   escopo: { slide_id: string; modo: string } | null;

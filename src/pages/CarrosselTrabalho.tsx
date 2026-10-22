@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, CloudOff, History, Loader2, Plus, RotateCw } from "lucide-react";
-import { apagarSlide, inserirSlide, LIMITE_PAGINAS } from "@/features/editor-grafico/estado";
+import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, CloudOff, History, Loader2, Plus, RotateCw } from "lucide-react";
+import { apagarSlideLogico, inserirSlide, LIMITE_PAGINAS, moverSlideLogico } from "@/features/editor-grafico/estado";
+import { StoryboardOrdenavel } from "@/features/motor/StoryboardOrdenavel";
+import { BotaoReescrever } from "@/features/motor/ReescreverIA";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,7 +29,7 @@ import { RevisaoExportacao } from "@/features/motor/RevisaoExportacao";
 import { SeletorImagens } from "@/features/motor/SeletorImagens";
 import { assetsReferidos } from "../../supabase/functions/_shared/motor/fontes";
 import type { Asset } from "../../supabase/functions/_shared/documento-grafico/nucleo";
-import { BarraAcoes, Cabecalho, Etapas, Grupo, PAPEL, Quadro, type Etapa } from "@/features/motor/Estudio";
+import { BarraAcoes, Cabecalho, Etapas, PAPEL, Quadro, type Etapa } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
 import { deveRecarregarRevisao } from "@/features/motor/revisaoRecarga";
 import { consultarLeitura, type Conselho } from "../../supabase/functions/_shared/motor/leitura";
@@ -77,6 +79,7 @@ export default function CarrosselTrabalho() {
   const [vendoVersao, setVendoVersao] = useState<{ versao: number; pacote: PacoteProva; variante: Variante } | null>(null);
   const [polls, setPolls] = useState(0);
   const [slideSel, setSlideSel] = useState(0);
+  const [aba, setAba] = useState<"slide" | "legenda" | "alt" | "fontes">("slide");
   const passoDecidido = useRef(false);
   const assetsCache = useRef<Record<string, Asset>>({});
   const [assetsFalha, setAssetsFalha] = useState<string[]>([]);
@@ -201,6 +204,12 @@ export default function CarrosselTrabalho() {
     setRevisao((r) => r + 1);
   };
 
+  const usarReescrita = (sid: string, campo: "titulo" | "texto", valor: string) => {
+    const antes = pacote?.conteudo.slides.find((x) => x.id === sid)?.[campo] ?? "";
+    alterarSlide(sid, campo, valor);
+    toast("Proposta aplicada.", { action: { label: "Desfazer", onClick: () => alterarSlide(sid, campo, antes) } });
+  };
+
   /** Free, immediate: a new slide right after `apos`, kept in sync across narrative, A and B (undo in Composição). */
   const acrescentarSlide = (apos: string, modelo: "branco" | "texto") => {
     let novoIndice = -1;
@@ -236,13 +245,26 @@ export default function CarrosselTrabalho() {
 
   const removerSlide = (sid: string) => {
     const antes = pacote;
-    if (!antes || antes.conteudo.slides.length <= 1) return;
-    const i = antes.variantes.A.paginas.findIndex((pg) => pg.slide === sid);
-    if (i < 0) return;
-    setPacote(apagarSlide(antes, "A", i));
-    setSlideSel((x) => Math.max(0, x - 1));
+    if (!antes) return;
+    const i = antes.conteudo.slides.findIndex((s) => s.id === sid);
+    const depois = apagarSlideLogico(antes, sid);
+    if (i < 0 || depois === antes) { toast.error("Não foi possível remover este slide."); return; }
+    setPacote(depois);
+    setSlideSel(Math.min(i, depois.conteudo.slides.length - 1));
     setRevisao((r) => r + 1);
-    toast("Slide removido.", { action: { label: "Desfazer", onClick: () => { setPacote(antes); setRevisao((r) => r + 1); } } });
+    toast("Slide removido.", { action: { label: "Desfazer", onClick: () => { setPacote(antes); setSlideSel(i); setRevisao((r) => r + 1); } } });
+  };
+
+  /** Free: reorders the narrative; A and B follow. */
+  const moverSlide = (de: number, para: number) => {
+    const antes = pacote;
+    if (!antes) return;
+    const depois = moverSlideLogico(antes, de, para);
+    if (depois === antes) return;
+    setPacote(depois);
+    setSlideSel(para);
+    setRevisao((r) => r + 1);
+    toast(`Slide movido para a posição ${para + 1}.`, { action: { label: "Desfazer", onClick: () => { setPacote(antes); setSlideSel(de); setRevisao((r) => r + 1); } } });
   };
 
   // ---------- framework proposal accept (explicit; composition kept, new version) ----------
@@ -531,52 +553,60 @@ export default function CarrosselTrabalho() {
           </section>
         )}
 
-        {passo === "narrativa" && pronto && prop && pacote && sSel && (
+        {passo === "narrativa" && pronto && prop && pacote && sSel && (() => {
+          const fase1 = !narrativaEscolhida;
+          const ctxR = { project_id: dados.trabalho.project_id, papel: psSel?.papel ?? "desenvolvimento", tom: gravado!.conteudo.tom ?? "", objetivo: gravado!.conteudo.objetivo ?? "",
+            vizinhos: [slides[iSel - 1], slides[iSel + 1]].filter(Boolean).map((x) => `${x!.titulo} — ${x!.texto}`).join("\n").slice(0, 1200) };
+          return (
           <section className="mc-entrar space-y-6" aria-labelledby="t-narr">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h1 id="t-narr" className="text-3xl font-semibold tracking-tight sm:text-4xl">Narrativa</h1>
-              <p className="text-sm text-muted-foreground">Proposta v{gravado!.propostaVersao} · o texto é o mesmo nas variantes A e B · cada alteração cria nova versão</p>
+              <p className="text-sm text-muted-foreground">{fase1 ? "Passo 1 de 2 · escolhe a abordagem; depois revês slide a slide" : `Proposta v${gravado!.propostaVersao} · o texto é o mesmo nas variantes A e B`}</p>
             </div>
-            <PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} onEscolhaInicial={aoEscolhaInicial} />
-            <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-              <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible" aria-label="Storyboard">
-                {slides.map((s, i) => {
-                  const ps = prop.slides.find((x) => x.id === s.id);
-                  const sel = i === iSel;
-                  return (
-                    <li key={s.id} className="shrink-0 lg:shrink">
-                      <button type="button" aria-current={sel ? "true" : undefined} onClick={() => setSlideSel(i)}
-                        className={cn("mc-trans flex min-h-14 w-44 items-start gap-3 rounded-[var(--mc-r-md)] border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:w-full",
-                          sel ? "border-primary bg-primary/10" : "border-input hover:border-muted-foreground")}>
-                        <span className="w-5 shrink-0 text-xs tabular-nums text-muted-foreground">{i + 1}</span>
-                        <span className="min-w-0">
-                          <span className="block text-xs text-muted-foreground">{ps ? PAPEL[ps.papel] ?? ps.papel : <span className="font-medium text-primary">Novo</span>}</span>
-                          <span className="block truncate text-sm">{s.titulo || "Sem título"}</span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
+            {fase1
+              ? <PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} onEscolhaInicial={aoEscolhaInicial} />
+              : (
+                <details className="group rounded-[var(--mc-r-lg)] border border-border bg-card">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                    <span className="font-medium">Abordagem e outras estruturas</span>
+                    <span className="text-xs text-muted-foreground">mudar a abordagem ou comparar propostas</span>
+                    <span className="ml-auto text-muted-foreground transition-transform group-open:rotate-45 motion-reduce:transition-none" aria-hidden>+</span>
+                  </summary>
+                  <div className="border-t border-border p-2"><PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} onEscolhaInicial={aoEscolhaInicial} /></div>
+                </details>
+              )}
+            {!fase1 && <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+              <StoryboardOrdenavel iSel={iSel} onSel={(i) => { setSlideSel(i); setAba("slide"); }} onMover={moverSlide}
+                itens={slides.map((s) => { const ps = prop.slides.find((x) => x.id === s.id); return { id: s.id, titulo: s.titulo, papel: ps ? PAPEL[ps.papel] ?? ps.papel : <span className="font-medium text-primary">Novo</span> }; })}
+                rodape={
                 <li className="shrink-0 lg:shrink">
                   <details className="group w-44 rounded-[var(--mc-r-md)] border border-dashed border-input lg:w-full">
                     <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium [&::-webkit-details-marker]:hidden"><Plus className="h-4 w-4" aria-hidden />Acrescentar slide</summary>
                     <div className="flex flex-col gap-1 border-t border-border p-2">
-                      <p className="px-1 text-xs text-muted-foreground">Entra a seguir ao slide {iSel + 1}. Gratuito.</p>
+                      <p className="px-1 text-xs text-muted-foreground">Entra a seguir ao slide {iSel + 1}. Depois podes arrastá-lo. Gratuito.</p>
                       <Button variant="ghost" className="h-11 justify-start" disabled={slides.length >= LIMITE_PAGINAS} onClick={(e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; acrescentarSlide(sSel.id, "texto"); }}>Com título e texto</Button>
                       <Button variant="ghost" className="h-11 justify-start" disabled={slides.length >= LIMITE_PAGINAS} onClick={(e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; acrescentarSlide(sSel.id, "branco"); }}>Em branco</Button>
                     </div>
                   </details>
-                </li>
-              </ol>
-              <div key={sSel.id} className="mc-entrar space-y-4 rounded-[var(--mc-r-lg)] border border-border bg-card p-4 sm:p-6">
-                <p className="text-xs text-muted-foreground">Slide {iSel + 1} de {slides.length} · {psSel ? PAPEL[psSel.papel] ?? psSel.papel : ""}</p>
+                </li>} />
+              <div className="min-w-0 space-y-3">
+                <div role="tablist" aria-label="Partes da narrativa" className="flex flex-wrap gap-1 border-b border-border">
+                  {([["slide", `Slide ${iSel + 1}`], ["legenda", "Legenda"], ["alt", "Texto alternativo"], ["fontes", "Fontes"]] as const).map(([k, n]) => (
+                    <button key={k} type="button" role="tab" aria-selected={aba === k} onClick={() => setAba(k)}
+                      className={cn("mc-trans -mb-px min-h-11 border-b-2 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", aba === k ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>{n}</button>
+                  ))}
+                </div>
+              {aba === "slide" && <div key={sSel.id} className="mc-entrar space-y-4 rounded-[var(--mc-r-lg)] border border-border bg-card p-4 sm:p-6">
+                <p className="text-xs text-muted-foreground">Slide {iSel + 1} de {slides.length} · {psSel ? PAPEL[psSel.papel] ?? psSel.papel : "Novo"}</p>
                 <div className="space-y-1">
                   <Label htmlFor="s-titulo">Título</Label>
                   <Input id="s-titulo" className="h-11 text-base font-medium" value={sSel.titulo} maxLength={400} onChange={(e) => alterarSlide(sSel.id, "titulo", e.target.value)} />
+                  <BotaoReescrever key={`t-${sSel.id}`} campo="titulo" valor={sSel.titulo} contexto={ctxR} onUsar={(v) => usarReescrita(sSel.id, "titulo", v)} />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="s-texto">Texto</Label>
                   <Textarea id="s-texto" rows={5} className="text-base leading-relaxed" value={sSel.texto} maxLength={3000} onChange={(e) => alterarSlide(sSel.id, "texto", e.target.value)} />
+                  <BotaoReescrever key={`x-${sSel.id}`} campo="texto" valor={sSel.texto} contexto={ctxR} onUsar={(v) => usarReescrita(sSel.id, "texto", v)} />
                 </div>
                 {psSel && psSel.fontes.length > 0 && (
                   <details className="group border-t border-border pt-2">
@@ -598,34 +628,37 @@ export default function CarrosselTrabalho() {
                   </div>
                 ))}
                 {!psSel && <p className="text-xs text-muted-foreground">Slide acrescentado por ti: sem evidência § na fonte enquanto o texto for teu.</p>}
-                {slides.length > 1 && <Button variant="ghost" className="h-11 text-destructive" onClick={() => removerSlide(sSel.id)}>Remover slide</Button>}
+                <div className="flex flex-wrap items-center gap-1 border-t border-border pt-2">
+                  <Button variant="ghost" size="sm" className="h-11" disabled={iSel === 0} onClick={() => moverSlide(iSel, iSel - 1)}><ArrowUp className="mr-1.5 h-4 w-4" />Subir</Button>
+                  <Button variant="ghost" size="sm" className="h-11" disabled={iSel >= slides.length - 1} onClick={() => moverSlide(iSel, iSel + 1)}><ArrowDown className="mr-1.5 h-4 w-4" />Descer</Button>
+                  {slides.length > 1 && <Button variant="ghost" size="sm" className="ml-auto h-11 text-destructive" onClick={() => removerSlide(sSel.id)}>Remover slide</Button>}
+                </div>
                 <div className="flex justify-between gap-2 pt-1">
                   <Button variant="ghost" className="h-11" disabled={iSel === 0} onClick={() => setSlideSel(iSel - 1)}><ArrowLeft className="mr-1.5 h-4 w-4" />{iSel > 0 ? `Slide ${iSel}` : "Anterior"}</Button>
                   <Button variant="ghost" className="h-11" disabled={iSel >= slides.length - 1} onClick={() => setSlideSel(iSel + 1)}>{iSel < slides.length - 1 ? `Slide ${iSel + 2}` : "Seguinte"}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
                 </div>
-              </div>
-            </div>
-            <div className="lg:ml-[284px]">
-              <Grupo titulo="Legenda" resumo={extras.legenda.slice(0, 80)}>
+              </div>}
+              {aba === "legenda" && <div className="rounded-[var(--mc-r-lg)] border border-border bg-card p-4">
                 <Label htmlFor="legenda" className="sr-only">Legenda</Label>
-                <Textarea id="legenda" rows={5} className="text-base" maxLength={2200} value={extras.legenda} onChange={(e) => setExtras((x) => ({ ...x, legenda: e.target.value }))} />
-              </Grupo>
-              <Grupo titulo="Texto alternativo" resumo={`${extras.alt.filter(Boolean).length} de ${extras.alt.length} preenchidos`}>
-                <div className="space-y-2">
-                  {extras.alt.map((a, i) => (
-                    <Input key={i} aria-label={`Texto alternativo do slide ${i + 1}`} className="h-11" maxLength={250} value={a}
-                      onChange={(e) => setExtras((x) => ({ ...x, alt: x.alt.map((y, j) => (j === i ? e.target.value : y)) }))} />
-                  ))}
-                </div>
-              </Grupo>
-              <Grupo titulo="Fontes citadas" resumo={prop.citacao.titulo ?? `${fonte.paragrafos.length} parágrafos`}>
+                <Textarea id="legenda" rows={6} className="text-base" maxLength={2200} value={extras.legenda} onChange={(e) => setExtras((x) => ({ ...x, legenda: e.target.value }))} />
+              </div>}
+              {aba === "alt" && <div className="space-y-2 rounded-[var(--mc-r-lg)] border border-border bg-card p-4">
+                <p className="text-xs text-muted-foreground">{extras.alt.filter(Boolean).length} de {extras.alt.length} preenchidos</p>
+                {extras.alt.map((a, i) => (
+                  <Input key={i} aria-label={`Texto alternativo do slide ${i + 1}`} className="h-11" maxLength={250} value={a}
+                    onChange={(e) => setExtras((x) => ({ ...x, alt: x.alt.map((y, j) => (j === i ? e.target.value : y)) }))} />
+                ))}
+              </div>}
+              {aba === "fontes" && <div className="rounded-[var(--mc-r-lg)] border border-border bg-card p-4">
                 <p className="text-sm text-muted-foreground">{prop.citacao.titulo ?? "Texto colado"}{prop.citacao.url && <> · <a className="underline" href={prop.citacao.url} target="_blank" rel="noreferrer">{prop.citacao.url}</a></>}</p>
                 <p className="mt-1 text-xs text-muted-foreground">Impressão digital {dados.fonte.hash.slice(0, 12)}</p>
-              </Grupo>
+              </div>}
               {totalAvisos > 0 && <div className="pt-3 sm:hidden">{avisoBadge}</div>}
-            </div>
+              </div>
+            </div>}
           </section>
-        )}
+          );
+        })()}
 
         {passo === "revisao" && pronto && pacote && (
           <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} irPara={irPara} />
