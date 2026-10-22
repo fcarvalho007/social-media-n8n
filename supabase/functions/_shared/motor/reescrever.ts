@@ -57,5 +57,5 @@ export function lerAlternativas(bruto: string, original: string, campo: CampoRee
     alternativas.push(t);
     if (alternativas.length === 2) break;
   }
-  return { alternativas, descartadas: descartadas + Math.max(0, 2 - alternativas.length - descartadas) * 0 };
+  return { alternativas, descartadas };
 }
