@@ -157,8 +157,10 @@ export default function CarrosselNovo() {
   const fonte = useMemo(() => normalizarFonte(textoFonte), [textoFonte]);
   const palavras = useMemo(() => (texto.trim() ? texto.trim().split(/\s+/).length : 0), [texto]);
   const av = useMemo(() => avaliarFonte(fonte), [fonte]);
-  const porQuantidade = slidesPorQuantidade(av.slidesSugeridos, av.slidesMax || LIMITES_FONTE.maxSlides);
-  const nSlides = formato !== "carrossel" ? 1 : Math.min(av.slidesMax || LIMITES_FONTE.maxSlides, Math.max(2, slides ?? porQuantidade[quantidade]));
+  // Owner default: always 10 slides (8 as the usual alternative); the source may cap it, shown explicitly.
+  const pedidoSlides = slides ?? SLIDES_PREDEFINIDOS;
+  const nSlides = formato !== "carrossel" ? 1 : Math.min(av.slidesMax || LIMITES_FONTE.maxSlides, Math.max(2, pedidoSlides));
+  const fonteCurta = av.ok && !!av.slidesMax && av.slidesMax < pedidoSlides;
   const nomeProjeto = projetos.find((p) => p.id === projeto)?.name;
   const mostrarErro = tocado && !!texto.trim() && !av.ok;
   const semTexto = tocado && !texto.trim();
@@ -560,7 +562,8 @@ export default function CarrosselNovo() {
                 {comIa && <Chips titulo="Intenção editorial" itens={INTENCOES.map((x) => ({ id: x.id, nome: x.nome }))} ativo={(id) => intencao === id} onEscolher={(id) => setIntencao(intencao === id ? null : id as Intencao)} />}
                 {comIa && intencao && <p className="-mt-1 text-xs text-muted-foreground">{INTENCOES.find((x) => x.id === intencao)!.desc} Define para que serve o conteúdo; a estrutura e o modelo visual escolhem-se à parte. Só usa o que a fonte documenta.</p>}
                 {comIa && <Chips titulo="Apelo final" itens={CTAS.map((c) => ({ id: c.id, nome: c.nome }))} ativo={(id) => cta === id} onEscolher={(id) => setCta(cta === id ? null : id as Cta)} />}
-                {formato === "carrossel" && <Chips titulo="Extensão" itens={QUANTIDADES.map((q) => ({ id: q.id, nome: `${q.nome} · ${porQuantidade[q.id]} slides` }))} ativo={(id) => slides == null && quantidade === id} onEscolher={(id) => { setQuantidade(id as Quantidade); setSlides(null); }} />}
+                {formato === "carrossel" && <Chips titulo="Número de slides" itens={[{ id: "10", nome: "10 slides" }, { id: "8", nome: "8 slides" }]} ativo={(id) => pedidoSlides === Number(id)} onEscolher={(id) => setSlides(Number(id))} />}
+                {formato === "carrossel" && fonteCurta && <p role="status" className="-mt-1 text-sm text-destructive">Esta fonte só tem {formatarNumero(av.caracteres)} caracteres: dá no máximo {av.slidesMax} slides. Para chegar a {pedidoSlides}, cola o texto completo do artigo.</p>}
               </div>
             </div>
 
