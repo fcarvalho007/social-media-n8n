@@ -217,6 +217,7 @@ export default function CarrosselTrabalho() {
   };
 
   /** Free: splits the slide text in two, the second half goes to a new slide right after (undo available). */
+  const [divisao, setDivisao] = useState<{ sid: string; partes: [string, string] } | null>(null);
   const dividirSlide = (sid: string) => {
     const antes = pacote;
     const s0 = antes?.conteudo.slides.find((x) => x.id === sid);
@@ -334,7 +335,9 @@ export default function CarrosselTrabalho() {
   const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "composicao", "revisao"] : ["fonte"];
   const irPara = (p: Etapa) => { setPasso(p); if (p === "revisao" && estadoG === "guardado") void carregar(); };
 
-  const totalAvisos = avisos.length + conselhos.length;
+  const papelDe = new Map((prop?.slides ?? []).map((x) => [x.id, x.papel]));
+  const cargas = (pacote?.conteudo.slides ?? []).flatMap((x, i) => avisosCarga([{ id: x.id, papel: papelDe.get(x.id) ?? "desenvolvimento", titulo: x.titulo, texto: x.texto }]).map((a) => ({ ...a, i })));
+  const totalAvisos = avisos.length + conselhos.length + cargas.length;
   const avisoBadge = totalAvisos > 0 && (
     <Popover>
       <PopoverTrigger asChild>
@@ -346,7 +349,14 @@ export default function CarrosselTrabalho() {
           <ul className="space-y-1 text-xs">{avisos.map((a) => <li key={a}>{a}</li>)}</ul>
           <p className="mt-2 text-xs text-muted-foreground">O texto não é reduzido automaticamente. Encurta-o na narrativa ou aumenta a caixa na composição.</p>
         </>}
-        {conselhos.length > 0 && <div className={cn(avisos.length > 0 && "mt-3 border-t border-border pt-3")}>
+        {cargas.length > 0 && <div className={cn(avisos.length > 0 && "mt-3 border-t border-border pt-3")}>
+          <p className="mb-1 font-medium">Carga de leitura</p>
+          <ul className="space-y-2 text-xs">{cargas.map((c) => (
+            <li key={c.slide}><span className="font-medium">Slide {c.i + 1}:</span> {c.motivo}
+              <button type="button" className="ml-1 inline-flex min-h-8 items-center underline" onClick={() => { setSlideSel(c.i); setPasso("narrativa"); }}>Abrir slide {c.i + 1}</button>
+            </li>))}</ul>
+        </div>}
+        {conselhos.length > 0 && <div className={cn((avisos.length > 0 || cargas.length > 0) && "mt-3 border-t border-border pt-3")}>
           <p className="mb-1 font-medium">Leitura</p>
           <p className="mb-2 text-xs text-muted-foreground">Orientação editorial para leitura no telemóvel, calculada sem IA. Não é uma previsão de desempenho.</p>
           <ul className="max-h-64 space-y-2 overflow-y-auto text-xs">{conselhos.map((c) => (
@@ -362,6 +372,26 @@ export default function CarrosselTrabalho() {
 
   const dialogos = (
     <>
+      <Dialog open={!!divisao} onOpenChange={(o) => { if (!o) setDivisao(null); }}>
+        <DialogContent className="mc-estudio max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Dividir em dois slides</DialogTitle>
+            <DialogDescription>O texto não é reescrito: só passa a ficar repartido assim. Podes desfazer.</DialogDescription>
+          </DialogHeader>
+          {divisao && <div className="space-y-3 text-sm">
+            {divisao.partes.map((t, k) => (
+              <div key={k} className="rounded-[var(--mc-r-md)] border border-border p-3">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">{k === 0 ? "Fica neste slide" : "Vai para o slide novo, com o título «(cont.)»"}</p>
+                <p className="max-h-40 overflow-y-auto whitespace-pre-line leading-relaxed">{t}</p>
+              </div>
+            ))}
+          </div>}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="h-11" onClick={() => setDivisao(null)}>Cancelar</Button>
+            <Button className="h-11" onClick={() => { if (divisao) dividirSlide(divisao.sid); setDivisao(null); }}>Dividir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!conflito} onOpenChange={() => undefined}>
         <DialogContent className="mc-estudio max-h-[90vh] max-w-3xl overflow-y-auto" onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
@@ -564,7 +594,7 @@ export default function CarrosselTrabalho() {
                   <div key={a.slide} role="status" className="flex flex-wrap items-center gap-2 rounded-[var(--mc-r-md)] border border-border bg-muted/40 p-3 text-sm">
                     <AlertTriangle className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                     <span className="min-w-0 flex-1">{a.motivo}</span>
-                    {dividirTextoSlide(sSel.texto) && slides.length < LIMITE_PAGINAS && <Button size="sm" variant="outline" onClick={() => dividirSlide(sSel.id)}>Dividir em dois slides</Button>}
+                    {dividirTextoSlide(sSel.texto) && slides.length < LIMITE_PAGINAS && <Button size="sm" variant="outline" onClick={() => { const pt = dividirTextoSlide(sSel.texto); if (pt) setDivisao({ sid: sSel.id, partes: pt }); }}>Dividir em dois slides</Button>}
                   </div>
                 ))}
                 {!psSel && <p className="text-xs text-muted-foreground">Slide acrescentado por ti: sem evidência § na fonte enquanto o texto for teu.</p>}

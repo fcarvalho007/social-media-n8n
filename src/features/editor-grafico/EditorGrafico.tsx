@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { EscolhaCapa } from "@/features/motor/EscolhaCapa";
+import { SugestaoFotos } from "@/features/motor/SugestaoFotos";
 import { toast } from "sonner";
 import {
   AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, BringToFront, ChevronsDown, ChevronsUp, Circle, Copy, Download,
@@ -952,6 +953,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       {!camada && paginaAtual && (<>
         <Button variant={encaixe ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={encaixe} onClick={() => setEncaixe((v) => !v)}><Magnet className="mr-1.5 h-4 w-4" />Encaixar</Button>
         <Button variant={zonas ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={zonas} title="Quadrado da grelha do perfil, faixa dos pontos de navegação e margens de 40 px. Não aparecem na exportação." onClick={() => setZonas((v) => !v)}><ScanLine className="mr-1.5 h-4 w-4" />Zonas seguras</Button>
+        {zonas && <span className="hidden shrink-0 self-center text-xs text-muted-foreground sm:inline" role="status">Quadrado da grelha · pontos de navegação · margens</span>}
         <span className="ml-1 min-w-0 text-sm text-muted-foreground">{compacto ? "Toca num elemento para o editar." : "Clica num texto para o selecionar; clica outra vez (ou Enter) para escrever."}</span>
       </>)}
       {camada?.tipo === "texto" && (<>
@@ -1014,10 +1016,10 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const inserir = (a: AbaInserir) => (a === "estilos" ? (
     <div className="space-y-6">
     {!rascunho && medidor && (
-      <details className="group rounded-[var(--mc-r-md)] border border-border p-3">
-        <summary className="cursor-pointer list-none text-sm font-medium [&::-webkit-details-marker]:hidden">Capa · 3 propostas <span className="text-xs font-normal text-muted-foreground">(Manifesto, Dado, Fotografia)</span></summary>
+      <details className="group rounded-[var(--mc-r-md)] border border-border p-3" open={pagina === 0 && !pacote.variantes[variante].paginas[0]?.camadas.some((c) => c.id.startsWith("mod-capa-"))}>
+        <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">Capa · 3 propostas <span className="text-xs font-normal text-muted-foreground">(Manifesto, Dado, Fotografia)</span></summary>
         <div className="pt-3">
-          <EscolhaCapa compacto pacote={pacote} variante={variante} medidor={medidor} imagens={imagens}
+          <EscolhaCapa compacto projectId={projectId} pacote={pacote} variante={variante} medidor={medidor} imagens={imagens}
             onAplicar={(p) => { despachar({ tipo: "substituir", pacote: p }); despachar({ tipo: "pagina", indice: 0 }); comDesfazer("Capa aplicada."); }} />
         </div>
       </details>
@@ -1077,6 +1079,10 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           sugestao={papelPagina ? inferirFonte(papelPagina) : undefined} promptIA={promptAuto} queryPexels={queryAuto}
           origemIA={compPagina.origem === "kie"}
           onGerarIA={(pr) => { setPromptIA(pr); setModoNova((decisaoAtual?.modo === "full_bleed" || decisaoAtual?.modo === "background") ? "fundo" : "imagem"); setSubImagens((s) => ({ aba: "ia", n: (s?.n ?? 0) + 1 })); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
+        {projectId && !rascunho && (
+          <SugestaoFotos key={`${variante}:${slideAtual}`} projectId={projectId} termo={queryAuto}
+            onAceitar={(r) => { const img = paginaAtual.camadas.find((k) => k.tipo === "imagem"); if (img) despachar({ tipo: "substituirImagem", id: img.id, asset: r.asset, nome: r.nome }); else despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome, modo: "fundo" }); comDesfazer("Fotografia aplicada a este slide."); }} />
+        )}
         <Collapsible className="border-t border-border pt-4">
           <CollapsibleTrigger className="group flex min-h-9 w-full items-center justify-between text-left"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Efeitos</span><ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" /></CollapsibleTrigger>
           <CollapsibleContent className="space-y-2 pt-2">
