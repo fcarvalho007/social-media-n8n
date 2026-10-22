@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, CloudOff, History, Loader2, RotateCw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, CloudOff, History, Loader2, Plus, RotateCw } from "lucide-react";
+import { inserirSlide, LIMITE_PAGINAS } from "@/features/editor-grafico/estado";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -197,6 +198,21 @@ export default function CarrosselTrabalho() {
   const alterarSlide = (sid: string, campo: "titulo" | "texto", valor: string) => {
     setPacote((p) => p && ({ ...p, conteudo: { slides: p.conteudo.slides.map((s) => (s.id === sid ? { ...s, [campo]: valor } : s)) } }));
     setRevisao((r) => r + 1);
+  };
+
+  /** Free, immediate: a new slide right after `apos`, kept in sync across narrative, A and B (undo in Composição). */
+  const acrescentarSlide = (apos: string, modelo: "branco" | "texto") => {
+    let novoIndice = -1;
+    setPacote((p) => {
+      if (!p) return p;
+      const indice = Math.max(0, p.variantes.A.paginas.findIndex((pg) => pg.slide === apos));
+      const r = inserirSlide(p, "A", indice, modelo);
+      if (!r) { toast.error(`Máximo de ${LIMITE_PAGINAS} slides.`); return p; }
+      novoIndice = r.pacote.conteudo.slides.findIndex((x) => !p.conteudo.slides.some((y) => y.id === x.id));
+      return r.pacote;
+    });
+    setRevisao((r) => r + 1);
+    setTimeout(() => { if (novoIndice >= 0) setSlideSel(novoIndice); }, 0);
   };
 
   // ---------- framework proposal accept (explicit; composition kept, new version) ----------
@@ -482,6 +498,16 @@ export default function CarrosselTrabalho() {
                     </li>
                   );
                 })}
+                <li className="shrink-0 lg:shrink">
+                  <details className="group w-44 rounded-[var(--mc-r-md)] border border-dashed border-input lg:w-full">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium [&::-webkit-details-marker]:hidden"><Plus className="h-4 w-4" aria-hidden />Acrescentar slide</summary>
+                    <div className="flex flex-col gap-1 border-t border-border p-2">
+                      <p className="px-1 text-xs text-muted-foreground">Entra a seguir ao slide {iSel + 1}. Gratuito.</p>
+                      <Button variant="ghost" className="h-11 justify-start" disabled={slides.length >= LIMITE_PAGINAS} onClick={(e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; acrescentarSlide(sSel.id, "texto"); }}>Com título e texto</Button>
+                      <Button variant="ghost" className="h-11 justify-start" disabled={slides.length >= LIMITE_PAGINAS} onClick={(e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; acrescentarSlide(sSel.id, "branco"); }}>Em branco</Button>
+                    </div>
+                  </details>
+                </li>
               </ol>
               <div key={sSel.id} className="mc-entrar space-y-4 rounded-[var(--mc-r-lg)] border border-border bg-card p-4 sm:p-6">
                 <p className="text-xs text-muted-foreground">Slide {iSel + 1} de {slides.length} · {psSel ? PAPEL[psSel.papel] ?? psSel.papel : ""}</p>
