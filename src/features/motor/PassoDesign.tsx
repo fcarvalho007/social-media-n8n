@@ -15,6 +15,7 @@ import { adaptarCorNotas, aplicarModelo, notasIlegiveis, type ResultadoPacoteMod
 import { composicoesPagina, contrastesFracos, formatarRazao, NOME_RITMO, type ComposicaoId, type OpcaoComposicao, type SlideRitmo } from "../../../supabase/functions/_shared/motor/composicoes";
 import { aplicarSistema, obterPaleta, PALETAS, quebrasPadrao, type PaletaId, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
 import { aplicarComposicaoSlide, previaPagina, slideDaPagina, sugerirRitmo, type SugestaoRitmo } from "./variacoes";
+import { EscolhaCapa } from "./EscolhaCapa";
 
 interface Props {
   onPendente?: (pendente: boolean) => void;
@@ -121,6 +122,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
         <h1 id="t-design" className="text-2xl font-semibold tracking-tight">Design</h1>
         <p className="text-xs text-muted-foreground">{ambito === "slide" ? "O texto não muda. Nada é aplicado até carregares em «Aplicar só ao slide»." : "O texto não muda. Nada é aplicado até carregares em «Aplicar estilo»."}</p>
       </div>
+      <EscolhaCapa pacote={pacote} variante={variante} medidor={medidor} imagens={imagens} onAplicar={(p) => onAplicar(p, guardado ?? undefined)} />
 
       {nNotas > 0 && (
         <div role="note" className="flex flex-wrap items-center gap-3 rounded-[var(--mc-r-md)] border border-border p-3 text-sm">
