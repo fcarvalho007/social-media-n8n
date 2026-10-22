@@ -132,7 +132,7 @@ export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Pr
     try {
       const r = await criarTrabalho({
         project_id: dados.trabalho.project_id, texto: dados.fonte.texto, titulo: dados.fonte.titulo ?? atual.titulo,
-        objetivo: (objetivoNovo ?? atual.objetivo).slice(0, 200), tom: (tomNovo ?? atual.tom).slice(0, 80), slides, modo: "ia", framework: escolha.id, origem_trabalho: origem, base_versao: versao,
+        objetivo: (objetivoNovo ?? atual.objetivo).slice(0, 200), tom: (tomNovo ?? atual.tom).slice(0, 300), slides, modo: "ia", framework: escolha.id, origem_trabalho: origem, base_versao: versao,
       });
       setAtivo(r.trabalho_id); setEscolha(null); await ler();
     } catch (e) { toast.error((e as Error).message); }
