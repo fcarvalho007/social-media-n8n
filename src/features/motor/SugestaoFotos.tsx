@@ -78,7 +78,7 @@ export function SugestaoFotos({ projectId, termo: termoInicial, rotulo = "Sugeri
                     <img src={f.miniatura} alt="" loading="lazy" className="h-full w-full object-cover" />
                     {aUsar === chave && <span className="absolute inset-0 grid place-items-center bg-background/70"><Loader2 className="h-4 w-4 motion-safe:animate-spin" /></span>}
                   </button>
-                  <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{f.autor}</span>
+                  <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{/^https?:/.test(f.autor) ? (f.fonte === "pexels" ? "Pexels" : "Unsplash") : f.autor}</span>
                 </li>
               );
             })}
