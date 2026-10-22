@@ -45,6 +45,7 @@ export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Pr
   const [aPedirR, setAPedirR] = useState<string | null>(null);
   const [erroR, setErroR] = useState<Record<string, string>>({});
   const [escolhaInicial, setEscolhaInicial] = useState<"editorial" | "pas" | null>(null);
+  const [rever, setRever] = useState(false);
   const [aEscolher, setAEscolher] = useState(false);
 
   useEffect(() => { setSelecaoS(lerSelecao(origem, versao, n)); setErroAplicar(null); }, [origem, versao, n]);
@@ -98,7 +99,7 @@ export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Pr
         await aceitar(fundida.conteudo);
       }
       await escolherNarrativa(origem, framework);
-      setEscolhaInicial(framework);
+      setEscolhaInicial(framework); setRever(false);
       onEscolhaInicial?.(true);
       toast.success(`Narrativa ${framework === "editorial" ? "Editorial" : "PAS"} escolhida.`);
     } catch (e) { toast.error((e as Error).message); }
@@ -145,7 +146,13 @@ export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Pr
 
   return (
     <section aria-labelledby="t-estr" className="space-y-3 rounded-[var(--mc-r-lg)] border border-border bg-card p-4">
-      {comparacaoInicial && (
+      {comparacaoInicial && escolhaInicial && !rever && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+          <p id="t-estr" className="text-base"><span className="text-muted-foreground">Estrutura escolhida:</span> <strong>{escolhaInicial === "editorial" ? "Editorial" : "PAS"}</strong></p>
+          <Button variant="outline" className="h-11" onClick={() => setRever(true)}>Mudar estrutura</Button>
+        </div>
+      )}
+      {comparacaoInicial && (!escolhaInicial || rever) && (
         <div className="space-y-3 border-b border-border pb-4">
           <div><h2 id="t-estr" className="text-xl font-semibold">Escolher narrativa</h2><p className="mt-1 text-sm leading-relaxed text-muted-foreground">Compara as duas estruturas criadas a partir da mesma fonte. A escolha é gratuita e fica registada antes da Composição.</p></div>
           <div className="grid gap-3 md:grid-cols-2">
@@ -159,6 +166,7 @@ export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Pr
               <Button className="mt-4 h-11 w-full" variant={escolhaInicial === "pas" ? "default" : "outline"} disabled={aEscolher || !pasInicial || pasInicial.estado !== "concluido"} onClick={() => escolherInicial("pas")}>Escolher PAS</Button>
             </article>
           </div>
+          {rever && <div className="flex flex-wrap items-center gap-3"><p className="text-sm text-muted-foreground">Ao trocar, a versão atual fica guardada no histórico e pode ser reposta.</p><Button variant="ghost" className="h-11" onClick={() => setRever(false)}>Manter {escolhaInicial === "editorial" ? "Editorial" : "PAS"}</Button></div>}
           {!escolhaInicial && <p role="note" className="text-sm font-medium">Escolhe Editorial ou PAS para desbloquear a Composição.</p>}
         </div>
       )}
