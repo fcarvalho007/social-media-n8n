@@ -29,7 +29,7 @@ import { RevisaoExportacao } from "@/features/motor/RevisaoExportacao";
 import { SeletorImagens } from "@/features/motor/SeletorImagens";
 import { assetsReferidos } from "../../supabase/functions/_shared/motor/fontes";
 import type { Asset } from "../../supabase/functions/_shared/documento-grafico/nucleo";
-import { BarraAcoes, Cabecalho, Etapas, Grupo, PAPEL, Quadro, type Etapa } from "@/features/motor/Estudio";
+import { BarraAcoes, Cabecalho, Etapas, PAPEL, Quadro, type Etapa } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
 import { deveRecarregarRevisao } from "@/features/motor/revisaoRecarga";
 import { consultarLeitura, type Conselho } from "../../supabase/functions/_shared/motor/leitura";
