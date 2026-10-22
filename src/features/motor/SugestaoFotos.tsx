@@ -75,7 +75,7 @@ export function SugestaoFotos({ projectId, termo: termoInicial, rotulo = "Sugeri
                 <li key={chave}>
                   <button type="button" disabled={!!aUsar} onClick={() => void usar(f)} aria-label={`Usar foto de ${f.autor}`}
                     className="relative block aspect-[4/5] w-full overflow-hidden rounded-[var(--mc-r-sm)] border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60">
-                    <img src={f.previewUrl} alt={f.alt || ""} loading="lazy" className="h-full w-full object-cover" />
+                    <img src={f.miniatura} alt="" loading="lazy" className="h-full w-full object-cover" />
                     {aUsar === chave && <span className="absolute inset-0 grid place-items-center bg-background/70"><Loader2 className="h-4 w-4 motion-safe:animate-spin" /></span>}
                   </button>
                   <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{f.autor}</span>
