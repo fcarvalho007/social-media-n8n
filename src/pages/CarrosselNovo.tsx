@@ -23,7 +23,8 @@ import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } fro
 import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
 import { ANGULOS, MAX_LEITURA_ESPECIFICA, VOZES_AUTOR, type Angulo, type PerfilAutor } from "../../supabase/functions/_shared/motor/autor";
 import { PainelIdioma, type EscolhaIdioma, type EstadoIdioma } from "@/features/motor/PainelIdioma";
-import { CTAS, INTENCOES, MAX_PUBLICO_OUTRO, PUBLICOS, QUANTIDADES, slidesPorQuantidade, textoTom, TONS, type Cta, type Intencao, type Quantidade } from "../../supabase/functions/_shared/motor/briefing";
+import { CTAS, INTENCOES, MAX_PUBLICO_OUTRO, PUBLICOS, textoTom, TONS, type Cta, type Intencao, type Quantidade } from "../../supabase/functions/_shared/motor/briefing";
+import { SLIDES_PREDEFINIDOS } from "@/features/motor/slidesPredefinidos";
 import { PerfilAutorPainel } from "@/features/motor/PerfilAutorPainel";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { BarraAcoes, ETAPAS, Grupo, Quadro } from "@/features/motor/Estudio";
