@@ -512,47 +512,55 @@ export default function CarrosselNovo() {
 
         {etapa === "narrativa" && (
           <section className="mc-entrar space-y-8" aria-labelledby="t-narrativa">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span>{nomeProjeto}</span><span aria-hidden>·</span>
-              <span>{titulo || fonte.paragrafos[0]?.slice(0, 60) + (fonte.paragrafos[0]?.length > 60 ? "…" : "")}</span><span aria-hidden>·</span>
-              <span>{fonte.paragrafos.length} §</span>
-              {demo && <><span aria-hidden>·</span><span>Demonstração</span></>}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <p className="flex min-w-0 flex-1 items-center gap-x-2">
+                <span className="shrink-0 font-medium text-foreground">{nomeProjeto}</span><span aria-hidden>·</span>
+                <span className="truncate">{titulo || fonte.paragrafos[0]?.slice(0, 90)}</span><span aria-hidden>·</span>
+                <span className="shrink-0 tabular-nums">{fonte.paragrafos.length} §</span>
+                {demo && <><span aria-hidden>·</span><span className="shrink-0">Demonstração</span></>}
+              </p>
+              <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setEtapa("fonte")}>Mudar fonte</Button>
             </div>
             {!demo && tipoFonte !== "curadoria" && projeto && <PainelIdioma projectId={projeto} texto={texto} escolhaInicial={idiomaInicial} iaDisponivel={comIa} onEstado={setIdioma} onEncurtar={() => { setEtapa("fonte"); window.scrollTo({ top: 0 }); setTimeout(() => textoRef.current?.focus(), 50); }} />}
             {erroCriar && <p role="alert" className="rounded-[var(--mc-r-lg)] border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{erroCriar}</p>}
             <div className="space-y-4">
-              <h1 id="t-narrativa" className="text-3xl font-semibold tracking-tight sm:text-4xl">O que deve fazer este {configFormato.nome.toLowerCase()}?</h1>
+              <div className="space-y-2">
+                <h1 id="t-narrativa" className="text-2xl font-semibold tracking-tight sm:text-3xl">O que deve fazer este {configFormato.nome.toLowerCase()}?</h1>
+                <div role="radiogroup" aria-label="Objetivo" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {OBJETIVOS.map((o) => {
+                    const sel = objetivo === o.id;
+                    return (
+                      <button key={o.id} type="button" role="radio" aria-checked={sel} onClick={() => setObjetivo(o.id)}
+                        className={cn("mc-trans rounded-[var(--mc-r-lg)] border px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          sel ? "border-primary bg-primary/10" : "border-input hover:border-muted-foreground")}>
+                        <span className="block text-sm font-medium">{o.nome}</span>
+                        <span className="block text-xs leading-snug text-muted-foreground">{o.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               {comIa && (
-                <div className="grid gap-3 sm:grid-cols-2" aria-label="Estruturas a comparar">
-                  <div className="rounded-[var(--mc-r-lg)] border border-primary/40 bg-primary/5 p-4">
-                    <p className="text-lg font-semibold">Editorial</p>
-                    <p className="mt-1 text-base leading-relaxed text-muted-foreground">Contextualiza, desenvolve os factos por ideias e fecha com uma síntese clara.</p>
-                  </div>
-                  <div className="rounded-[var(--mc-r-lg)] border border-primary/40 bg-primary/5 p-4">
-                    <p className="text-lg font-semibold">PAS</p>
-                    <p className="mt-1 text-base leading-relaxed text-muted-foreground">Organiza a fonte em problema, consequências documentadas e solução, sem exagerar nem inventar.</p>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Estruturas <span className="font-normal text-muted-foreground">· ambas são geradas para comparares</span></p>
+                  <div className="grid gap-2 sm:grid-cols-2" aria-label="Estruturas a comparar">
+                    <div className="rounded-[var(--mc-r-lg)] border border-border bg-muted/40 px-3 py-2.5">
+                      <p className="text-sm font-semibold">Editorial</p>
+                      <p className="text-xs leading-snug text-muted-foreground">Contexto, factos por ideias e síntese final.</p>
+                    </div>
+                    <div className="rounded-[var(--mc-r-lg)] border border-border bg-muted/40 px-3 py-2.5">
+                      <p className="text-sm font-semibold">PAS</p>
+                      <p className="text-xs leading-snug text-muted-foreground">Problema, consequências documentadas e solução, sem exagerar.</p>
+                    </div>
                   </div>
                 </div>
               )}
               {!demo && projeto && (
                 <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground" aria-live="polite">
                   <span>Voz ativa: <span className="font-medium text-foreground">{resumoPerfil ?? "a ler…"}</span></span>
-                  <button type="button" className="min-h-11 underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0" onClick={abrirContexto}>Ver/editar contexto</button>
+                  <button type="button" className="min-h-11 text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0" onClick={abrirContexto}>Editar contexto</button>
                 </p>
               )}
-              <div role="radiogroup" aria-label="Objetivo" className="grid gap-2 sm:grid-cols-2">
-                {OBJETIVOS.map((o) => {
-                  const sel = objetivo === o.id;
-                  return (
-                    <button key={o.id} type="button" role="radio" aria-checked={sel} onClick={() => setObjetivo(o.id)}
-                      className={cn("mc-trans min-h-16 rounded-[var(--mc-r-lg)] border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        sel ? "border-primary bg-primary/10" : "border-input hover:border-muted-foreground")}>
-                      <span className="block font-medium">{o.nome}</span>
-                      <span className="block text-sm text-muted-foreground">{o.desc}</span>
-                    </button>
-                  );
-                })}
-              </div>
               {comIa && (
                 <div className="space-y-2" aria-label="Ângulo da leitura">
                   <p className="text-sm font-medium">Ângulo <span className="font-normal text-muted-foreground">(opcional)</span></p>
