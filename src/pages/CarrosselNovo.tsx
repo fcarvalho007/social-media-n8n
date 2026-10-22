@@ -180,6 +180,15 @@ export default function CarrosselNovo() {
     if (t === tipoFonte) return;
     limparFonte(); setUrl(""); setTipoFonte(t);
   }
+  /** Curated item with only a summary: read the full article from its original link (no AI cost). */
+  const [lerAoMudar, setLerAoMudar] = useState(false);
+  function lerArtigoCompleto(f: FonteCuradoria) {
+    limparFonte(); setTipoFonte("link"); setUrl(f.url ?? ""); setTitulo(f.titulo); setLerAoMudar(true);
+  }
+  useEffect(() => {
+    if (lerAoMudar && tipoFonte === "link" && url) { setLerAoMudar(false); void lerLink(); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lerAoMudar, tipoFonte, url]);
 
   async function lerLink() {
     if (!projeto || !url.trim()) return;
