@@ -34,20 +34,32 @@ export const numeros = (s: string) =>
   (s.replace(/(\d)[\u0020\u00a0\u202f](?=\d{3}(?!\d))/g, "$1").match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(/[.,]/g, "")).sort();
 const urls = (s: string) => (s.match(/https?:\/\/[^\s)\]»"]+/g) ?? []).sort();
 
-export type ValidacaoTraducao = { ok: true; paragrafos: string[] } | { ok: false; motivo: string };
+export type ValidacaoTraducao = { ok: true; paragrafos: string[]; mantidos: number[] } | { ok: false; motivo: string };
 
-/** Paragraph count must match; digits and URLs must be preserved per paragraph. */
+/** Max share of paragraphs that may fall back to the original before the whole translation is refused. */
+export const MAX_MANTIDOS = 1 / 3;
+
+/**
+ * Paragraph count must match and no paragraph may be empty. A paragraph whose digits or URLs differ
+ * keeps the ORIGINAL text (never an altered number) and is reported in `mantidos` (1-based §).
+ * More than a third falling back refuses the whole translation.
+ */
 export function validarTraducao(original: string[], resposta: unknown): ValidacaoTraducao {
   const p = (resposta as { paragrafos?: unknown })?.paragrafos;
   if (!Array.isArray(p) || !p.every((x) => typeof x === "string")) return { ok: false, motivo: "Resposta sem parágrafos." };
   if (p.length !== original.length) return { ok: false, motivo: `A tradução tem ${p.length} parágrafos e o original ${original.length}.` };
+  const mantidos: number[] = [];
+  const out: string[] = [];
   for (let i = 0; i < p.length; i++) {
     const t = (p[i] as string).trim();
     if (!t) return { ok: false, motivo: `§${i + 1} ficou vazio.` };
-    if (numeros(original[i]).join("|") !== numeros(t).join("|")) return { ok: false, motivo: `Os números de §${i + 1} não coincidem com o original.` };
-    if (urls(original[i]).join("|") !== urls(t).join("|")) return { ok: false, motivo: `Os endereços de §${i + 1} não coincidem com o original.` };
+    const igual = numeros(original[i]).join("|") === numeros(t).join("|") && urls(original[i]).join("|") === urls(t).join("|");
+    if (igual) out.push(t); else { out.push(original[i]); mantidos.push(i + 1); }
   }
-  return { ok: true, paragrafos: (p as string[]).map((x) => x.trim()) };
+  if (mantidos.length > Math.floor(original.length * MAX_MANTIDOS)) {
+    return { ok: false, motivo: `Os números ou endereços de ${mantidos.length} de ${original.length} parágrafos não coincidem com o original (${mantidos.slice(0, 6).map((n) => `§${n}`).join(", ")}${mantidos.length > 6 ? "…" : ""}).` };
+  }
+  return { ok: true, paragrafos: out, mantidos };
 }
 
 export function promptTraducaoSistema(): string {
