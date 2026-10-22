@@ -267,8 +267,8 @@ export default function CarrosselTrabalho() {
     toast(`Slide movido para a posição ${para + 1}.`, { action: { label: "Desfazer", onClick: () => { setPacote(antes); setSlideSel(de); setRevisao((r) => r + 1); } } });
   };
 
-  const corMarca = () => (gravado?.conteudo as unknown as { marca?: { cor?: string } } | undefined)?.marca?.cor ?? "#3E5B46";
-  const papeisSlides = () => Object.fromEntries((prop?.slides ?? []).map((x) => [x.id, x.papel]));
+  const corMarca = () => gravado?.conteudo.marca?.cor ?? dados?.proposta.conteudo.marca?.cor ?? "#3E5B46";
+  const papeisSlides = (): Record<string, string> => Object.fromEntries((dados?.proposta.conteudo.slides ?? []).map((x) => [x.id, x.papel]));
   /** Free: rebuilds A/B pages so they match the narrative (missing pages created with the current model). */
   const acertarNarrativa = () => {
     const antes = pacote;
