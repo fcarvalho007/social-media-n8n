@@ -68,7 +68,7 @@ describe("tradução da fonte", () => {
     const ui = readFileSync("src/features/motor/PainelIdioma.tsx", "utf8");
     expect(ui).toMatch(/stale: source changed meanwhile/);
     expect(ui).toMatch(/Confirmar tradução/);
-    expect(ui).toMatch(/Avançar em PT-PT/);
+    expect(ui).toMatch(/Traduzir para PT-PT/);
     expect(ui).toMatch(/escolhaInicial = "pt"/);
   });
 });
