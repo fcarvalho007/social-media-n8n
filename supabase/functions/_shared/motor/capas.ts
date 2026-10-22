@@ -2,7 +2,7 @@
 // strategy: giant typography, an isolated data shock, or an immersive photo. The approved text is never
 // changed (title/body keep their refs); text sits inside the 1:1 grid-crop square and never gets cut —
 // a proposal whose text does not fit is returned with cabe=false.
-import { ALTURA, LARGURA, layoutTexto, resolverTexto, type Camada, type CamadaForma, type CamadaImagem, type CamadaTexto, type ConteudoEditorial, type Medidor, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
+import { ALTURA, LARGURA, layoutTexto, resolverTexto, type Camada, type CamadaForma, type Asset, type CamadaImagem, type CamadaTexto, type ConteudoEditorial, type Medidor, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
 import { contraste } from "./composicoes.ts";
 import { ZONA_SEGURA } from "./enriquecer.ts";
 
@@ -127,20 +127,25 @@ export function imagemDoCarrossel(pacote: PacoteProva, v: Variante): CamadaImage
 }
 
 /** The three cover proposals for the first page of variant `v`. */
-export function propostasCapa(pacote: PacoteProva, v: Variante, marca: string, m?: Medidor): PropostaCapa[] {
+export function propostasCapa(pacote: PacoteProva, v: Variante, marca: string, m?: Medidor, imagemEscolhida?: CamadaImagem): PropostaCapa[] {
   const p = pacote.variantes[v].paginas[0];
   if (!p) return [];
   const b = base(p);
-  return [manifesto(p, b, marca, pacote.conteudo, m), dado(p, b, marca, pacote.conteudo, m), foto(p, b, imagemDoCarrossel(pacote, v), marca, pacote.conteudo, m)];
+  return [manifesto(p, b, marca, pacote.conteudo, m), dado(p, b, marca, pacote.conteudo, m), foto(p, b, imagemEscolhida ?? imagemDoCarrossel(pacote, v), marca, pacote.conteudo, m)];
 }
 
 /** Applies a chosen cover to page 1 and passes its accent to the other pages' engine decorations. */
-export function aplicarCapa(pacote: PacoteProva, v: Variante, capa: PropostaCapa): PacoteProva {
+export function aplicarCapa(pacote: PacoteProva, v: Variante, capa: PropostaCapa, assetNovo?: Asset): PacoteProva {
   const doc = pacote.variantes[v];
   const paginas = doc.paginas.map((pg, i) => {
     if (i === 0) return capa.pagina;
     if (!HEX.test(pg.fundo) || contraste(capa.acento, pg.fundo) < 3) return pg;
     return { ...pg, camadas: pg.camadas.map((c) => (c.tipo === "forma" && (c.id === "mod-icone" || c.id === "mod-seta" || c.id.startsWith("mod-progresso")) ? { ...c, estilo: { ...c.estilo, cor: capa.acento } } : c)) };
   });
-  return { ...pacote, variantes: { ...pacote.variantes, [v]: { ...doc, paginas } } };
+  const assets = assetNovo ? { ...pacote.assets, [assetNovo.id]: assetNovo } : pacote.assets;
+  return { ...pacote, assets, variantes: { ...pacote.variantes, [v]: { ...doc, paginas } } };
 }
+
+/** Image layer for a newly chosen cover photo (full-bleed cover crop). */
+export const camadaFotoCapa = (a: Asset, nome: string): CamadaImagem =>
+  ({ id: "capa-foto", nome: nome.slice(0, 60), tipo: "imagem", asset_id: a.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: 0, y: 0, w: LARGURA, h: ALTURA, z: 0 });
