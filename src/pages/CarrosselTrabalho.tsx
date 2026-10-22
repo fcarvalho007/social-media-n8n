@@ -33,7 +33,7 @@ import { BarraAcoes, Cabecalho, Etapas, PAPEL, Quadro, type Etapa } from "@/feat
 import { cn } from "@/lib/utils";
 import { deveRecarregarRevisao } from "@/features/motor/revisaoRecarga";
 import { consultarLeitura, type Conselho } from "../../supabase/functions/_shared/motor/leitura";
-import { avisosCarga, dividirTextoSlide } from "../../supabase/functions/_shared/motor/enriquecer";
+import { avisosCarga, diferencasNarrativa, dividirTextoSlide, sincronizarComNarrativa } from "../../supabase/functions/_shared/motor/enriquecer";
 
 type Passo = Etapa;
 type EstadoGravacao = "guardado" | "a_guardar" | "local" | "conflito";
@@ -267,6 +267,18 @@ export default function CarrosselTrabalho() {
     toast(`Slide movido para a posição ${para + 1}.`, { action: { label: "Desfazer", onClick: () => { setPacote(antes); setSlideSel(de); setRevisao((r) => r + 1); } } });
   };
 
+  const corMarca = () => (gravado?.conteudo as unknown as { marca?: { cor?: string } } | undefined)?.marca?.cor ?? "#3E5B46";
+  const papeisSlides = () => Object.fromEntries((prop?.slides ?? []).map((x) => [x.id, x.papel]));
+  /** Free: rebuilds A/B pages so they match the narrative (missing pages created with the current model). */
+  const acertarNarrativa = () => {
+    const antes = pacote;
+    if (!antes) return;
+    const depois = sincronizarComNarrativa(antes, papeisSlides(), corMarca());
+    setPacote(depois);
+    setRevisao((r) => r + 1);
+    toast.success("Composição acertada com a Narrativa.", { action: { label: "Desfazer", onClick: () => { setPacote(antes); setRevisao((r) => r + 1); } } });
+  };
+
   // ---------- framework proposal accept (explicit; composition kept, new version) ----------
   const aceitarEstrutura = async (conteudo: PropostaEditorial) => {
     const g = estadoRef.current.gravado;
@@ -472,6 +484,7 @@ export default function CarrosselTrabalho() {
   }
 
   if (passo === "composicao" && pacote && chave !== undefined) {
+    const difs = diferencasNarrativa(pacote);
     return (
       <Quadro className="h-dvh min-h-0 overflow-hidden">
         <EditorGrafico key={`${id}-${revisao}`} pacoteInicial={pacote} chaveLocal={chave} real projectId={dados!.trabalho.project_id}
@@ -484,6 +497,15 @@ export default function CarrosselTrabalho() {
               <Button size="icon" className="h-11 w-11 shrink-0 md:hidden" aria-label="Ir para a etapa 4, Preparar publicação" title="Preparar publicação" onClick={() => irPara("revisao")}><ArrowRight className="h-4 w-4" /></Button>
               <Button className="hidden h-11 shrink-0 md:inline-flex" onClick={() => irPara("revisao")}>Preparar publicação<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             </div>
+            {(difs.semPagina.length > 0 || difs.orfas > 0) && (
+              <div role="status" className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-sm sm:px-4">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="min-w-0 flex-1">
+                  A Composição não coincide com a Narrativa:{difs.semPagina.length > 0 && <> {difs.semPagina.length} slide(s) sem página ({difs.semPagina.map((x) => `slide ${pacote.conteudo.slides.findIndex((y) => y.id === x) + 1}`).join(", ")})</>}{difs.semPagina.length > 0 && difs.orfas > 0 && " ·"}{difs.orfas > 0 && <> {difs.orfas} página(s) sem slide</>}.
+                </span>
+                <Button size="sm" className="h-9" onClick={acertarNarrativa}>Acertar com a Narrativa</Button>
+              </div>
+            )}
           }
           estadoGravacao={<div className="flex items-center gap-2">{avisoBadge}<EstadoChip estado={estadoG} /></div>}
           menuExtra={<><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => abrirVersoes("A")}><History className="mr-2 h-4 w-4" />Versões da variante A</DropdownMenuItem><DropdownMenuItem onSelect={() => abrirVersoes("B")}><History className="mr-2 h-4 w-4" />Versões da variante B</DropdownMenuItem></>}
