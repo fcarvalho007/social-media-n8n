@@ -6,6 +6,11 @@ import { traducaoGuardada, traduzirFonte } from "@/services/motor";
 import { avaliarFonte, LIMITES_FONTE, MARGEM_TRADUCAO, normalizarFonte } from "../../../supabase/functions/_shared/motor/proposta";
 import { detetarIdioma, hashTexto, NOME_IDIOMA } from "../../../supabase/functions/_shared/motor/traducao";
 
+const TITULO_RECUSA: Record<string, string> = {
+  invalida: "A tradução não passou na verificação.", pode_repetir: "A tradução anterior não passou na verificação.", ja_repetida: "Tradução já repetida.",
+  limite_diario: "Limite diário atingido.", ia_desligada: "IA indisponível.", desconhecido: "Tradução sem resultado conhecido.", fornecedor: "A IA não respondeu.", erro_interno: "Não foi possível traduzir.",
+};
+
 const LIMITE_TRADUCAO = Math.ceil(LIMITES_FONTE.max * MARGEM_TRADUCAO);
 
 export type EscolhaIdioma = "pt" | "original";
@@ -22,7 +27,7 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
   const [hash, setHash] = useState<string | null>(null);
   const [escolha, setEscolha] = useState<EscolhaIdioma>(escolhaInicial);
   useEffect(() => { setEscolha(escolhaInicial); }, [escolhaInicial]);
-  const [trad, setTrad] = useState<{ hash: string; id: string; paragrafos: string[] } | null>(null);
+  const [trad, setTrad] = useState<{ hash: string; id: string; paragrafos: string[]; mantidos: number[] } | null>(null);
   const [codigo, setCodigo] = useState<string | null>(null);
   const [fase, setFase] = useState<"inicio" | "confirmar" | "a_traduzir" | "erro">("inicio");
   const [erro, setErro] = useState<string | null>(null);
@@ -39,7 +44,7 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
       if (!vivo) return;
       setHash(h); atual.current = h;
       const g = await traducaoGuardada(projectId, h).catch(() => null);
-      if (vivo && g && atual.current === h) setTrad({ hash: h, id: g.id, paragrafos: g.resultado });
+      if (vivo && g && atual.current === h) setTrad({ hash: h, id: g.id, paragrafos: g.resultado, mantidos: g.mantidos });
     });
     return () => { vivo = false; };
   }, [fonte.texto, estrangeiro, projectId]);
@@ -63,7 +68,7 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
       if (atual.current !== pedidoHash) return; // stale: source changed meanwhile
       if ("recusada" in r) { setErro(r.motivo); setCodigo(r.codigo ?? "invalida"); setFase("erro"); setPodeRepetir(r.pode_repetir ?? (!repetir && !r.final)); return; }
       if (r.hash !== pedidoHash) return;
-      setTrad({ hash: r.hash, id: r.traducao_id, paragrafos: r.paragrafos }); setFase("inicio"); setRever(true);
+      setTrad({ hash: r.hash, id: r.traducao_id, paragrafos: r.paragrafos, mantidos: r.mantidos ?? [] }); setFase("inicio"); setRever(true);
     } catch (e) {
       if (atual.current !== pedidoHash) return;
       const m = (e as Error).message;
@@ -98,7 +103,7 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
               <Button variant="outline" size="sm" onClick={() => setEscolha("original")}>Usar o original</Button>
               {onEncurtar && <Button variant="ghost" size="sm" onClick={onEncurtar}>Voltar à Fonte para encurtar</Button>}
             </div>
-          : <p className="text-xs tabular-nums text-muted-foreground">Versão PT-PT pronta: {caracteresTrad.toLocaleString("pt-PT")} caracteres.</p>
+          : <p className="text-xs tabular-nums text-muted-foreground">Versão PT-PT pronta: {caracteresTrad.toLocaleString("pt-PT")} caracteres.{trad!.mantidos.length > 0 && <> {trad!.paragrafos.length - trad!.mantidos.length} de {trad!.paragrafos.length} parágrafos em PT-PT; {trad!.mantidos.map((n) => `§${n}`).join(", ")} {trad!.mantidos.length === 1 ? "ficou" : "ficaram"} no original (números não coincidiam).</>}</p>
       )}
       {escolha === "pt" && !valida && (
         <div className="space-y-2" aria-live="polite">
@@ -108,7 +113,7 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
             <p className="flex items-center gap-2 text-xs"><Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden />A preparar a versão PT-PT…</p>
           ) : fase === "erro" && erro ? (
             <div role="status" className="space-y-2 rounded-[var(--mc-r-md)] border border-border bg-muted/50 p-2.5 text-xs">
-              <p><strong className="font-medium">{codigo === "limite_diario" ? "Limite diário atingido." : codigo === "ia_desligada" ? "IA desligada neste projeto." : codigo === "desconhecido" ? "Tradução sem resultado conhecido." : codigo ? "A tradução não passou na verificação." : "Não foi possível traduzir."}</strong> <span className="text-muted-foreground">{erro.replace(/^Tradução recusada:\s*/, "")}</span></p>
+              <p><strong className="font-medium">{TITULO_RECUSA[codigo ?? ""] ?? "Não foi possível traduzir."}</strong> <span className="text-muted-foreground">{erro.replace(/^Tradução recusada:\s*/, "")}</span></p>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => setEscolha("original")}>Avançar com o original</Button>
                 {podeRepetir && <Button variant="ghost" size="sm" onClick={() => traduzir(true)}>Repetir uma vez (1 pedido)</Button>}
@@ -131,7 +136,7 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
           <div><p className="mb-1 text-xs font-medium text-muted-foreground">Original ({nome})</p>
             <ol className="space-y-2 text-xs">{fonte.paragrafos.map((p, i) => <li key={i}><span className="tabular-nums text-muted-foreground">§{i + 1}</span> {p}</li>)}</ol></div>
           <div><p className="mb-1 text-xs font-medium text-muted-foreground">PT-PT</p>
-            <ol className="space-y-2 text-xs">{trad!.paragrafos.map((p, i) => <li key={i}><span className="tabular-nums text-muted-foreground">§{i + 1}</span> {p}</li>)}</ol></div>
+            <ol className="space-y-2 text-xs">{trad!.paragrafos.map((p, i) => <li key={i}><span className="tabular-nums text-muted-foreground">§{i + 1}</span> {trad!.mantidos.includes(i + 1) && <span className="mr-1 rounded-[var(--mc-r-sm)] border border-border px-1 text-[0.6875rem] text-muted-foreground">no original</span>}{p}</li>)}</ol></div>
         </div>
       )}
     </section>

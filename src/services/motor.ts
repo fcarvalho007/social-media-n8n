@@ -45,14 +45,14 @@ export interface NovoTrabalho {
   framework?: string; origem_trabalho?: string; angulo?: string | null; leitura_especifica?: string; base_versao?: number;
   briefing?: { publico: string[]; publicoOutro: string; cta: string | null; intencao?: string | null; intencoes?: string[]; tons?: string[] }; traducao_id?: string;
 }
-export interface ResultadoTraducao { traducao_id: string; hash: string; idioma_origem: string; original: string[]; paragrafos: string[]; reutilizada: boolean }
+export interface ResultadoTraducao { traducao_id: string; hash: string; idioma_origem: string; original: string[]; paragrafos: string[]; mantidos?: number[]; reutilizada: boolean }
 /** Paid DeepSeek request (or reuse of a stored valid translation); call only after explicit confirmation. */
-export type RecusaTraducao = { recusada: true; codigo?: "invalida" | "pode_repetir" | "ja_repetida" | "limite_diario" | "ia_desligada" | "desconhecido"; pode_repetir?: boolean; final?: boolean; motivo: string; traducao_id: string | null };
+export type RecusaTraducao = { recusada: true; codigo?: "invalida" | "pode_repetir" | "ja_repetida" | "limite_diario" | "ia_desligada" | "desconhecido" | "fornecedor" | "erro_interno"; pode_repetir?: boolean; final?: boolean; motivo: string; traducao_id: string | null };
 export const traduzirFonte = (project_id: string, texto: string, repetir = false) => invocar<ResultadoTraducao | RecusaTraducao>({ acao: "traduzir", project_id, texto, confirmar: true, repetir });
 /** Free lookup of a stored valid translation for this exact source hash. */
-export async function traducaoGuardada(projectId: string, hash: string): Promise<{ id: string; resultado: string[]; idioma_origem: string } | null> {
-  const { data } = await supabase.from("mc_traducoes").select("id, resultado, idioma_origem, estado").eq("project_id", projectId).eq("hash_original", hash).maybeSingle();
-  return data && data.estado === "valida" ? { id: data.id, resultado: data.resultado as string[], idioma_origem: data.idioma_origem } : null;
+export async function traducaoGuardada(projectId: string, hash: string): Promise<{ id: string; resultado: string[]; idioma_origem: string; mantidos: number[] } | null> {
+  const { data } = await supabase.from("mc_traducoes").select("id, resultado, idioma_origem, estado, paragrafos_mantidos").eq("project_id", projectId).eq("hash_original", hash).maybeSingle();
+  return data && data.estado === "valida" ? { id: data.id, resultado: data.resultado as string[], idioma_origem: data.idioma_origem, mantidos: data.paragrafos_mantidos ?? [] } : null;
 }
 export interface UsoDetalhe { geracao: number; reparacao: number; traducao: number }
 export async function lerUsoDetalhe(projectId: string): Promise<UsoDetalhe> {

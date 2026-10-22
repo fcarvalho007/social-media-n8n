@@ -491,6 +491,13 @@
       "when": 1792673481486,
       "tag": "0069_mc_traducoes_recusa_revalidar",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1792674913716,
+      "tag": "0070_mc_traducoes_mantidos",
+      "breakpoints": true
     }
   ]
 }

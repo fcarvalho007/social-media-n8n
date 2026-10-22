@@ -2278,6 +2278,7 @@ export type Database = {
           idioma_origem: string
           modelo: string
           original: Json
+          paragrafos_mantidos: number[]
           project_id: string
           resultado: Json | null
           resultado_recusado: Json | null
@@ -2297,6 +2298,7 @@ export type Database = {
           idioma_origem: string
           modelo: string
           original: Json
+          paragrafos_mantidos?: number[]
           project_id: string
           resultado?: Json | null
           resultado_recusado?: Json | null
@@ -2316,6 +2318,7 @@ export type Database = {
           idioma_origem?: string
           modelo?: string
           original?: Json
+          paragrafos_mantidos?: number[]
           project_id?: string
           resultado?: Json | null
           resultado_recusado?: Json | null

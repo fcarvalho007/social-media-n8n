@@ -112,9 +112,13 @@ Deno.serve(async (req) => {
     const { data: pode } = await user.rpc("mc_pode_escrever", { _project_id: projectId });
     if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
     const texto = typeof body.texto === "string" ? body.texto.slice(0, 60000) : "";
-    const r = await traduzirFonte(admin(), projectId, u.user.id, texto, body.repetir === true);
+    let r: Awaited<ReturnType<typeof traduzirFonte>>;
+    try { r = await traduzirFonte(admin(), projectId, u.user.id, texto, body.repetir === true); }
+    catch (e) {
+      console.error("[traducao] falha inesperada", e instanceof Error ? e.message : String(e));
+      return json({ recusada: true, codigo: "erro_interno", pode_repetir: false, final: true, motivo: "Não foi possível preparar a tradução. Avança com a língua original.", traducao_id: null });
+    }
     if (r.ok) return json(r);
-    // A validation refusal is an expected outcome, not a server failure: report it as data (200).
     // Validation and reservation refusals are expected outcomes, not server failures: report them as data (200).
     if (r.codigo) return json({ recusada: true, codigo: r.codigo, pode_repetir: r.pode_repetir === true, final: r.pode_repetir !== true, motivo: r.error, traducao_id: r.traducao_id ?? null });
     return json({ error: r.error, estado: r.estado ?? null, traducao_id: r.traducao_id ?? null }, r.status);

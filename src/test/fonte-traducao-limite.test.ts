@@ -25,3 +25,21 @@ d2("validação de números na tradução", () => {
     e2(vt(["75% of marketers"], { paragrafos: ["70% dos marketers"] }).ok).toBe(false);
   });
 });
+
+d2("tradução parcial", () => {
+  const orig = Array.from({ length: 6 }, (_, i) => `Paragraph ${i} has ${i * 10 + 5}% growth.`);
+  const trad = orig.map((_, i) => `O parágrafo ${i} tem ${i * 10 + 5}% de crescimento.`);
+  i2("um parágrafo com número diferente fica no original e é assinalado", () => {
+    const t = [...trad]; t[2] = "O parágrafo 2 tem 99% de crescimento.";
+    const v = vt(orig, { paragrafos: t });
+    e2(v.ok).toBe(true);
+    if (v.ok) { e2(v.mantidos).toEqual([3]); e2(v.paragrafos[2]).toBe(orig[2]); e2(v.paragrafos.join(" ")).not.toContain("99%"); }
+  });
+  i2("mais de um terço a falhar recusa tudo", () => {
+    const t = [...trad]; t[0] = "x 1"; t[1] = "x 2"; t[2] = "x 3";
+    e2(vt(orig, { paragrafos: t }).ok).toBe(false);
+  });
+  i2("número de parágrafos diferente recusa", () => {
+    e2(vt(orig, { paragrafos: trad.slice(1) }).ok).toBe(false);
+  });
+});

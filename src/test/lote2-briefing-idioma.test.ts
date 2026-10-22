@@ -50,7 +50,7 @@ describe("tradução da fonte", () => {
     const o = ["Revenue grew 37% in 2024.", "See https://ex.com/a for 12.5 million."];
     expect(validarTraducao(o, { paragrafos: ["As receitas cresceram 37% em 2024.", "Ver https://ex.com/a para 12,5 milhões."] }).ok).toBe(true);
     expect(validarTraducao(o, { paragrafos: ["Só um."] })).toMatchObject({ ok: false });
-    expect(validarTraducao(o, { paragrafos: ["Cresceram 38% em 2024.", "Ver https://ex.com/a para 12,5 milhões."] })).toMatchObject({ ok: false, motivo: expect.stringMatching(/números de §1/) });
+    expect(validarTraducao(o, { paragrafos: ["Cresceram 38% em 2024.", "Ver https://ex.com/a para 12,5 milhões."] })).toMatchObject({ ok: false, motivo: expect.stringMatching(/números ou endereços .*§1/) });
     expect(validarTraducao(o, { paragrafos: ["Cresceram 37% em 2024.", "Ver o site para 12,5 milhões."] })).toMatchObject({ ok: false });
     expect(promptTraducaoSistema()).toMatch(/Nunca uses português do Brasil/);
   });

@@ -32,6 +32,8 @@ describe("escolhas múltiplas e direção editorial", () => {
     expect(m).toMatch(/if \(r\.codigo\) return json\(\{ recusada: true/);
     const s = readFileSync("supabase/functions/_shared/motor/traducao.server.ts", "utf8");
     expect(s).toMatch(/resultado_recusado: parsed/);
+    expect(m).toMatch(/codigo: "erro_interno"/);
+    expect(s).toMatch(/codigo: "erro_interno"/);
     expect(s).toMatch(/P0005: \[429, "Limite diário/);
     expect(s).toMatch(/P0006: .*"pode_repetir", true/);
   });
