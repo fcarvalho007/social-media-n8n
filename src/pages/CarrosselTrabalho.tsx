@@ -590,7 +590,7 @@ export default function CarrosselTrabalho() {
                   </details>
                 </li>} />
               <div className="min-w-0 space-y-3">
-                <div role="tablist" aria-label="Partes da narrativa" className="flex flex-wrap gap-1 border-b border-border">
+                <div role="tablist" aria-label="Partes da narrativa" className="flex gap-1 overflow-x-auto whitespace-nowrap border-b border-border">
                   {([["slide", `Slide ${iSel + 1}`], ["legenda", "Legenda"], ["alt", "Texto alternativo"], ["fontes", "Fontes"]] as const).map(([k, n]) => (
                     <button key={k} type="button" role="tab" aria-selected={aba === k} onClick={() => setAba(k)}
                       className={cn("mc-trans -mb-px min-h-11 border-b-2 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", aba === k ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>{n}</button>
