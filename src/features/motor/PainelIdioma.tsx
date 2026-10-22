@@ -136,7 +136,7 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
           <div><p className="mb-1 text-xs font-medium text-muted-foreground">Original ({nome})</p>
             <ol className="space-y-2 text-xs">{fonte.paragrafos.map((p, i) => <li key={i}><span className="tabular-nums text-muted-foreground">§{i + 1}</span> {p}</li>)}</ol></div>
           <div><p className="mb-1 text-xs font-medium text-muted-foreground">PT-PT</p>
-            <ol className="space-y-2 text-xs">{trad!.paragrafos.map((p, i) => <li key={i}><span className="tabular-nums text-muted-foreground">§{i + 1}</span> {p}</li>)}</ol></div>
+            <ol className="space-y-2 text-xs">{trad!.paragrafos.map((p, i) => <li key={i}><span className="tabular-nums text-muted-foreground">§{i + 1}</span> {trad!.mantidos.includes(i + 1) && <span className="mr-1 rounded-[var(--mc-r-sm)] border border-border px-1 text-[0.6875rem] text-muted-foreground">no original</span>}{p}</li>)}</ol></div>
         </div>
       )}
     </section>
