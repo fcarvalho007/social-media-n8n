@@ -110,7 +110,7 @@ export function dividirTextoSlide(texto: string): [string, string] | null {
 
 // ---------- Narrative <-> pages sync (free, deterministic) ----------
 export interface DiferencasNarrativa { semPagina: string[]; orfas: number }
-const sidDe = (pg: Pagina) => pg.slide ?? pg.camadas.find((c) => c.tipo === "texto" && c.ref)?.ref?.split(".")[0] ?? null;
+const sidDe = (pg: Pagina) => pg.slide ?? (pg.camadas.find((c) => c.tipo === "texto" && (c as { ref?: string }).ref) as { ref?: string } | undefined)?.ref?.split(".")[0] ?? null;
 
 /** Narrative slides without a page and pages pointing to a slide that no longer exists (worst of A/B). */
 export function diferencasNarrativa(p: PacoteProva): DiferencasNarrativa {
