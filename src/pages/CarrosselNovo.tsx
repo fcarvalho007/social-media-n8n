@@ -23,7 +23,8 @@ import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } fro
 import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
 import { ANGULOS, MAX_LEITURA_ESPECIFICA, VOZES_AUTOR, type Angulo, type PerfilAutor } from "../../supabase/functions/_shared/motor/autor";
 import { PainelIdioma, type EscolhaIdioma, type EstadoIdioma } from "@/features/motor/PainelIdioma";
-import { CTAS, INTENCOES, MAX_PUBLICO_OUTRO, PUBLICOS, QUANTIDADES, slidesPorQuantidade, textoTom, TONS, type Cta, type Intencao, type Quantidade } from "../../supabase/functions/_shared/motor/briefing";
+import { CTAS, INTENCOES, MAX_PUBLICO_OUTRO, PUBLICOS, textoTom, TONS, type Cta, type Intencao, type Quantidade } from "../../supabase/functions/_shared/motor/briefing";
+import { precisaArtigoCompleto, SLIDES_PREDEFINIDOS } from "@/features/motor/slidesPredefinidos";
 import { PerfilAutorPainel } from "@/features/motor/PerfilAutorPainel";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { BarraAcoes, ETAPAS, Grupo, Quadro } from "@/features/motor/Estudio";
@@ -157,8 +158,10 @@ export default function CarrosselNovo() {
   const fonte = useMemo(() => normalizarFonte(textoFonte), [textoFonte]);
   const palavras = useMemo(() => (texto.trim() ? texto.trim().split(/\s+/).length : 0), [texto]);
   const av = useMemo(() => avaliarFonte(fonte), [fonte]);
-  const porQuantidade = slidesPorQuantidade(av.slidesSugeridos, av.slidesMax || LIMITES_FONTE.maxSlides);
-  const nSlides = formato !== "carrossel" ? 1 : Math.min(av.slidesMax || LIMITES_FONTE.maxSlides, Math.max(2, slides ?? porQuantidade[quantidade]));
+  // Owner default: always 10 slides (8 as the usual alternative); the source may cap it, shown explicitly.
+  const pedidoSlides = slides ?? SLIDES_PREDEFINIDOS;
+  const nSlides = formato !== "carrossel" ? 1 : Math.min(av.slidesMax || LIMITES_FONTE.maxSlides, Math.max(2, pedidoSlides));
+  const fonteCurta = av.ok && !!av.slidesMax && av.slidesMax < pedidoSlides;
   const nomeProjeto = projetos.find((p) => p.id === projeto)?.name;
   const mostrarErro = tocado && !!texto.trim() && !av.ok;
   const semTexto = tocado && !texto.trim();
@@ -177,6 +180,15 @@ export default function CarrosselNovo() {
     if (t === tipoFonte) return;
     limparFonte(); setUrl(""); setTipoFonte(t);
   }
+  /** Curated item with only a summary: read the full article from its original link (no AI cost). */
+  const [lerAoMudar, setLerAoMudar] = useState(false);
+  function lerArtigoCompleto(f: FonteCuradoria) {
+    limparFonte(); setTipoFonte("link"); setUrl(f.url ?? ""); setTitulo(f.titulo); setLerAoMudar(true);
+  }
+  useEffect(() => {
+    if (lerAoMudar && tipoFonte === "link" && url) { setLerAoMudar(false); void lerLink(); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lerAoMudar, tipoFonte, url]);
 
   async function lerLink() {
     if (!projeto || !url.trim()) return;
@@ -333,12 +345,13 @@ export default function CarrosselNovo() {
                 : "Escolhe um PDF com texto (até 15 MB e 60 páginas). O texto é lido página a página neste dispositivo."}
             </p>
             {tipoFonte === "curadoria" && !demo && <div className="flex flex-col gap-4">
-              {!curada ? <CuradoriaNoticias noticiaInicial={params.get("noticia") ?? undefined} selecionar={(f) => { setCurada(f); setTexto(f.texto); setOriginal(f.texto); setTitulo(f.titulo); setSlides(null); setIdioma({ estrangeiro: false, escolha: "original", traducaoId: null, pronto: true }); }} /> :
+              {!curada ? <CuradoriaNoticias noticiaInicial={params.get("noticia") ?? undefined} selecionar={(f) => { if (!demo && precisaArtigoCompleto(f)) { lerArtigoCompleto(f); return; } setCurada(f); setTexto(f.texto); setOriginal(f.texto); setTitulo(f.titulo); setSlides(null); setIdioma({ estrangeiro: false, escolha: "original", traducaoId: null, pronto: true }); }} /> :
                 <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4" role="status">
                   <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                     <div><p className="text-xs font-semibold uppercase text-primary">Notícia selecionada</p><p className="mt-1 font-medium">{curada.titulo}</p></div>
                     <Button variant="outline" className="min-h-11 shrink-0" onClick={limparFonte}>Escolher outra notícia</Button>
                   </div>
+                  {precisaArtigoCompleto(curada) || curada.texto.length < 1200 ? <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm"><p className="font-medium text-destructive">Só existe o resumo ({formatarNumero(curada.texto.length)} caracteres): vai dar no máximo {av.slidesMax || 2} slides.</p><div className="mt-2 flex flex-wrap gap-2">{curada.url && <Button variant="outline" className="min-h-11" onClick={() => lerArtigoCompleto(curada)}>Ler artigo completo do link</Button>}<Button variant="outline" className="min-h-11" onClick={() => mudarTipo("texto")}>Colar o texto do artigo</Button></div></div> : null}
                   <p className="text-xs text-muted-foreground">{curada.nivel === "resumo" ? "Só título/resumo: a geração ficará limitada a estes factos." : "Texto do artigo guardado na curadoria."}{curada.parcial && " Fonte parcial: serão usados os primeiros 20 000 caracteres."} A cópia só fica congelada ao criar o conteúdo. Sem IA, mantém o idioma e as frases da fonte; com IA, o rascunho é redigido em português.</p>
                   <details><summary className="min-h-11 cursor-pointer text-sm">Ver texto que será usado</summary><p className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm">{curada.texto}</p></details>
                 </div>}
@@ -560,7 +573,8 @@ export default function CarrosselNovo() {
                 {comIa && <Chips titulo="Intenção editorial" itens={INTENCOES.map((x) => ({ id: x.id, nome: x.nome }))} ativo={(id) => intencao === id} onEscolher={(id) => setIntencao(intencao === id ? null : id as Intencao)} />}
                 {comIa && intencao && <p className="-mt-1 text-xs text-muted-foreground">{INTENCOES.find((x) => x.id === intencao)!.desc} Define para que serve o conteúdo; a estrutura e o modelo visual escolhem-se à parte. Só usa o que a fonte documenta.</p>}
                 {comIa && <Chips titulo="Apelo final" itens={CTAS.map((c) => ({ id: c.id, nome: c.nome }))} ativo={(id) => cta === id} onEscolher={(id) => setCta(cta === id ? null : id as Cta)} />}
-                {formato === "carrossel" && <Chips titulo="Extensão" itens={QUANTIDADES.map((q) => ({ id: q.id, nome: `${q.nome} · ${porQuantidade[q.id]} slides` }))} ativo={(id) => slides == null && quantidade === id} onEscolher={(id) => { setQuantidade(id as Quantidade); setSlides(null); }} />}
+                {formato === "carrossel" && <Chips titulo="Número de slides" itens={[{ id: "10", nome: "10 slides" }, { id: "8", nome: "8 slides" }]} ativo={(id) => pedidoSlides === Number(id)} onEscolher={(id) => setSlides(Number(id))} />}
+                {formato === "carrossel" && fonteCurta && <p role="status" className="-mt-1 text-sm text-destructive">Esta fonte só tem {formatarNumero(textoFonte.length)} caracteres: dá no máximo {av.slidesMax} slides. Para chegar a {pedidoSlides}, cola o texto completo do artigo.</p>}
               </div>
             </div>
 
