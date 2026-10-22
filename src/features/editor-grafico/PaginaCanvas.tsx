@@ -34,6 +34,8 @@ interface Props {
   encaixe?: boolean;
   /** Double click / double tap on a text layer: open inline editing. */
   onEditarTexto?: (id: string) => void;
+  /** Screen-only safe-zone guides (profile grid square, pagination band, side margins). Never exported. */
+  zonasSeguras?: boolean;
 }
 
 /** One animated sticker: redraws the layer every frame while the <video> advances. */
@@ -85,7 +87,7 @@ function Conteudo({ c, pacote, medidor, imagens, videos, reproduzir }: { c: Cama
   );
 }
 
-export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, selecoes = [], onSelecionar, onSelecionarVarios, onAlterar, toque = false, corSelecao = "#f59e0b", encaixe = false, onEditarTexto, videos, reproduzir = false }: Props) {
+export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, selecoes = [], onSelecionar, onSelecionarVarios, onAlterar, toque = false, corSelecao = "#f59e0b", encaixe = false, onEditarTexto, videos, reproduzir = false, zonasSeguras = false }: Props) {
   const [guias, setGuias] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const [sobrevoo, setSobrevoo] = useState<string | null>(null);
   const { largura: LARGURA, altura: ALTURA } = pacote.variantes[variante];
@@ -177,6 +179,17 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
         {guias.x.map((g) => <Line key={`gx${g}`} points={[g, 0, g, ALTURA]} stroke={corSelecao} strokeWidth={1 / escala} dash={[6 / escala, 4 / escala]} listening={false} />)}
         {guias.y.map((g) => <Line key={`gy${g}`} points={[0, g, LARGURA, g]} stroke={corSelecao} strokeWidth={1 / escala} dash={[6 / escala, 4 / escala]} listening={false} />)}
         {area && (() => { const a = normalizarArea(area); return <Rect x={a.x} y={a.y} width={a.w} height={a.h} fill={`${corSelecao}20`} stroke={corSelecao} strokeWidth={1 / escala} dash={[6 / escala, 4 / escala]} listening={false} />; })()}
+        {zonasSeguras && (() => {
+          const h = pacote.variantes[variante].altura ?? ALTURA, topo = (h - LARGURA) / 2, d = [10 / escala, 6 / escala], sw = 1.5 / escala;
+          return (
+            <Group listening={false}>
+              {topo > 0 && <Rect x={0} y={topo} width={LARGURA} height={LARGURA} stroke="#e11d48" strokeWidth={sw} dash={d} />}
+              <Rect x={0} y={h - 100} width={LARGURA} height={100} fill="#e11d48" opacity={0.12} />
+              <Line points={[40, 0, 40, h]} stroke="#e11d48" strokeWidth={sw} dash={d} opacity={0.7} />
+              <Line points={[LARGURA - 40, 0, LARGURA - 40, h]} stroke="#e11d48" strokeWidth={sw} dash={d} opacity={0.7} />
+            </Group>
+          );
+        })()}
         {interativo && (
           <Transformer
             ref={trRef}

@@ -44,3 +44,20 @@ describe("critério visual na primeira composição", () => {
     expect(avisosCarga([{ id: "s2", papel: "desenvolvimento", titulo: "x", texto: "curto" }])).toHaveLength(0);
   });
 });
+
+import { dividirTextoSlide } from "../../supabase/functions/_shared/motor/enriquecer";
+describe("dividir slide e segundo gancho", () => {
+  it("divide pelo parágrafo mais próximo do meio sem perder texto", () => {
+    const t = "Primeira ideia com algum desenvolvimento aqui.\n\nSegunda ideia também desenvolvida.\n\nTerceira ideia final para fechar.";
+    const r = dividirTextoSlide(t)!;
+    expect(r).not.toBeNull();
+    expect(`${r[0]} ${r[1]}`.replace(/\s+/g, " ")).toBe(t.replace(/\s+/g, " "));
+  });
+  it("texto curto não é dividido", () => { expect(dividirTextoSlide("Curto.")).toBeNull(); });
+  it("slide 2 recebe faixa de segundo gancho", () => {
+    const f = normalizarFonte(FONTE);
+    const p = estruturarSemIa(f, { slides: 6 }, { titulo: null, url: null }, marcaDoProjeto(null));
+    const pg = comporDocumentos(p, f.paragrafos).A.paginas[1];
+    expect(pg.camadas.some((c) => c.id === "mod-gancho-faixa")).toBe(true);
+  });
+});

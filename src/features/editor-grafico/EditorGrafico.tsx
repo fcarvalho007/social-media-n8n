@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import { EscolhaCapa } from "@/features/motor/EscolhaCapa";
 import { toast } from "sonner";
 import {
   AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, BringToFront, ChevronsDown, ChevronsUp, Circle, Copy, Download,
-  AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Bold, CopyCheck, Highlighter, Magnet, Underline,
+  AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Bold, CopyCheck, Highlighter, Magnet, ScanLine, Underline,
   ChevronDown, Eye, FileDown, Wand2, FileUp, Layers, Loader2, Maximize, Minus, MoreHorizontal, Play, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -391,6 +392,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const semDirecao = !sistemaDoPacote(pacoteInicial) && !direcaoPersonalizada;
   const [aba, setAba] = useState<AbaInserir | null>(semDirecao ? "estilos" : "texto");
   const [encaixe, setEncaixe] = useState(true);
+  const [zonas, setZonas] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [intervaloTexto, setIntervaloTexto] = useState<{ id: string; inicio: number; fim: number } | null>(null);
   const [selecoes, setSelecoes] = useState<string[]>([]);
@@ -887,7 +889,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           {medidor ? (
             <PaginaCanvas pacote={pacote} variante={variante} indice={pagina} medidor={medidor} imagens={imagens} escala={escala}
               reproduzir={reproduzir} videos={videos}
-              interativo={!preview && !rascunho && !reproduzir} selecao={preview || rascunho ? null : selecao} selecoes={preview || rascunho ? [] : selecoes} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
+              interativo={!preview && !rascunho && !reproduzir} selecao={preview || rascunho ? null : selecao} selecoes={preview || rascunho ? [] : selecoes} toque={compacto} corSelecao={corSelecao} encaixe={encaixe} zonasSeguras={zonas}
               onSelecionar={(id) => { setSelecoes([]); if (id !== editando) setEditando(null); despachar({ tipo: "selecionar", id }); }}
               onSelecionarVarios={(ids) => { setEditando(null); setSelecoes(ids); despachar({ tipo: "selecionar", id: ids.at(-1) ?? null }); }}
               onEditarTexto={(id) => { despachar({ tipo: "selecionar", id }); setEditando(id); }}
@@ -949,6 +951,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       {selecoes.length > 1 && <><span className="px-2 text-sm font-medium">{selecoes.length} elementos selecionados</span><Button variant="ghost" size="icon" className={`${bt} text-destructive hover:text-destructive`} aria-label="Apagar seleção" onClick={() => { despachar({ tipo: "apagarCamadas", ids: selecoes }); setSelecoes([]); }}><Trash2 className="h-4 w-4" /></Button>{sep}</>}
       {!camada && paginaAtual && (<>
         <Button variant={encaixe ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={encaixe} onClick={() => setEncaixe((v) => !v)}><Magnet className="mr-1.5 h-4 w-4" />Encaixar</Button>
+        <Button variant={zonas ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={zonas} title="Quadrado da grelha do perfil, faixa dos pontos de navegação e margens de 40 px. Não aparecem na exportação." onClick={() => setZonas((v) => !v)}><ScanLine className="mr-1.5 h-4 w-4" />Zonas seguras</Button>
         <span className="ml-1 min-w-0 text-sm text-muted-foreground">{compacto ? "Toca num elemento para o editar." : "Clica num texto para o selecionar; clica outra vez (ou Enter) para escrever."}</span>
       </>)}
       {camada?.tipo === "texto" && (<>
@@ -1009,9 +1012,20 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   );
 
   const inserir = (a: AbaInserir) => (a === "estilos" ? (
+    <div className="space-y-6">
+    {!rascunho && medidor && (
+      <details className="group rounded-[var(--mc-r-md)] border border-border p-3">
+        <summary className="cursor-pointer list-none text-sm font-medium [&::-webkit-details-marker]:hidden">Capa · 3 propostas <span className="text-xs font-normal text-muted-foreground">(Manifesto, Dado, Fotografia)</span></summary>
+        <div className="pt-3">
+          <EscolhaCapa compacto pacote={pacote} variante={variante} medidor={medidor} imagens={imagens}
+            onAplicar={(p) => { despachar({ tipo: "substituir", pacote: p }); despachar({ tipo: "pagina", indice: 0 }); comDesfazer("Capa aplicada."); }} />
+        </div>
+      </details>
+    )}
     <PainelDirecaoVisual base={rascunho?.antes ?? pacote} atual={rascunho?.s ?? sistemaDoc} emRascunho={!!rascunho} medidor={medidor} imagens={imagens}
       proposta={pacote} pagina={pagina} temSelecao={!!selecao}
       onExperimentar={experimentar} onAplicar={aplicarRascunho} onCancelar={cancelarRascunho} />
+    </div>
   ) : (
     <PainelInserir aba={a} despachar={despachar} projectId={projectId} promptIA={promptIA} subImagens={subImagens} termoFotos={queryAuto} pedirImagem={onImagem} onEstilo={() => undefined}
       substituirImagemId={imagemASubstituir} onImagem={(r) => { if (imagemASubstituir) despachar({ tipo: "substituirImagem", id: imagemASubstituir, asset: r.asset, nome: r.nome }); else despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome, modo: modoNova }); setImagemASubstituir(null); }} />
