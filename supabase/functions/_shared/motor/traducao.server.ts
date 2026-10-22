@@ -6,11 +6,11 @@ import { normalizarFonte } from "./proposta.ts";
 import { detetarIdioma, hashTexto, promptTraducaoSistema, promptTraducaoUtilizador, validarTraducao } from "./traducao.ts";
 
 export type RespostaTraducao =
-  | { ok: true; traducao_id: string; hash: string; idioma_origem: string; original: string[]; paragrafos: string[]; reutilizada: boolean }
+  | { ok: true; traducao_id: string; hash: string; idioma_origem: string; original: string[]; paragrafos: string[]; mantidos: number[]; reutilizada: boolean }
   | { ok: false; status: number; error: string; estado?: string; traducao_id?: string; codigo?: CodigoRecusa; pode_repetir?: boolean };
 
 /** Expected, non-failure outcomes the UI shows inline. */
-export type CodigoRecusa = "invalida" | "pode_repetir" | "ja_repetida" | "limite_diario" | "ia_desligada" | "desconhecido";
+export type CodigoRecusa = "invalida" | "pode_repetir" | "ja_repetida" | "limite_diario" | "ia_desligada" | "desconhecido" | "fornecedor" | "erro_interno";
 
 export async function traduzirFonte(sb: SupabaseClient, projectId: string, utilizador: string, texto: string, repetir: boolean): Promise<RespostaTraducao> {
   const fonte = normalizarFonte(texto);
@@ -19,20 +19,20 @@ export async function traduzirFonte(sb: SupabaseClient, projectId: string, utili
   const det = detetarIdioma(fonte.texto);
   if (det.idioma === "pt" && det.confianca === "alta") return { ok: false, status: 400, error: "O texto já parece estar em português." };
 
-  const existente = await sb.from("mc_traducoes").select("id, estado, resultado, resultado_recusado, idioma_origem, tentativas").eq("project_id", projectId).eq("hash_original", hash).maybeSingle();
+  const existente = await sb.from("mc_traducoes").select("id, estado, resultado, resultado_recusado, paragrafos_mantidos, idioma_origem, tentativas").eq("project_id", projectId).eq("hash_original", hash).maybeSingle();
   if (existente.data?.estado === "valida") {
-    return { ok: true, traducao_id: existente.data.id, hash, idioma_origem: existente.data.idioma_origem, original: fonte.paragrafos, paragrafos: existente.data.resultado as string[], reutilizada: true };
+    return { ok: true, traducao_id: existente.data.id, hash, idioma_origem: existente.data.idioma_origem, original: fonte.paragrafos, paragrafos: existente.data.resultado as string[], mantidos: (existente.data.paragrafos_mantidos as number[] | null) ?? [], reutilizada: true };
   }
   // Free re-validation: a previously rejected result may pass the current (fixed) validator.
   if (existente.data?.estado === "invalida" && existente.data.resultado_recusado) {
     const v0 = validarTraducao(fonte.paragrafos, existente.data.resultado_recusado);
     if (v0.ok) {
-      await sb.from("mc_traducoes").update({ estado: "valida", resultado: v0.paragrafos, erro: null, actualizado_em: new Date().toISOString() }).eq("id", existente.data.id);
-      return { ok: true, traducao_id: existente.data.id, hash, idioma_origem: existente.data.idioma_origem, original: fonte.paragrafos, paragrafos: v0.paragrafos, reutilizada: true };
+      await sb.from("mc_traducoes").update({ estado: "valida", resultado: v0.paragrafos, paragrafos_mantidos: v0.mantidos, erro: null, actualizado_em: new Date().toISOString() }).eq("id", existente.data.id);
+      return { ok: true, traducao_id: existente.data.id, hash, idioma_origem: existente.data.idioma_origem, original: fonte.paragrafos, paragrafos: v0.paragrafos, mantidos: v0.mantidos, reutilizada: true };
     }
   }
   if (!(globalThis as unknown as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get("DEEPSEEK_API_KEY")) {
-    return { ok: false, status: 503, error: "A DeepSeek não está configurada no servidor. Podes avançar com a língua original." };
+    return { ok: false, status: 503, error: "A IA de tradução não está configurada no servidor. Avança com a língua original.", codigo: "ia_desligada", pode_repetir: false };
   }
   const { data: res, error } = await sb.rpc("mc_reservar_traducao", {
     _project_id: projectId, _hash: hash, _origem: det.idioma, _original: fonte.paragrafos, _modelo: MODELO_IA, _repetir: repetir, _utilizador: utilizador,
@@ -46,7 +46,10 @@ export async function traduzirFonte(sb: SupabaseClient, projectId: string, utili
       P0002: [409, "A IA está desligada neste projeto. Define um limite diário em «Limites da IA».", "ia_desligada", false],
     };
     const r0 = m[error.code ?? ""];
-    if (!r0) return { ok: false, status: 500, error: "Não foi possível reservar o pedido de tradução." };
+    if (!r0) {
+      console.error("[traducao] reserva falhou", error.code, error.message);
+      return { ok: false, status: 500, error: "Não foi possível preparar o pedido de tradução. Avança com a língua original.", codigo: "erro_interno", pode_repetir: false };
+    }
     return { ok: false, status: r0[0], error: r0[1], codigo: r0[2], pode_repetir: r0[3] && !repetir, traducao_id: existente.data?.id };
   }
   const linha = (res as Array<{ traducao_id: string; estado: string; reutilizada: boolean }>)[0];
@@ -55,9 +58,9 @@ export async function traduzirFonte(sb: SupabaseClient, projectId: string, utili
 
   await marcar({ estado: "pedido_enviado" });
   const r = await chamarGateway(MODELO_IA, promptTraducaoSistema(), promptTraducaoUtilizador(fonte.paragrafos));
-  if (r.tipo === "erro_antes_pedido") { await marcar({ estado: "erro_antes_pedido", erro: r.mensagem }); return { ok: false, status: 503, error: r.mensagem, estado: "erro_antes_pedido", traducao_id: id }; }
-  if (r.tipo === "recusado") { await marcar({ estado: "recusada", erro: `${r.status}` }); return { ok: false, status: 502, error: MENSAGEM_RECUSA[r.classe], estado: "recusada", traducao_id: id }; }
-  if (r.tipo === "desconhecido") { await marcar({ estado: "desconhecido", erro: r.mensagem.slice(0, 900) }); return { ok: false, status: 504, error: "A tradução ficou sem resultado conhecido e não é repetida automaticamente. Avança com a língua original.", estado: "desconhecido", traducao_id: id }; }
+  if (r.tipo === "erro_antes_pedido") { await marcar({ estado: "erro_antes_pedido", erro: r.mensagem }); return { ok: false, status: 503, error: r.mensagem, estado: "erro_antes_pedido", traducao_id: id, codigo: "fornecedor", pode_repetir: false }; }
+  if (r.tipo === "recusado") { await marcar({ estado: "recusada", erro: `${r.status}` }); return { ok: false, status: 502, error: MENSAGEM_RECUSA[r.classe], estado: "recusada", traducao_id: id, codigo: "fornecedor", pode_repetir: false }; }
+  if (r.tipo === "desconhecido") { await marcar({ estado: "desconhecido", erro: r.mensagem.slice(0, 900) }); return { ok: false, status: 504, error: "A tradução ficou sem resultado conhecido e não é repetida automaticamente. Avança com a língua original.", estado: "desconhecido", traducao_id: id, codigo: "desconhecido", pode_repetir: false }; }
   let parsed: unknown = null;
   try { parsed = JSON.parse(r.texto); } catch { /* invalid JSON handled below */ }
   const v = validarTraducao(fonte.paragrafos, parsed);
@@ -65,6 +68,6 @@ export async function traduzirFonte(sb: SupabaseClient, projectId: string, utili
     await marcar({ estado: "invalida", erro: v.motivo, resultado_recusado: parsed ?? null, tokens_entrada: r.tokensEntrada, tokens_saida: r.tokensSaida });
     return { ok: false, status: 422, error: `Tradução recusada: ${v.motivo} O original mantém-se.`, estado: "invalida", traducao_id: id, codigo: "invalida", pode_repetir: !repetir };
   }
-  await marcar({ estado: "valida", resultado: v.paragrafos, tokens_entrada: r.tokensEntrada, tokens_saida: r.tokensSaida });
-  return { ok: true, traducao_id: id, hash, idioma_origem: det.idioma, original: fonte.paragrafos, paragrafos: v.paragrafos, reutilizada: false };
+  await marcar({ estado: "valida", resultado: v.paragrafos, paragrafos_mantidos: v.mantidos, resultado_recusado: null, tokens_entrada: r.tokensEntrada, tokens_saida: r.tokensSaida });
+  return { ok: true, traducao_id: id, hash, idioma_origem: det.idioma, original: fonte.paragrafos, paragrafos: v.paragrafos, mantidos: v.mantidos, reutilizada: false };
 }

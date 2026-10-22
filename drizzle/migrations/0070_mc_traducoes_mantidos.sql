@@ -1,0 +1,2 @@
+ALTER TABLE public.mc_traducoes ADD COLUMN IF NOT EXISTS paragrafos_mantidos integer[] NOT NULL DEFAULT '{}';
+COMMENT ON COLUMN public.mc_traducoes.paragrafos_mantidos IS '1-based paragraphs kept in the original language because digits/URLs did not match.';
