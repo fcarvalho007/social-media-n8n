@@ -563,7 +563,7 @@ export default function CarrosselNovo() {
                 {comIa && intencao && <p className="-mt-1 text-xs text-muted-foreground">{INTENCOES.find((x) => x.id === intencao)!.desc} Define para que serve o conteúdo; a estrutura e o modelo visual escolhem-se à parte. Só usa o que a fonte documenta.</p>}
                 {comIa && <Chips titulo="Apelo final" itens={CTAS.map((c) => ({ id: c.id, nome: c.nome }))} ativo={(id) => cta === id} onEscolher={(id) => setCta(cta === id ? null : id as Cta)} />}
                 {formato === "carrossel" && <Chips titulo="Número de slides" itens={[{ id: "10", nome: "10 slides" }, { id: "8", nome: "8 slides" }]} ativo={(id) => pedidoSlides === Number(id)} onEscolher={(id) => setSlides(Number(id))} />}
-                {formato === "carrossel" && fonteCurta && <p role="status" className="-mt-1 text-sm text-destructive">Esta fonte só tem {formatarNumero(av.caracteres)} caracteres: dá no máximo {av.slidesMax} slides. Para chegar a {pedidoSlides}, cola o texto completo do artigo.</p>}
+                {formato === "carrossel" && fonteCurta && <p role="status" className="-mt-1 text-sm text-destructive">Esta fonte só tem {formatarNumero(textoFonte.length)} caracteres: dá no máximo {av.slidesMax} slides. Para chegar a {pedidoSlides}, cola o texto completo do artigo.</p>}
               </div>
             </div>
 
