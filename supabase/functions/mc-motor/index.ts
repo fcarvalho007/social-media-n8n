@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
     }
     const titulo = typeof body.titulo === "string" && body.titulo.trim() ? body.titulo.trim().slice(0, 300) : null;
     const objetivo = typeof body.objetivo === "string" ? body.objetivo.slice(0, 200) : "";
-    const tom = typeof body.tom === "string" ? body.tom.slice(0, 80) : "";
+    const tom = typeof body.tom === "string" ? body.tom.slice(0, 300) : "";
     let formato: FormatoConteudo;
     try { formato = formatoConteudo(body.formato); } catch { return json({ error: "Formato inválido." }, 400); }
     const slides = Number(body.slides);
