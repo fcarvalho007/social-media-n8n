@@ -73,3 +73,11 @@
 - [x] Refinar os Destaques numerados: categoria alinhada ao título e ritmo compacto no email e web
 - [x] Impedir que uma imagem antiga inacessível da crónica provoque erro 500 e ecrã em branco
 - [x] Corrigir o recorte de imagens da crónica e automatizar o URL após publicação
+
+## Carrossel impactante (plano 22/10)
+- [x] Ronda 1 (parcial): capa na zona segura com título Black, ícone por função, barra de progresso, seta de deslizar, avisos de carga (função)
+- [ ] Ronda 0: auditoria visual com capturas do carrossel real
+- [ ] Ronda 1: mostrar avisos de carga no ecrã; composição «segundo gancho» própria no slide 2
+- [ ] Ronda 2: imagens gratuitas sugeridas por slide (proposta)
+- [ ] Ronda 3: guias de zona segura no editor, dividir slide, texto alternativo por slide
+- [ ] Ronda 4: validação nos seis estilos, desktop e 375 px
