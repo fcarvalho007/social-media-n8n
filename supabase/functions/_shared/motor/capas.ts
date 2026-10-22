@@ -24,12 +24,12 @@ export const DADO = /[-+]?\d+(?:[.,]\d+)?\s?(?:%|€|\$|mil milhões|milhões|mi
 const forma = (id: string, f: CamadaForma["forma"], x: number, y: number, w: number, h: number, cor: string, z = 1, extra: Partial<CamadaForma["estilo"]> = {}, opacidade?: number): CamadaForma =>
   ({ id, tipo: "forma", forma: f, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), z, ...(opacidade !== undefined ? { opacidade } : {}), estilo: { cor, ...extra } });
 
-function altura(c: CamadaTexto, tam: number, w: number, conteudo: ConteudoEditorial, m?: Medidor): number {
+function altura(c: CamadaTexto, tam: number, w: number, conteudo: ConteudoEditorial, m?: Medidor, peso: 400 | 900 = c.ref?.endsWith(".titulo") ? 900 : 400): number {
   const texto = resolverTexto(c, conteudo);
   if (!texto.trim()) return 0;
-  const linha = c.estilo.peso >= 700 ? 1.05 : 1.3;
+  const linha = peso >= 700 ? 1.05 : 1.3;
   if (m) {
-    const l = layoutTexto(texto, { ...c.estilo, tam, linha, overflow: "cortar", maxLinhas: undefined }, w, 100_000, m);
+    const l = layoutTexto(texto, { ...c.estilo, tam, linha, peso, familia: peso >= 700 ? "montserrat" : "inter", overflow: "cortar", maxLinhas: undefined }, w, 100_000, m);
     return Math.ceil(l.linhas.length * l.alturaLinha) + 8;
   }
   const porLinha = Math.max(1, Math.floor(w / (tam * 0.58)));
