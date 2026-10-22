@@ -24,7 +24,7 @@ import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink,
 import { ANGULOS, MAX_LEITURA_ESPECIFICA, VOZES_AUTOR, type Angulo, type PerfilAutor } from "../../supabase/functions/_shared/motor/autor";
 import { PainelIdioma, type EscolhaIdioma, type EstadoIdioma } from "@/features/motor/PainelIdioma";
 import { CTAS, INTENCOES, MAX_PUBLICO_OUTRO, PUBLICOS, textoTom, TONS, type Cta, type Intencao, type Quantidade } from "../../supabase/functions/_shared/motor/briefing";
-import { SLIDES_PREDEFINIDOS } from "@/features/motor/slidesPredefinidos";
+import { precisaArtigoCompleto, SLIDES_PREDEFINIDOS } from "@/features/motor/slidesPredefinidos";
 import { PerfilAutorPainel } from "@/features/motor/PerfilAutorPainel";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { BarraAcoes, ETAPAS, Grupo, Quadro } from "@/features/motor/Estudio";
@@ -345,12 +345,13 @@ export default function CarrosselNovo() {
                 : "Escolhe um PDF com texto (até 15 MB e 60 páginas). O texto é lido página a página neste dispositivo."}
             </p>
             {tipoFonte === "curadoria" && !demo && <div className="flex flex-col gap-4">
-              {!curada ? <CuradoriaNoticias noticiaInicial={params.get("noticia") ?? undefined} selecionar={(f) => { setCurada(f); setTexto(f.texto); setOriginal(f.texto); setTitulo(f.titulo); setSlides(null); setIdioma({ estrangeiro: false, escolha: "original", traducaoId: null, pronto: true }); }} /> :
+              {!curada ? <CuradoriaNoticias noticiaInicial={params.get("noticia") ?? undefined} selecionar={(f) => { if (!demo && precisaArtigoCompleto(f)) { lerArtigoCompleto(f); return; } setCurada(f); setTexto(f.texto); setOriginal(f.texto); setTitulo(f.titulo); setSlides(null); setIdioma({ estrangeiro: false, escolha: "original", traducaoId: null, pronto: true }); }} /> :
                 <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4" role="status">
                   <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                     <div><p className="text-xs font-semibold uppercase text-primary">Notícia selecionada</p><p className="mt-1 font-medium">{curada.titulo}</p></div>
                     <Button variant="outline" className="min-h-11 shrink-0" onClick={limparFonte}>Escolher outra notícia</Button>
                   </div>
+                  {precisaArtigoCompleto(curada) || curada.texto.length < 1200 ? <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm"><p className="font-medium text-destructive">Só existe o resumo ({formatarNumero(curada.texto.length)} caracteres): vai dar no máximo {av.slidesMax || 2} slides.</p><div className="mt-2 flex flex-wrap gap-2">{curada.url && <Button variant="outline" className="min-h-11" onClick={() => lerArtigoCompleto(curada)}>Ler artigo completo do link</Button>}<Button variant="outline" className="min-h-11" onClick={() => mudarTipo("texto")}>Colar o texto do artigo</Button></div></div> : null}
                   <p className="text-xs text-muted-foreground">{curada.nivel === "resumo" ? "Só título/resumo: a geração ficará limitada a estes factos." : "Texto do artigo guardado na curadoria."}{curada.parcial && " Fonte parcial: serão usados os primeiros 20 000 caracteres."} A cópia só fica congelada ao criar o conteúdo. Sem IA, mantém o idioma e as frases da fonte; com IA, o rascunho é redigido em português.</p>
                   <details><summary className="min-h-11 cursor-pointer text-sm">Ver texto que será usado</summary><p className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm">{curada.texto}</p></details>
                 </div>}
