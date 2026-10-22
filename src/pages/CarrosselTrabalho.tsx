@@ -31,6 +31,7 @@ import { BarraAcoes, Cabecalho, Etapas, Grupo, PAPEL, Quadro, type Etapa } from 
 import { cn } from "@/lib/utils";
 import { deveRecarregarRevisao } from "@/features/motor/revisaoRecarga";
 import { consultarLeitura, type Conselho } from "../../supabase/functions/_shared/motor/leitura";
+import { avisosCarga, dividirTextoSlide } from "../../supabase/functions/_shared/motor/enriquecer";
 
 type Passo = Etapa;
 type EstadoGravacao = "guardado" | "a_guardar" | "local" | "conflito";
@@ -213,6 +214,23 @@ export default function CarrosselTrabalho() {
     });
     setRevisao((r) => r + 1);
     setTimeout(() => { if (novoIndice >= 0) setSlideSel(novoIndice); }, 0);
+  };
+
+  /** Free: splits the slide text in two, the second half goes to a new slide right after (undo available). */
+  const dividirSlide = (sid: string) => {
+    const antes = pacote;
+    const s0 = antes?.conteudo.slides.find((x) => x.id === sid);
+    const partes = s0 && dividirTextoSlide(s0.texto);
+    if (!antes || !s0 || !partes) { toast.error("Não encontrei um ponto natural para dividir este texto."); return; }
+    const indice = Math.max(0, antes.variantes.A.paginas.findIndex((pg) => pg.slide === sid));
+    const r = inserirSlide(antes, "A", indice, "texto");
+    if (!r) { toast.error(`Máximo de ${LIMITE_PAGINAS} slides.`); return; }
+    const novo = r.pacote.conteudo.slides.find((x) => !antes.conteudo.slides.some((y) => y.id === x.id));
+    if (!novo) return;
+    const slidesN = r.pacote.conteudo.slides.map((x) => x.id === sid ? { ...x, texto: partes[0] } : x.id === novo.id ? { ...x, titulo: `${s0.titulo} (cont.)`, texto: partes[1] } : x);
+    setPacote({ ...r.pacote, conteudo: { slides: slidesN } });
+    setRevisao((v) => v + 1);
+    toast("Slide dividido em dois.", { action: { label: "Desfazer", onClick: () => { setPacote(antes); setRevisao((v) => v + 1); } } });
   };
 
   const removerSlide = (sid: string) => {
@@ -542,6 +560,13 @@ export default function CarrosselTrabalho() {
                     </div>
                   </details>
                 )}
+                {avisosCarga([{ id: sSel.id, papel: psSel?.papel ?? "desenvolvimento", titulo: sSel.titulo, texto: sSel.texto }]).map((a) => (
+                  <div key={a.slide} role="status" className="flex flex-wrap items-center gap-2 rounded-[var(--mc-r-md)] border border-border bg-muted/40 p-3 text-sm">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span className="min-w-0 flex-1">{a.motivo}</span>
+                    {dividirTextoSlide(sSel.texto) && slides.length < LIMITE_PAGINAS && <Button size="sm" variant="outline" onClick={() => dividirSlide(sSel.id)}>Dividir em dois slides</Button>}
+                  </div>
+                ))}
                 {!psSel && <p className="text-xs text-muted-foreground">Slide acrescentado por ti: sem evidência § na fonte enquanto o texto for teu.</p>}
                 {slides.length > 1 && <Button variant="ghost" className="h-11 text-destructive" onClick={() => removerSlide(sSel.id)}>Remover slide</Button>}
                 <div className="flex justify-between gap-2 pt-1">

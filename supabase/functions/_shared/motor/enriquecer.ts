@@ -58,6 +58,12 @@ export function enriquecerPaginas(paginas: Pagina[], slides: SlideEnriquecer[], 
     let p = i === 0 ? capaSegura(p0) : p0;
     const cor = acento(marca, p.fundo);
     const extra: Camada[] = [];
+    // Slide 2 is re-shown by Instagram when the cover is skipped: a "second hook" with a lateral accent band
+    // and a heavier short title (only when the title is short enough for the Black weight to keep fitting).
+    if (i === 1 && total > 2 && !p.camadas.some((c) => c.tipo === "imagem")) {
+      if (livre(p, { x: 0, y: 0, w: 32, h: ALTURA })) extra.push(forma("mod-gancho-faixa", "ret", 0, 0, 32, ALTURA, cor));
+      if (s.titulo.length <= 60) p = { ...p, camadas: p.camadas.map((c) => (c.tipo === "texto" && c.ref?.endsWith(".titulo") && c.estilo.familia === "montserrat" ? { ...c, estilo: { ...c.estilo, peso: 900 as const } } : c)) };
+    }
     const ic = iconeSlide(s, i, total);
     const caixaIcone = { x: LARGURA - 96 - 72, y: 72, w: 72, h: 72 };
     if (ic && livre(p, caixaIcone)) extra.push(forma("mod-icone", "icone", caixaIcone.x, caixaIcone.y, 72, 72, cor, { icone: ic }));
@@ -84,4 +90,20 @@ export function avisosCarga(slides: SlideEnriquecer[]): AvisoCarga[] {
     else if (pontos > 4) r.push({ slide: s.id, motivo: `${pontos} pontos numa lista: no telemóvel, mais de 4 pesa na leitura.` });
   }
   return r;
+}
+
+/** Splits a slide text at the paragraph/line break closest to the middle (falls back to a sentence end). */
+export function dividirTextoSlide(texto: string): [string, string] | null {
+  const t = texto.trim();
+  if (t.length < 80) return null;
+  const meio = t.length / 2;
+  const cortes: number[] = [];
+  for (const re of [/\n+/g, /[.!?…]\s+/g]) {
+    for (const m of t.matchAll(re)) cortes.push((m.index ?? 0) + m[0].length);
+    if (cortes.length) break;
+  }
+  if (!cortes.length) return null;
+  const c = cortes.sort((a, b) => Math.abs(a - meio) - Math.abs(b - meio))[0];
+  const a = t.slice(0, c).trim(), b = t.slice(c).trim();
+  return a && b ? [a, b] : null;
 }

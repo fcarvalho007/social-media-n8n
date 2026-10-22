@@ -14,22 +14,24 @@ interface Props {
   medidor: Medidor;
   imagens: Record<string, HTMLImageElement>;
   onAplicar: (p: PacoteProva) => void;
+  /** Narrow side panel: one proposal per row with a fixed thumbnail width. */
+  compacto?: boolean;
 }
 
-export function EscolhaCapa({ pacote, variante, medidor, imagens, onAplicar }: Props) {
+export function EscolhaCapa({ pacote, variante, medidor, imagens, onAplicar, compacto = false }: Props) {
   const marca = pacote.variantes[variante].paginas[0]?.fundo ?? "#3e5b46";
   const opcoes = useMemo(() => propostasCapa(pacote, variante, marca, medidor), [pacote, variante, marca, medidor]);
   const [sel, setSel] = useState<CapaId | null>(null);
   const escolhida = opcoes.find((o) => o.id === sel);
   if (!opcoes.length) return null;
-  const largura = typeof window !== "undefined" && window.innerWidth <= 480 ? Math.min(280, window.innerWidth - 80) : 220;
+  const largura = compacto ? 200 : typeof window !== "undefined" && window.innerWidth <= 480 ? Math.min(280, window.innerWidth - 80) : 220;
   return (
     <section aria-labelledby="t-capa" className="space-y-3">
       <div>
         <h2 id="t-capa" className="text-base font-semibold">Capa</h2>
         <p className="text-xs text-muted-foreground">A capa decide se alguém desliza. Escolhe uma de três estratégias; o texto aprovado não muda e os outros slides herdam a cor de destaque.</p>
       </div>
-      <ul className="flex snap-x gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible" aria-label="Propostas de capa">
+      <ul className={compacto ? "flex flex-col gap-3" : "flex snap-x gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible"} aria-label="Propostas de capa">
         {opcoes.map((o) => (
           <li key={o.id} className="shrink-0 snap-start">
             <button type="button" disabled={!o.cabe} aria-pressed={sel === o.id} onClick={() => setSel(o.id)}
