@@ -60,7 +60,7 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
     try {
       const r = await traduzirFonte(projectId, texto, repetir);
       if (atual.current !== pedidoHash) return; // stale: source changed meanwhile
-      if ("recusada" in r) { setErro(r.motivo); setFase("erro"); setPodeRepetir(!repetir); return; }
+      if ("recusada" in r) { setErro(r.motivo); setFase("erro"); setPodeRepetir(!repetir && !r.final); return; }
       if (r.hash !== pedidoHash) return;
       setTrad({ hash: r.hash, id: r.traducao_id, paragrafos: r.paragrafos }); setFase("inicio"); setRever(true);
     } catch (e) {
