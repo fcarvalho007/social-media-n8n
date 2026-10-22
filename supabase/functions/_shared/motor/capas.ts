@@ -108,7 +108,7 @@ function foto(p: Pagina, b: Base, imagem: CamadaImagem | undefined, marca: strin
     camadas.push(forma("mod-capa-marcador", "ret", 0, 0, LARGURA, ALTURA, "#3a3f47", 0));
     camadas.push({ id: "mod-capa-marcador-txt", nome: "Imagem por escolher", tipo: "texto", texto: "Imagem por escolher", x: 96, y: TOPO, w: W, h: 50, z: 3, estilo: { peso: 700, familia: "inter", tam: 30, tamMin: 30, linha: 1.2, alinh: "esq", cor: "#c7ccd3", overflow: "cortar" } } as CamadaTexto);
   }
-  camadas.push(forma("mod-capa-gradiente", "gradiente", 0, ALTURA * 0.3, LARGURA, ALTURA * 0.7, "#000000", 1, { direcao: "baixo", intensidade: 0.92 } as Partial<CamadaForma["estilo"]>));
+  camadas.push(forma("mod-capa-gradiente", "gradiente", 0, ALTURA * 0.3, LARGURA, ALTURA * 0.7, "#000000", 1, { direcao: "base", intensidade: 0.92 }));
   const acento = legivel(marca, "#000000", 3);
   const corpoH = b.corpo ? altura(b.corpo, 34, W, conteudo, m) : 0;
   const t = b.titulo && maior(b.titulo, [110, 96, 84, 72, 62], W, FIM - TOPO - 160 - (corpoH ? corpoH + 30 : 0), conteudo, m);
