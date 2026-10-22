@@ -47,7 +47,7 @@ export interface NovoTrabalho {
 }
 export interface ResultadoTraducao { traducao_id: string; hash: string; idioma_origem: string; original: string[]; paragrafos: string[]; reutilizada: boolean }
 /** Paid DeepSeek request (or reuse of a stored valid translation); call only after explicit confirmation. */
-export type RecusaTraducao = { recusada: true; final?: boolean; motivo: string; traducao_id: string | null };
+export type RecusaTraducao = { recusada: true; codigo?: "invalida" | "pode_repetir" | "ja_repetida" | "limite_diario" | "ia_desligada" | "desconhecido"; pode_repetir?: boolean; final?: boolean; motivo: string; traducao_id: string | null };
 export const traduzirFonte = (project_id: string, texto: string, repetir = false) => invocar<ResultadoTraducao | RecusaTraducao>({ acao: "traduzir", project_id, texto, confirmar: true, repetir });
 /** Free lookup of a stored valid translation for this exact source hash. */
 export async function traducaoGuardada(projectId: string, hash: string): Promise<{ id: string; resultado: string[]; idioma_origem: string } | null> {

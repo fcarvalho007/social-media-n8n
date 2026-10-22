@@ -115,9 +115,8 @@ Deno.serve(async (req) => {
     const r = await traduzirFonte(admin(), projectId, u.user.id, texto, body.repetir === true);
     if (r.ok) return json(r);
     // A validation refusal is an expected outcome, not a server failure: report it as data (200).
-    if (r.estado === "invalida") return json({ recusada: true, motivo: r.error, traducao_id: r.traducao_id ?? null });
-    // Reservation refusals (limit reached / already retried / unknown outcome) are also expected: no retry offered.
-    if (r.status === 429 || (r.status === 409 && !r.estado)) return json({ recusada: true, final: true, motivo: r.error, traducao_id: r.traducao_id ?? null });
+    // Validation and reservation refusals are expected outcomes, not server failures: report them as data (200).
+    if (r.codigo) return json({ recusada: true, codigo: r.codigo, pode_repetir: r.pode_repetir === true, final: r.pode_repetir !== true, motivo: r.error, traducao_id: r.traducao_id ?? null });
     return json({ error: r.error, estado: r.estado ?? null, traducao_id: r.traducao_id ?? null }, r.status);
   }
 
