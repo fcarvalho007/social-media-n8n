@@ -4,6 +4,7 @@ import { formatoConteudo, CONFIG_FORMATOS, type FormatoConteudo } from "../docum
  * Pure and dependency-free: imported by the browser (preview, editor), tests and the Deno worker.
  */
 import { aplicarRitmo, planoRitmo } from "./composicoes.ts";
+import { enriquecerPaginas } from "./enriquecer.ts";
 import { ALTURA, FONTE_DOC, LARGURA, PAPEIS_PAGINA, type Camada, type DocumentoGrafico, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
 
 export const LIMITES_FONTE = { min: 40, max: 20000, minSlides: 2, maxSlides: 10 } as const;
@@ -307,7 +308,8 @@ export function comporDocumentos(p: PropostaEditorial, paragrafos?: string[]): R
   const plano = paragrafos ? planoRitmo(p.slides, paragrafos) : null;
   const doc = (variante: Variante, f: typeof paginaA): DocumentoGrafico => {
     const base = p.slides.map((s, i) => f(s, i, total, p.marca.cor));
-    const paginas = (plano ? aplicarRitmo(base, plano, conteudo) : base).map((pg, i) => {
+    const compostas = plano ? aplicarRitmo(base, plano, conteudo) : base;
+    const paginas = enriquecerPaginas(compostas, p.slides, p.marca.cor).map((pg, i) => {
       const pv = p.slides[i]?.papel_visual, tv = p.slides[i]?.tema_visual;
       const comPapel = pv && PAPEIS_PAGINA.includes(pv) ? { ...pg, papel: pv } : pg;
       return tv ? { ...comPapel, composicao: { ...(comPapel.composicao ?? {}), visual_intent: tv } } : comPapel;
