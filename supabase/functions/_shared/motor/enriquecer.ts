@@ -158,12 +158,12 @@ export function sincronizarComNarrativa(p: PacoteProva, papeis: Record<string, s
   for (const v of ["A", "B"] as const) {
     let pags = p.variantes[v].paginas.filter((pg) => { const s = sidDe(pg); return !s || ordem.has(s); });
     const tem = new Set(pags.map(sidDe));
-    const conteudoPg = pags.filter((pg, i) => i > 0 && pags.length > 2 ? i < pags.length - 1 : true);
     const novas: Pagina[] = [];
     slides.forEach((s, i) => {
       if (tem.has(s.id)) return;
       const anterior = slides.slice(0, i).reverse().map((x) => pags.find((pg) => sidDe(pg) === x.id)).find(Boolean);
-      const modelo = (anterior && conteudoPg.includes(anterior) ? anterior : conteudoPg[Math.min(1, conteudoPg.length - 1)]) ?? pags[0];
+      // Never clone the cover: prefer the previous slide's page, else the first content page.
+      const modelo = (anterior && anterior !== pags[0] ? anterior : pags[1]) ?? pags[0];
       if (!modelo) return;
       const camadas: Camada[] = modelo.camadas
         .filter((c) => c.tipo !== "imagem" && c.id !== "mod-icone" && c.id !== "mod-gancho-faixa" && !NAVEGACAO.test(c.id))
