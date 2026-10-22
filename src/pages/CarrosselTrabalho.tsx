@@ -286,7 +286,12 @@ export default function CarrosselTrabalho() {
     if (estadoG !== "guardado") throw new Error("Há alterações por gravar. Espera por «Guardado» e tenta de novo.");
     await gravarEdicao({
       proposta_id: dados.proposta.id, proposta_versao: g.propostaVersao, conteudo,
-      documentos: { A: { versao_esperada: g.docs.A.versao, documento: g.docs.A.documento }, B: { versao_esperada: g.docs.B.versao, documento: g.docs.B.documento } },
+      documentos: (() => {
+        // Keep A/B pages aligned with the accepted narrative (missing pages created, orphans removed).
+        const base = { v: 1, id: "sync", nome: "sync", sintetico: false, assets: {}, conteudo: { slides: conteudo.slides.map((x) => ({ id: x.id, titulo: x.titulo, texto: x.texto })) }, variantes: { A: g.docs.A.documento, B: g.docs.B.documento } } as unknown as PacoteProva;
+        const sync = sincronizarComNarrativa(base, Object.fromEntries(conteudo.slides.map((x) => [x.id, x.papel])), conteudo.marca?.cor ?? "#3E5B46");
+        return { A: { versao_esperada: g.docs.A.versao, documento: sync.variantes.A }, B: { versao_esperada: g.docs.B.versao, documento: sync.variantes.B } };
+      })(),
     });
     await carregar();
   };
