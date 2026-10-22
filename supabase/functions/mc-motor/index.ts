@@ -113,7 +113,10 @@ Deno.serve(async (req) => {
     if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
     const texto = typeof body.texto === "string" ? body.texto.slice(0, 60000) : "";
     const r = await traduzirFonte(admin(), projectId, u.user.id, texto, body.repetir === true);
-    return r.ok ? json(r) : json({ error: r.error, estado: r.estado ?? null, traducao_id: r.traducao_id ?? null }, r.status);
+    if (r.ok) return json(r);
+    // A validation refusal is an expected outcome, not a server failure: report it as data (200).
+    if (r.estado === "invalida") return json({ recusada: true, motivo: r.error, traducao_id: r.traducao_id ?? null });
+    return json({ error: r.error, estado: r.estado ?? null, traducao_id: r.traducao_id ?? null }, r.status);
   }
 
   if (acao === "criar") {

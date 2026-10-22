@@ -113,9 +113,9 @@ export function BarraAcoes({ inicio, fim, nota }: { inicio?: ReactNode; fim?: Re
   return (
     <div className="z-20 flex-none border-t border-border bg-background/95 backdrop-blur-sm" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2 sm:px-6">
-        <div className="flex items-center gap-2">{inicio}</div>
-        <div className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{nota}</div>
-        <div className="flex items-center gap-2">{fim}</div>
+        <div className="flex shrink-0 items-center gap-2">{inicio}</div>
+        <div className="hidden min-w-0 flex-1 truncate text-xs text-muted-foreground sm:block">{nota}</div>
+        <div className="ml-auto flex min-w-0 shrink items-center gap-2 [&>button]:min-w-0 [&>button]:truncate">{fim}</div>
       </div>
     </div>
   );

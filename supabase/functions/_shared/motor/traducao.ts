@@ -29,7 +29,9 @@ export async function hashTexto(texto: string): Promise<string> {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-const numeros = (s: string) => (s.match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(/[.,]/g, "")).sort();
+// Same value regardless of form: "2,000" = "2 000" = "2.000"; "1.5" = "1,5". Spaces only join 3-digit groups.
+export const numeros = (s: string) =>
+  (s.replace(/(\d)[\u0020\u00a0\u202f](?=\d{3}(?!\d))/g, "$1").match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(/[.,]/g, "")).sort();
 const urls = (s: string) => (s.match(/https?:\/\/[^\s)\]»"]+/g) ?? []).sort();
 
 export type ValidacaoTraducao = { ok: true; paragrafos: string[] } | { ok: false; motivo: string };

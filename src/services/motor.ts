@@ -47,7 +47,8 @@ export interface NovoTrabalho {
 }
 export interface ResultadoTraducao { traducao_id: string; hash: string; idioma_origem: string; original: string[]; paragrafos: string[]; reutilizada: boolean }
 /** Paid DeepSeek request (or reuse of a stored valid translation); call only after explicit confirmation. */
-export const traduzirFonte = (project_id: string, texto: string, repetir = false) => invocar<ResultadoTraducao>({ acao: "traduzir", project_id, texto, confirmar: true, repetir });
+export type RecusaTraducao = { recusada: true; motivo: string; traducao_id: string | null };
+export const traduzirFonte = (project_id: string, texto: string, repetir = false) => invocar<ResultadoTraducao | RecusaTraducao>({ acao: "traduzir", project_id, texto, confirmar: true, repetir });
 /** Free lookup of a stored valid translation for this exact source hash. */
 export async function traducaoGuardada(projectId: string, hash: string): Promise<{ id: string; resultado: string[]; idioma_origem: string } | null> {
   const { data } = await supabase.from("mc_traducoes").select("id, resultado, idioma_origem, estado").eq("project_id", projectId).eq("hash_original", hash).maybeSingle();
