@@ -23,7 +23,7 @@ import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } fro
 import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
 import { ANGULOS, MAX_LEITURA_ESPECIFICA, VOZES_AUTOR, type Angulo, type PerfilAutor } from "../../supabase/functions/_shared/motor/autor";
 import { PainelIdioma, type EscolhaIdioma, type EstadoIdioma } from "@/features/motor/PainelIdioma";
-import { CTAS, INTENCOES, MAX_PUBLICO_OUTRO, PUBLICOS, textoTom, TONS, type Cta, type Intencao, type Quantidade } from "../../supabase/functions/_shared/motor/briefing";
+import { alternarEscolha, CTAS, INTENCOES, MAX_INTENCOES, MAX_PUBLICO_OUTRO, MAX_PUBLICOS, MAX_TONS, PUBLICOS, textoTom, TONS, type Cta, type Intencao, type Quantidade, type Tom } from "../../supabase/functions/_shared/motor/briefing";
 import { precisaArtigoCompleto, SLIDES_PREDEFINIDOS } from "@/features/motor/slidesPredefinidos";
 import { PerfilAutorPainel } from "@/features/motor/PerfilAutorPainel";
 import { LimitesIa } from "@/features/motor/LimitesIa";
@@ -64,7 +64,7 @@ export function estruturaPrevista(n: number): string[] {
 
 type TipoFonte = "texto" | "link" | "pdf" | "curadoria";
 interface Rascunho { texto: string; titulo: string; objetivo: ObjetivoId; detalhe: string; tom: string; slides: number | null; url?: string; link?: MetaLink | null; pdf?: MetaPdf | null; original?: string; parcial?: boolean;
-  tomPreset?: string | null; publico?: string[]; publicoOutro?: string; angulo?: Angulo | null; leituraEsp?: string; cta?: Cta | null; intencao?: Intencao | null; quantidade?: Quantidade; idiomaEscolha?: EscolhaIdioma; imagens?: ImagemApoio[] }
+  tomPreset?: string | null; tons?: Tom[]; intencoes?: Intencao[]; publico?: string[]; publicoOutro?: string; angulo?: Angulo | null; leituraEsp?: string; cta?: Cta | null; intencao?: Intencao | null; quantidade?: Quantidade; idiomaEscolha?: EscolhaIdioma; imagens?: ImagemApoio[] }
 
 export default function CarrosselNovo() {
   const nav = useNavigate();
@@ -89,11 +89,11 @@ export default function CarrosselNovo() {
   const [tom, setTom] = useState("");
   const [angulo, setAngulo] = useState<Angulo | null>(null);
   const [leituraEsp, setLeituraEsp] = useState("");
-  const [tomPreset, setTomPreset] = useState<string | null>(null);
+  const [tons, setTons] = useState<Tom[]>([]);
   const [publico, setPublico] = useState<string[]>([]);
   const [publicoOutro, setPublicoOutro] = useState("");
   const [cta, setCta] = useState<Cta | null>(null);
-  const [intencao, setIntencao] = useState<Intencao | null>(null);
+  const [intencoes, setIntencoes] = useState<Intencao[]>([]);
   const [quantidade, setQuantidade] = useState<Quantidade>("equilibrado");
   const [idioma, setIdioma] = useState<EstadoIdioma>({ estrangeiro: false, escolha: "pt", traducaoId: null, pronto: true });
   const [idiomaInicial, setIdiomaInicial] = useState<EscolhaIdioma>("pt");
@@ -138,17 +138,17 @@ export default function CarrosselNovo() {
       const d = r.dados;
       setUrl(d.url ?? ""); setLinkMeta(d.link ?? null); setPdfMeta(d.pdf ?? null); setOriginal(d.original ?? ""); setParcial(!!d.parcial);
       setTexto(d.texto); setTitulo(d.titulo); setObjetivo(d.objetivo ?? "informar"); setDetalhe(d.detalhe ?? ""); setTom(d.tom ?? ""); setSlides(d.slides ?? null);
-      setTomPreset(d.tomPreset ?? null); setPublico(Array.isArray(d.publico) ? d.publico : []); setPublicoOutro(d.publicoOutro ?? ""); setAngulo(d.angulo ?? null);
-      setLeituraEsp(d.leituraEsp ?? ""); setCta(d.cta ?? null); setIntencao(INTENCOES.find((x) => x.id === d.intencao)?.id ?? null); if (d.quantidade) setQuantidade(d.quantidade); setIdiomaInicial(d.idiomaEscolha === "original" ? "original" : "pt");
+      setTons((Array.isArray(d.tons) ? d.tons : d.tomPreset ? [d.tomPreset as Tom] : []).filter((x) => TONS.some((t) => t.id === x)).slice(0, MAX_TONS)); setPublico(Array.isArray(d.publico) ? d.publico : []); setPublicoOutro(d.publicoOutro ?? ""); setAngulo(d.angulo ?? null);
+      setLeituraEsp(d.leituraEsp ?? ""); setCta(d.cta ?? null); setIntencoes((Array.isArray(d.intencoes) ? d.intencoes : d.intencao ? [d.intencao] : []).filter((x) => INTENCOES.some((i) => i.id === x)).slice(0, MAX_INTENCOES)); if (d.quantidade) setQuantidade(d.quantidade); setIdiomaInicial(d.idiomaEscolha === "original" ? "original" : "pt");
       if (Array.isArray(d.imagens)) setImagens(d.imagens.filter((i) => i && typeof i.assetId === "string").slice(0, 6));
       setRecuperado(new Date(r.guardado_em).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
     }
   }, [chave]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!chave || !texto.trim()) return;
-    const t = setTimeout(() => guardarRecuperacao<Rascunho>(chave, { texto, titulo, objetivo, detalhe, tom, slides, url, link: linkMeta, pdf: pdfMeta, original, parcial, tomPreset, publico, publicoOutro, angulo, leituraEsp, cta, intencao, quantidade, idiomaEscolha: idioma.escolha, imagens }), 600);
+    const t = setTimeout(() => guardarRecuperacao<Rascunho>(chave, { texto, titulo, objetivo, detalhe, tom, slides, url, link: linkMeta, pdf: pdfMeta, original, parcial, tons, intencoes, publico, publicoOutro, angulo, leituraEsp, cta, quantidade, idiomaEscolha: idioma.escolha, imagens }), 600);
     return () => clearTimeout(t);
-  }, [chave, texto, titulo, objetivo, detalhe, tom, slides, url, linkMeta, pdfMeta, original, parcial, tomPreset, publico, publicoOutro, angulo, leituraEsp, cta, intencao, quantidade, idioma.escolha, imagens]);
+  }, [chave, texto, titulo, objetivo, detalhe, tom, slides, url, linkMeta, pdfMeta, original, parcial, tons, intencoes, publico, publicoOutro, angulo, leituraEsp, cta, quantidade, idioma.escolha, imagens]);
 
   useEffect(() => { if (params.get("demo") === "1") usarDemo(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -260,7 +260,7 @@ export default function CarrosselNovo() {
     const o = OBJETIVOS.find((x) => x.id === objetivo)!;
     const objetivoTxt = detalhe.trim() ? `${o.nome}: ${detalhe.trim()}` : `${o.nome} — ${o.desc}`;
     try {
-      const r = await criarTrabalho({ project_id: alvo, texto: textoFonte, titulo, formato, ...(curada && tipoFonte === "curadoria" ? { noticia_id: curada.noticia_id, noticia_hash: curada.hash } : {}), objetivo: objetivoTxt.slice(0, 200), tom: textoTom(tomPreset, tom), slides: nSlides, ...(comIa ? { angulo, leitura_especifica: leituraEsp.trim(), briefing: { publico, publicoOutro: publicoOutro.trim(), cta, intencao } } : {}), ...(!demo && idioma.traducaoId ? { traducao_id: idioma.traducaoId } : {}), modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
+      const r = await criarTrabalho({ project_id: alvo, texto: textoFonte, titulo, formato, ...(curada && tipoFonte === "curadoria" ? { noticia_id: curada.noticia_id, noticia_hash: curada.hash } : {}), objetivo: objetivoTxt.slice(0, 200), tom: textoTom(tons, tom), slides: nSlides, ...(comIa ? { angulo, leitura_especifica: leituraEsp.trim(), briefing: { publico, publicoOutro: publicoOutro.trim(), cta, intencao: intencoes[0] ?? null, intencoes, tons } } : {}), ...(!demo && idioma.traducaoId ? { traducao_id: idioma.traducaoId } : {}), modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
         fonte_tipo: demo ? "texto" : tipoFonte,
         metadados: demo || tipoFonte === "texto" || tipoFonte === "curadoria" ? undefined
           : tipoFonte === "link" ? { ...linkMeta!, editado: linkMeta!.modo === "referencia" || texto !== original }
@@ -576,10 +576,13 @@ export default function CarrosselNovo() {
                 </div>
               )}
               <div className="space-y-3">
-                {comIa && <Chips titulo="Tom" itens={TONS.map((t) => ({ id: t.id, nome: t.nome, desc: t.desc }))} ativo={(id) => tomPreset === id} onEscolher={(id) => setTomPreset(tomPreset === id ? null : id)} />}
-                {comIa && <Chips titulo="Público" multi itens={PUBLICOS.map((p) => ({ id: p.id, nome: p.nome }))} ativo={(id) => publico.includes(id)} onEscolher={(id) => setPublico(publico.includes(id) ? publico.filter((x) => x !== id) : [...publico, id])} />}
-                {comIa && <Chips titulo="Intenção editorial" itens={INTENCOES.map((x) => ({ id: x.id, nome: x.nome }))} ativo={(id) => intencao === id} onEscolher={(id) => setIntencao(intencao === id ? null : id as Intencao)} />}
-                {comIa && intencao && <p className="-mt-1 text-xs text-muted-foreground">{INTENCOES.find((x) => x.id === intencao)!.desc} Define para que serve o conteúdo; a estrutura e o modelo visual escolhem-se à parte. Só usa o que a fonte documenta.</p>}
+                {comIa && <Chips titulo="Tom" max={MAX_TONS} itens={TONS.map((t) => ({ id: t.id, nome: t.nome, desc: t.desc }))} ativo={(id) => tons.includes(id as Tom)} onEscolher={(id) => setTons(alternarEscolha(tons, id as Tom, MAX_TONS))} />}
+                {comIa && <Chips titulo="Público" max={MAX_PUBLICOS} itens={PUBLICOS.map((p) => ({ id: p.id, nome: p.nome }))} ativo={(id) => publico.includes(id)} onEscolher={(id) => setPublico(alternarEscolha(publico, id, MAX_PUBLICOS))} />}
+                {comIa && <Chips titulo="Intenção editorial" max={MAX_INTENCOES} itens={INTENCOES.map((x) => ({ id: x.id, nome: x.nome, desc: x.desc }))} ativo={(id) => intencoes.includes(id as Intencao)} onEscolher={(id) => setIntencoes(alternarEscolha(intencoes, id as Intencao, MAX_INTENCOES))} />}
+                {comIa && intencoes.length > 1 && <p className="-mt-1 text-xs text-muted-foreground">A primeira escolhida é a principal; a segunda só entra onde a fonte o sustente.</p>}
+                {comIa && (tons.length > 0 || publico.length > 0 || intencoes.length > 0) && (
+                  <p role="status" className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Direção:</span> {[tons.map((id) => TONS.find((t) => t.id === id)!.nome).join(" + "), publico.length ? `para ${publico.map((id) => PUBLICOS.find((p) => p.id === id)!.nome).join(", ")}` : "", intencoes.map((id) => INTENCOES.find((i) => i.id === id)!.nome).join(" + ")].filter(Boolean).join(" · ")}. A IA relê a fonte à luz destas escolhas, sem inventar factos.</p>
+                )}
                 {comIa && <Chips titulo="Apelo final" itens={CTAS.map((c) => ({ id: c.id, nome: c.nome }))} ativo={(id) => cta === id} onEscolher={(id) => setCta(cta === id ? null : id as Cta)} />}
                 {formato === "carrossel" && <Chips titulo="Número de slides" itens={[{ id: "10", nome: "10 slides" }, { id: "8", nome: "8 slides" }]} ativo={(id) => pedidoSlides === Number(id)} onEscolher={(id) => setSlides(Number(id))} />}
                 {formato === "carrossel" && fonteCurta && <p role="status" className="-mt-1 text-sm text-destructive">Esta fonte só tem {formatarNumero(textoFonte.length)} caracteres: dá no máximo {av.slidesMax} slides. Para chegar a {pedidoSlides}, cola o texto completo do artigo.</p>}
@@ -597,7 +600,7 @@ export default function CarrosselNovo() {
             </div>
 
             <div>
-              <Grupo titulo="Personalizar" resumo={[tom || (tomPreset ? TONS.find((t) => t.id === tomPreset)?.nome : "Tom automático"), `${nSlides} ${formato === "carrossel" ? "slides" : "imagem"}`].join(" · ")}>
+              <Grupo titulo="Personalizar" resumo={[tom || (tons.length ? tons.map((id) => TONS.find((t) => t.id === id)!.nome).join(" + ") : "Tom automático"), `${nSlides} ${formato === "carrossel" ? "slides" : "imagem"}`].join(" · ")}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1 sm:col-span-2">
                     <Label htmlFor="detalhe">Precisar o objetivo <span className="font-normal text-muted-foreground">(opcional)</span></Label>
@@ -689,16 +692,17 @@ function EtapasGrandes({ atual, onFonte }: { atual: number; onFonte?: () => void
 }
 
 /** Compact preset chips: one clear selection, aria-pressed/aria-checked, 44px on touch. */
-function Chips({ titulo, itens, ativo, onEscolher, multi }: { titulo: string; itens: { id: string; nome: string; desc?: string }[]; ativo: (id: string) => boolean; onEscolher: (id: string) => void; multi?: boolean }) {
+function Chips({ titulo, itens, ativo, onEscolher, max }: { titulo: string; itens: { id: string; nome: string; desc?: string }[]; ativo: (id: string) => boolean; onEscolher: (id: string) => void; max?: number }) {
+  const n = itens.filter((i) => ativo(i.id)).length;
   return (
     <div className="space-y-1.5">
-      <p className="text-sm font-medium">{titulo} <span className="font-normal text-muted-foreground">(opcional{multi ? ", várias" : ""})</span></p>
+      <p className="text-sm font-medium">{titulo} <span className="font-normal text-muted-foreground">(opcional{max && max > 1 ? `, até ${max}` : ""})</span>{max && max > 1 && n >= max && <span className="ml-2 text-xs font-normal text-muted-foreground">Máximo {max}: a próxima escolha substitui a mais antiga.</span>}</p>
       <div className="flex flex-wrap gap-2" role="group" aria-label={titulo}>
         {itens.map((i) => (
           <button key={i.id} type="button" aria-pressed={ativo(i.id)} title={i.desc} onClick={() => onEscolher(i.id)}
             className={cn("min-h-11 rounded-full border px-3 text-sm sm:min-h-9 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              ativo(i.id) ? "border-primary bg-primary/10 font-medium" : "border-input text-muted-foreground")}>
-            {i.nome}{i.desc && <span className="sr-only">: {i.desc}</span>}
+              ativo(i.id) ? "border-primary bg-primary/10" : "border-input text-muted-foreground", i.desc && "rounded-[var(--mc-r-md)] py-1.5 text-left")}>
+            <span className={cn("block", ativo(i.id) && "font-medium")}>{i.nome}</span>{i.desc && <span className="block text-xs font-normal text-muted-foreground">{i.desc}</span>}
           </button>
         ))}
       </div>
