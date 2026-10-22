@@ -372,6 +372,26 @@ export default function CarrosselTrabalho() {
 
   const dialogos = (
     <>
+      <Dialog open={!!divisao} onOpenChange={(o) => { if (!o) setDivisao(null); }}>
+        <DialogContent className="mc-estudio max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Dividir em dois slides</DialogTitle>
+            <DialogDescription>O texto não é reescrito: só passa a ficar repartido assim. Podes desfazer.</DialogDescription>
+          </DialogHeader>
+          {divisao && <div className="space-y-3 text-sm">
+            {divisao.partes.map((t, k) => (
+              <div key={k} className="rounded-[var(--mc-r-md)] border border-border p-3">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">{k === 0 ? "Fica neste slide" : "Vai para o slide novo, com o título «(cont.)»"}</p>
+                <p className="max-h-40 overflow-y-auto whitespace-pre-line leading-relaxed">{t}</p>
+              </div>
+            ))}
+          </div>}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="h-11" onClick={() => setDivisao(null)}>Cancelar</Button>
+            <Button className="h-11" onClick={() => { if (divisao) dividirSlide(divisao.sid); setDivisao(null); }}>Dividir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!conflito} onOpenChange={() => undefined}>
         <DialogContent className="mc-estudio max-h-[90vh] max-w-3xl overflow-y-auto" onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>

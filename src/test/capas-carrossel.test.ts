@@ -47,3 +47,15 @@ describe("três propostas de capa", () => {
     expect(foto.aviso).toMatch(/Imagem por escolher/);
   });
 });
+
+import { camadaFotoCapa } from "../../supabase/functions/_shared/motor/capas";
+describe("trocar fotografia da capa", () => {
+  it("a capa fotográfica usa a imagem escolhida e o asset entra no documento", () => {
+    const pac = pacote();
+    const a = { id: "foto-1", mime: "image/jpeg", largura: 1600, altura: 2000 } as never;
+    const o = propostasCapa(pac, "A", "#3e5b46", undefined, camadaFotoCapa(a, "Foto: X / Pexels"))[2];
+    expect(o.aviso).toBeUndefined();
+    expect(o.pagina.camadas.some((c) => c.tipo === "imagem" && c.asset_id === "foto-1")).toBe(true);
+    expect(aplicarCapa(pac, "A", o, a).assets["foto-1"]).toBe(a);
+  });
+});
