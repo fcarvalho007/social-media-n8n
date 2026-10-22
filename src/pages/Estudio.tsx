@@ -2,19 +2,21 @@ import { CabecalhoPagina } from '@/components/CabecalhoPagina';
 import { SEO_DISPONIVEL } from '@/features/seo/local';
 import { DOCUMENTOS_DISPONIVEL } from '@/features/documentos/modelo';
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { AlertCircle, FileText, GalleryHorizontal, KeyRound, Mail, PlusCircle, RefreshCw, Upload, Route, BookOpen, ArrowRight, LayoutDashboard } from "lucide-react";
+import { AlertCircle, FileText, GalleryHorizontal, KeyRound, Mail, PlusCircle, RefreshCw, Upload, Route, BookOpen, ArrowRight, LayoutDashboard, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Bloco, CalendarioBloco, ConteudoBloco, CustosBloco, ProjetosBloco } from "@/features/painel/PainelBento";
+import { ContinuarOndeFicaste } from "@/features/painel/ContinuarOndeFicaste";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { associarIdentidade, resumoContinuidade, souAdminNewsletter, type Continuidade, type Identidade } from "@/services/estudio";
 
 const SEM = "__sem__";
+const NOVA = "__nova__";
 const dataPt = (s: string) => new Date(s).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" });
 
 interface Acao { titulo: string; desc: string; icon: typeof Mail; url: string }
@@ -81,13 +83,18 @@ export default function Estudio() {
         )}
         {ctx.estado === "pronto" && (
           <>
-            <Select value={ctx.projetoId ?? SEM} onValueChange={escolher} disabled={ctx.aGuardar}>
-              <SelectTrigger id="sel-projeto" className="h-11 max-w-sm bg-card font-medium"><SelectValue placeholder="Escolhe o projeto" /></SelectTrigger>
+            <div className="flex max-w-md items-center gap-2">
+            <Select value={ctx.projetoId ?? SEM} onValueChange={(v) => v === NOVA ? navigate("/projects") : escolher(v)} disabled={ctx.aGuardar}>
+              <SelectTrigger id="sel-projeto" className="h-11 flex-1 bg-card font-medium"><SelectValue placeholder="Escolhe o projeto" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={SEM}>Todos os projetos</SelectItem>
                 {ctx.projetos.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                <SelectSeparator />
+                <SelectItem value={NOVA} className="text-primary">+ Nova marca…</SelectItem>
               </SelectContent>
             </Select>
+            <Button asChild variant="outline" className="h-11" title="Criar, mudar o nome ou o logótipo das marcas"><Link to="/projects"><PenLine className="mr-1.5 h-4 w-4" aria-hidden />Gerir marcas</Link></Button>
+            </div>
             {ctx.aGuardar && <p className="text-xs text-muted-foreground">A guardar a escolha…</p>}
             {ctx.projetos.length === 0 && <p className="text-xs text-muted-foreground">Ainda não há projetos. <Link className="underline" to="/projects">Criar projeto</Link></p>}
 
@@ -105,39 +112,13 @@ export default function Estudio() {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
       <Bloco className="flex flex-col gap-4 lg:col-span-8">
-        <h2 id="continuar" className="text-lg font-semibold tracking-tight">Continuar onde ficaste</h2>
-        {ctx.estado === "erro" && <p className="text-sm text-muted-foreground">Disponível depois de carregar os projetos.</p>}
-        {ctx.estado !== "erro" && (resumo.estado === "a_carregar" || ctx.estado === "a_carregar") && <Skeleton className="h-16 w-full" />}
-        {resumo.estado === "erro" && (
-          <Alert variant="destructive">
-            <AlertTitle>Não foi possível carregar o resumo</AlertTitle>
-            <AlertDescription className="flex flex-wrap items-center gap-2">
-              <span>{resumo.erro}</span>
-              <Button size="sm" variant="outline" onClick={() => setTentativa((n) => n + 1)}>Tentar de novo</Button>
-            </AlertDescription>
-          </Alert>
-        )}
-        {resumo.estado === "pronto" && resumo.dados && ctx.estado === "pronto" && (
-          <ul className="flex flex-col divide-y text-sm">
-            <li className="flex min-h-16 flex-wrap items-center justify-between gap-3 py-3">
-              <div className="text-muted-foreground">Newsletter</div>
-              {resumo.dados.ultimaEdicao
-                ? <Link className="max-w-sm text-right font-medium text-primary hover:underline" to="/newsletter">Edição #{resumo.dados.ultimaEdicao.numero} · {resumo.dados.ultimaEdicao.estado}</Link>
-                : <span>Sem edições{ctx.projetoId ? " neste projeto" : ""}</span>}
-            </li>
-            <li className="flex min-h-16 flex-wrap items-center justify-between gap-3 py-3">
-              <div className="text-muted-foreground">Rascunhos sociais</div>
-              {resumo.dados.rascunhosSociais
-                ? <Link className="max-w-sm text-right font-medium text-primary hover:underline" to="/drafts">{resumo.dados.rascunhosSociais} por concluir</Link>
-                : <span>Nenhum rascunho</span>}
-            </li>
-            <li className="flex min-h-16 flex-wrap items-center justify-between gap-3 py-3">
-              <div className="text-muted-foreground">Artigos</div>
-              {resumo.dados.ultimoArtigo
-                ? <Link className="max-w-sm text-right font-medium text-primary hover:underline" to={`/artigos?id=${resumo.dados.ultimoArtigo.id}`}>{resumo.dados.ultimoArtigo.titulo} · {dataPt(resumo.dados.ultimoArtigo.updated_at)}</Link>
-                : <span>Nenhum rascunho</span>}
-            </li>
-          </ul>
+        {ctx.estado === "erro" && <><h2 id="continuar" className="text-lg font-semibold tracking-tight">Continuar onde ficaste</h2><p className="text-sm text-muted-foreground">Disponível depois de carregar os projetos.</p></>}
+        {ctx.estado === "a_carregar" && <Skeleton className="h-28 w-full" />}
+        {ctx.estado === "pronto" && (
+          <ContinuarOndeFicaste
+            projetoId={ctx.projetoId}
+            edicao={resumo.estado === "pronto" && resumo.dados?.ultimaEdicao && resumo.dados.ultimaEdicao.estado !== "enviada" ? resumo.dados.ultimaEdicao : null}
+          />
         )}
       </Bloco>
       <CustosBloco />
