@@ -149,6 +149,47 @@ export async function apagarArtigo(id: string) {
   if (error) throw error;
 }
 
+export type TipoPorConcluir = "social" | "artigo";
+export interface PorConcluir { tipo: TipoPorConcluir; id: string; titulo: string; etapa: string; atualizado: string; miniatura: string | null }
+
+const primeiraImagem = (m: unknown): string | null => {
+  if (!Array.isArray(m)) return null;
+  for (const x of m) {
+    const u = typeof x === "string" ? x : (x && typeof x === "object" ? (x as Record<string, unknown>).url : null);
+    if (typeof u === "string" && !/\.(mp4|mov|webm)(\?|$)/i.test(u)) return u;
+  }
+  return null;
+};
+
+/** Unfinished social drafts and article drafts, newest first; same RLS/project filter as their own lists. */
+export async function listarPorConcluir(projectId: string | null, limite = 6): Promise<{ itens: PorConcluir[]; total: number }> {
+  let qd = supabase.from("posts_drafts").select("id,caption,platform,media_urls,updated_at", { count: "exact" }).eq("status", "draft").order("updated_at", { ascending: false }).limit(limite);
+  if (projectId) qd = qd.eq("project_id", projectId);
+  let qa = db.from("art_rascunhos").select("id,titulo,updated_at", { count: "exact" }).order("updated_at", { ascending: false }).limit(limite);
+  if (projectId) qa = qa.eq("project_id", projectId);
+  const [d, a] = await Promise.all([qd, qa]);
+  if (d.error) throw d.error;
+  if (a.error) throw a.error;
+  const itens: PorConcluir[] = [
+    ...(d.data ?? []).map((r) => ({ tipo: "social" as const, id: r.id, titulo: (r.caption ?? "").trim().slice(0, 90) || "Publicação sem texto", etapa: `Rascunho · ${r.platform}`, atualizado: r.updated_at, miniatura: primeiraImagem(r.media_urls) })),
+    ...((a.data ?? []) as { id: string; titulo: string | null; updated_at: string }[]).map((r) => ({ tipo: "artigo" as const, id: r.id, titulo: r.titulo?.trim() || "Artigo sem título", etapa: "Artigo · rascunho", atualizado: r.updated_at, miniatura: null })),
+  ].sort((x, y) => y.atualizado.localeCompare(x.atualizado)).slice(0, limite);
+  return { itens, total: (d.count ?? 0) + (a.count ?? 0) };
+}
+
+export async function apagarPorConcluir(item: Pick<PorConcluir, "tipo" | "id">) {
+  if (item.tipo === "artigo") return apagarArtigo(item.id);
+  const { error } = await supabase.from("posts_drafts").delete().eq("id", item.id).eq("status", "draft");
+  if (error) throw error;
+}
+
+/** Full social draft row, used to resume it in the editor. */
+export async function lerRascunhoSocial(id: string) {
+  const { data, error } = await supabase.from("posts_drafts").select("*").eq("id", id).single();
+  if (error) throw error;
+  return data;
+}
+
 // ---- Import ----
 export async function souAdminNewsletter(): Promise<boolean> {
   const { data, error } = await db.rpc("nl_is_admin");
