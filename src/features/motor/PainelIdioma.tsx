@@ -59,7 +59,9 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
     setFase("a_traduzir"); setErro(null);
     try {
       const r = await traduzirFonte(projectId, texto, repetir);
-      if (atual.current !== pedidoHash || r.hash !== pedidoHash) return; // stale: source changed meanwhile
+      if (atual.current !== pedidoHash) return; // stale: source changed meanwhile
+      if ("recusada" in r) { setErro(r.motivo); setFase("erro"); setPodeRepetir(!repetir); return; }
+      if (r.hash !== pedidoHash) return;
       setTrad({ hash: r.hash, id: r.traducao_id, paragrafos: r.paragrafos }); setFase("inicio"); setRever(true);
     } catch (e) {
       if (atual.current !== pedidoHash) return;
@@ -70,55 +72,61 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
 
   const nome = NOME_IDIOMA[det.idioma];
   return (
-    <section className="space-y-3 rounded-[var(--mc-r-lg)] border border-border bg-card p-3 text-sm" aria-label="Língua da fonte">
-      <div className="flex flex-wrap items-center gap-2">
-        <Languages className="h-4 w-4 text-primary" aria-hidden />
-        <strong className="font-medium">{det.confianca === "alta" ? `A fonte parece estar em ${nome}.` : `A fonte pode não estar em português (parece ${nome}).`}</strong>
-        <span className="text-muted-foreground">O carrossel é sempre escrito em PT-PT; o original fica guardado sem alterações.</span>
-      </div>
-      <div role="radiogroup" aria-label="Como usar a fonte" className="flex flex-wrap gap-2">
-        {([["pt", "Avançar em PT-PT"], ["original", "Usar original como fonte"]] as const).map(([id, nomeOp]) => (
-          <button key={id} type="button" role="radio" aria-checked={escolha === id} onClick={() => setEscolha(id)}
-            className={cn("min-h-11 rounded-full border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              escolha === id ? (id === "pt" ? "border-primary bg-primary font-medium text-primary-foreground" : "border-primary bg-primary/10 font-medium") : "border-input text-muted-foreground")}>{nomeOp}</button>
-        ))}
-        {valida && <Button type="button" variant="ghost" className="h-11" aria-expanded={rever} onClick={() => setRever((v) => !v)}>{rever ? "Esconder tradução" : "Rever tradução"}</Button>}
+    <section className="space-y-2 rounded-[var(--mc-r-lg)] border border-border bg-card px-3 py-2.5 text-sm" aria-label="Língua da fonte">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <p className="flex min-w-0 flex-1 items-center gap-2">
+          <Languages className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <span><strong className="font-medium">{det.confianca === "alta" ? `Fonte em ${nome}.` : `Fonte possivelmente em ${nome}.`}</strong>{" "}
+            <span className="text-muted-foreground">O carrossel é sempre escrito em PT-PT.</span></span>
+        </p>
+        <div role="radiogroup" aria-label="Como usar a fonte" className="inline-flex rounded-full border border-input p-0.5">
+          {([["pt", "Traduzir para PT-PT"], ["original", "Usar o original"]] as const).map(([id, nomeOp]) => (
+            <button key={id} type="button" role="radio" aria-checked={escolha === id} onClick={() => setEscolha(id)}
+              className={cn("mc-trans min-h-9 rounded-full px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                escolha === id ? "bg-secondary font-medium text-secondary-foreground" : "text-muted-foreground hover:text-foreground")}>{nomeOp}</button>
+          ))}
+        </div>
+        {valida && <Button type="button" variant="ghost" size="sm" aria-expanded={rever} onClick={() => setRever((v) => !v)}>{rever ? "Esconder tradução" : "Rever tradução"}</Button>}
       </div>
 
-      {escolha === "original" && <p className="text-xs text-muted-foreground">O original é usado só como fonte. O carrossel continua em PT-PT.</p>}
+      {escolha === "original" && <p className="text-xs text-muted-foreground">O original fica como fonte, sem alterações; o texto final continua em PT-PT.</p>}
       {valida && escolha === "pt" && caracteresTrad != null && (
         tradExcede
           ? <div role="alert" className="flex flex-wrap items-center gap-2 text-xs text-destructive">
               <span>Versão PT-PT: {caracteresTrad.toLocaleString("pt-PT")} caracteres — acima do limite de {LIMITE_TRADUCAO.toLocaleString("pt-PT")}.</span>
-              <Button variant="outline" className="h-11 sm:h-8" onClick={() => setEscolha("original")}>Usar original como fonte</Button>
-              {onEncurtar && <Button variant="ghost" className="h-11 sm:h-8" onClick={onEncurtar}>Voltar à Fonte para encurtar</Button>}
+              <Button variant="outline" size="sm" onClick={() => setEscolha("original")}>Usar o original</Button>
+              {onEncurtar && <Button variant="ghost" size="sm" onClick={onEncurtar}>Voltar à Fonte para encurtar</Button>}
             </div>
-          : <p className="text-xs tabular-nums text-muted-foreground">Versão PT-PT: {caracteresTrad.toLocaleString("pt-PT")} caracteres (limite das traduções: {LIMITE_TRADUCAO.toLocaleString("pt-PT")}).</p>
+          : <p className="text-xs tabular-nums text-muted-foreground">Versão PT-PT pronta: {caracteresTrad.toLocaleString("pt-PT")} caracteres.</p>
       )}
       {escolha === "pt" && !valida && (
         <div className="space-y-2" aria-live="polite">
           {!iaDisponivel ? (
-            <p className="text-xs text-muted-foreground">A IA não está disponível hoje neste projeto, por isso não é possível preparar a versão PT-PT. Escolhe «Usar original como fonte» (o carrossel continua em PT-PT) ou ajusta os limites.</p>
+            <p className="text-xs text-muted-foreground">A IA não está disponível hoje neste projeto. Escolhe «Usar o original»; o carrossel continua em PT-PT.</p>
           ) : fase === "a_traduzir" ? (
-            <p className="flex items-center gap-2 text-xs"><Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden />A preparar versão PT-PT…</p>
+            <p className="flex items-center gap-2 text-xs"><Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden />A preparar a versão PT-PT…</p>
+          ) : fase === "erro" && erro ? (
+            <div role="status" className="space-y-2 rounded-[var(--mc-r-md)] border border-border bg-muted/50 p-2.5 text-xs">
+              <p><strong className="font-medium">A tradução não passou na verificação.</strong> <span className="text-muted-foreground">{erro.replace(/^Tradução recusada:\s*/, "")}</span></p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEscolha("original")}>Avançar com o original</Button>
+                {podeRepetir && <Button variant="ghost" size="sm" onClick={() => traduzir(true)}>Repetir uma vez (1 pedido)</Button>}
+              </div>
+            </div>
           ) : fase === "confirmar" ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs">Usa 1 pedido pago à DeepSeek (conta no limite diário do projeto). Números, nomes, citações e endereços são verificados.</span>
-              <Button className="h-11 sm:h-9" onClick={() => traduzir(false)}>Confirmar tradução</Button>
-              <Button variant="ghost" className="h-11 sm:h-9" onClick={() => setFase("inicio")}>Cancelar</Button>
+              <span className="text-xs text-muted-foreground">1 pedido pago à DeepSeek. Números, nomes e endereços são verificados.</span>
+              <Button variant="outline" size="sm" onClick={() => traduzir(false)}>Confirmar tradução</Button>
+              <Button variant="ghost" size="sm" onClick={() => setFase("inicio")}>Cancelar</Button>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button className="h-11 sm:h-9" disabled={!hash} onClick={() => setFase("confirmar")}>Preparar versão PT-PT</Button>
-              {fase === "erro" && erro && <p role="alert" className="text-xs text-destructive">{erro}</p>}
-              {fase === "erro" && podeRepetir && <Button variant="outline" className="h-11 sm:h-9" onClick={() => traduzir(true)}>Repetir uma vez (1 pedido)</Button>}
-            </div>
+            <Button variant="outline" size="sm" disabled={!hash} onClick={() => setFase("confirmar")}>Preparar versão PT-PT</Button>
           )}
         </div>
       )}
 
       {valida && rever && (
-        <div className="grid max-h-80 gap-3 overflow-y-auto sm:grid-cols-2" aria-label="Original e versão PT-PT">
+        <div className="grid max-h-72 gap-3 overflow-y-auto border-t border-border pt-2 sm:grid-cols-2" aria-label="Original e versão PT-PT">
           <div><p className="mb-1 text-xs font-medium text-muted-foreground">Original ({nome})</p>
             <ol className="space-y-2 text-xs">{fonte.paragrafos.map((p, i) => <li key={i}><span className="tabular-nums text-muted-foreground">§{i + 1}</span> {p}</li>)}</ol></div>
           <div><p className="mb-1 text-xs font-medium text-muted-foreground">PT-PT</p>
