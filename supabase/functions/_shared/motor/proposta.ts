@@ -150,7 +150,7 @@ export function estruturarSemIa(f: FonteNormalizada, brief: Brief, citacao: Prop
   slides.push({ id: `s${slides.length + 1}`, papel: "fecho", titulo: "Fonte", texto: ref || "Texto fornecido pelo autor.", fontes: [] });
   return {
     v: 1, metodo: "estruturacao", demonstracao: false,
-    titulo: capaTitulo, objetivo: (brief.objetivo ?? "").slice(0, 200), tom: (brief.tom ?? "").slice(0, 80),
+    titulo: capaTitulo, objetivo: (brief.objetivo ?? "").slice(0, 200), tom: (brief.tom ?? "").slice(0, 300),
     slides,
     legenda: [capaTitulo, ref ? `Fonte: ${ref}` : ""].filter(Boolean).join("\n\n").slice(0, 2200),
     alt: slides.map((s, i) => `Slide ${i + 1} de ${slides.length}: ${s.titulo}`.slice(0, 250)),

@@ -2280,6 +2280,7 @@ export type Database = {
           original: Json
           project_id: string
           resultado: Json | null
+          resultado_recusado: Json | null
           tentativas: number
           tokens_entrada: number | null
           tokens_saida: number | null
@@ -2298,6 +2299,7 @@ export type Database = {
           original: Json
           project_id: string
           resultado?: Json | null
+          resultado_recusado?: Json | null
           tentativas?: number
           tokens_entrada?: number | null
           tokens_saida?: number | null
@@ -2316,6 +2318,7 @@ export type Database = {
           original?: Json
           project_id?: string
           resultado?: Json | null
+          resultado_recusado?: Json | null
           tentativas?: number
           tokens_entrada?: number | null
           tokens_saida?: number | null

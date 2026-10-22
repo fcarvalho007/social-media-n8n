@@ -23,6 +23,7 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
   const [escolha, setEscolha] = useState<EscolhaIdioma>(escolhaInicial);
   useEffect(() => { setEscolha(escolhaInicial); }, [escolhaInicial]);
   const [trad, setTrad] = useState<{ hash: string; id: string; paragrafos: string[] } | null>(null);
+  const [codigo, setCodigo] = useState<string | null>(null);
   const [fase, setFase] = useState<"inicio" | "confirmar" | "a_traduzir" | "erro">("inicio");
   const [erro, setErro] = useState<string | null>(null);
   const [podeRepetir, setPodeRepetir] = useState(false);
@@ -60,13 +61,13 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
     try {
       const r = await traduzirFonte(projectId, texto, repetir);
       if (atual.current !== pedidoHash) return; // stale: source changed meanwhile
-      if ("recusada" in r) { setErro(r.motivo); setFase("erro"); setPodeRepetir(!repetir && !r.final); return; }
+      if ("recusada" in r) { setErro(r.motivo); setCodigo(r.codigo ?? "invalida"); setFase("erro"); setPodeRepetir(r.pode_repetir ?? (!repetir && !r.final)); return; }
       if (r.hash !== pedidoHash) return;
       setTrad({ hash: r.hash, id: r.traducao_id, paragrafos: r.paragrafos }); setFase("inicio"); setRever(true);
     } catch (e) {
       if (atual.current !== pedidoHash) return;
       const m = (e as Error).message;
-      setErro(m); setFase("erro"); setPodeRepetir(/Tradução recusada/.test(m));
+      setErro(m); setCodigo(null); setFase("erro"); setPodeRepetir(false);
     }
   };
 
@@ -107,7 +108,7 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncur
             <p className="flex items-center gap-2 text-xs"><Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden />A preparar a versão PT-PT…</p>
           ) : fase === "erro" && erro ? (
             <div role="status" className="space-y-2 rounded-[var(--mc-r-md)] border border-border bg-muted/50 p-2.5 text-xs">
-              <p><strong className="font-medium">A tradução não passou na verificação.</strong> <span className="text-muted-foreground">{erro.replace(/^Tradução recusada:\s*/, "")}</span></p>
+              <p><strong className="font-medium">{codigo === "limite_diario" ? "Limite diário atingido." : codigo === "ia_desligada" ? "IA desligada neste projeto." : codigo === "desconhecido" ? "Tradução sem resultado conhecido." : codigo ? "A tradução não passou na verificação." : "Não foi possível traduzir."}</strong> <span className="text-muted-foreground">{erro.replace(/^Tradução recusada:\s*/, "")}</span></p>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => setEscolha("original")}>Avançar com o original</Button>
                 {podeRepetir && <Button variant="ghost" size="sm" onClick={() => traduzir(true)}>Repetir uma vez (1 pedido)</Button>}

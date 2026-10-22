@@ -43,11 +43,11 @@ export interface NovoTrabalho {
   project_id: string; texto: string; titulo: string; objetivo: string; tom: string; slides: number; modo?: "estruturacao" | "demonstracao" | "ia"; nova?: boolean;
   /** Framework proposal job (hidden from the library; applied only on explicit accept). */
   framework?: string; origem_trabalho?: string; angulo?: string | null; leitura_especifica?: string; base_versao?: number;
-  briefing?: { publico: string[]; publicoOutro: string; cta: string | null; intencao?: string | null }; traducao_id?: string;
+  briefing?: { publico: string[]; publicoOutro: string; cta: string | null; intencao?: string | null; intencoes?: string[]; tons?: string[] }; traducao_id?: string;
 }
 export interface ResultadoTraducao { traducao_id: string; hash: string; idioma_origem: string; original: string[]; paragrafos: string[]; reutilizada: boolean }
 /** Paid DeepSeek request (or reuse of a stored valid translation); call only after explicit confirmation. */
-export type RecusaTraducao = { recusada: true; final?: boolean; motivo: string; traducao_id: string | null };
+export type RecusaTraducao = { recusada: true; codigo?: "invalida" | "pode_repetir" | "ja_repetida" | "limite_diario" | "ia_desligada" | "desconhecido"; pode_repetir?: boolean; final?: boolean; motivo: string; traducao_id: string | null };
 export const traduzirFonte = (project_id: string, texto: string, repetir = false) => invocar<ResultadoTraducao | RecusaTraducao>({ acao: "traduzir", project_id, texto, confirmar: true, repetir });
 /** Free lookup of a stored valid translation for this exact source hash. */
 export async function traducaoGuardada(projectId: string, hash: string): Promise<{ id: string; resultado: string[]; idioma_origem: string } | null> {

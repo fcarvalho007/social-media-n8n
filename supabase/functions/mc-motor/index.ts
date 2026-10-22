@@ -115,9 +115,8 @@ Deno.serve(async (req) => {
     const r = await traduzirFonte(admin(), projectId, u.user.id, texto, body.repetir === true);
     if (r.ok) return json(r);
     // A validation refusal is an expected outcome, not a server failure: report it as data (200).
-    if (r.estado === "invalida") return json({ recusada: true, motivo: r.error, traducao_id: r.traducao_id ?? null });
-    // Reservation refusals (limit reached / already retried / unknown outcome) are also expected: no retry offered.
-    if (r.status === 429 || (r.status === 409 && !r.estado)) return json({ recusada: true, final: true, motivo: r.error, traducao_id: r.traducao_id ?? null });
+    // Validation and reservation refusals are expected outcomes, not server failures: report them as data (200).
+    if (r.codigo) return json({ recusada: true, codigo: r.codigo, pode_repetir: r.pode_repetir === true, final: r.pode_repetir !== true, motivo: r.error, traducao_id: r.traducao_id ?? null });
     return json({ error: r.error, estado: r.estado ?? null, traducao_id: r.traducao_id ?? null }, r.status);
   }
 
@@ -147,7 +146,7 @@ Deno.serve(async (req) => {
     }
     const titulo = typeof body.titulo === "string" && body.titulo.trim() ? body.titulo.trim().slice(0, 300) : null;
     const objetivo = typeof body.objetivo === "string" ? body.objetivo.slice(0, 200) : "";
-    const tom = typeof body.tom === "string" ? body.tom.slice(0, 80) : "";
+    const tom = typeof body.tom === "string" ? body.tom.slice(0, 300) : "";
     let formato: FormatoConteudo;
     try { formato = formatoConteudo(body.formato); } catch { return json({ error: "Formato inválido." }, 400); }
     const slides = Number(body.slides);

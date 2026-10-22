@@ -50,30 +50,84 @@ export type Intencao = (typeof INTENCOES)[number]["id"];
 
 export const MAX_PUBLICO_OUTRO = 120;
 
-export interface BriefingEditorial { publico: string[]; publicoOutro: string; cta: Cta | null; intencao: Intencao | null }
+export const MAX_TONS = 2;
+export const MAX_INTENCOES = 2;
+export const MAX_PUBLICOS = 3;
+export type Tom = (typeof TONS)[number]["id"];
 
-export function normalizarBriefing(b: { publico?: unknown; publicoOutro?: unknown; cta?: unknown; intencao?: unknown } | null | undefined): BriefingEditorial {
-  const ids = new Set<string>(PUBLICOS.map((p) => p.id));
-  const publico = Array.isArray(b?.publico) ? [...new Set(b!.publico.filter((x): x is string => typeof x === "string" && ids.has(x)))] : [];
+/** What each audience needs to take away; used only as prompt guidance. */
+const NECESSIDADE_PUBLICO: Record<string, string> = {
+  marketing: "o que muda no trabalho de marketing e como aplicar",
+  gestores: "a decisão a tomar, o impacto e o risco para o negócio",
+  pme: "a aplicação realista com poucos recursos e equipas pequenas",
+};
+/** How each tone behaves when combined with another one. */
+const PAPEL_TOM: Record<string, string> = {
+  critico: "toma posição e questiona na tese e nas implicações",
+  pedagogico: "explica os conceitos passo a passo, sem jargão",
+  pragmatico: "converte cada ideia em algo a fazer",
+  proximo: "mantém uma voz sóbria e calorosa em todo o texto",
+};
+
+export interface BriefingEditorial { publico: string[]; publicoOutro: string; cta: Cta | null; intencao: Intencao | null; intencoes: Intencao[]; tons: Tom[] }
+
+/** Keeps order, removes duplicates/unknown ids, caps to `max` (most recent choices win). */
+export function limitarEscolhas<T extends string>(lista: unknown, validos: readonly T[], max: number): T[] {
+  if (!Array.isArray(lista)) return [];
+  const ok = [...new Set(lista.filter((x): x is T => typeof x === "string" && (validos as readonly string[]).includes(x)))];
+  return ok.slice(Math.max(0, ok.length - max));
+}
+
+/** Toggle helper for capped multi-select: adding beyond the cap drops the oldest choice. */
+export function alternarEscolha<T>(lista: T[], id: T, max: number): T[] {
+  if (lista.includes(id)) return lista.filter((x) => x !== id);
+  const n = [...lista, id];
+  return n.slice(Math.max(0, n.length - max));
+}
+
+export function normalizarBriefing(b: { publico?: unknown; publicoOutro?: unknown; cta?: unknown; intencao?: unknown; intencoes?: unknown; tons?: unknown } | null | undefined): BriefingEditorial {
+  const publico = limitarEscolhas(b?.publico, PUBLICOS.map((p) => p.id), MAX_PUBLICOS);
+  const idsInt = INTENCOES.map((i) => i.id);
+  // Legacy documents carry a single `intencao`; it becomes the primary intent.
+  const intencoes = Array.isArray(b?.intencoes) ? limitarEscolhas<Intencao>(b!.intencoes, idsInt, MAX_INTENCOES) : limitarEscolhas<Intencao>([b?.intencao], idsInt, 1);
   return {
     publico,
     publicoOutro: String(b?.publicoOutro ?? "").trim().slice(0, MAX_PUBLICO_OUTRO),
     cta: CTAS.find((c) => c.id === b?.cta)?.id ?? null,
-    intencao: INTENCOES.find((i) => i.id === b?.intencao)?.id ?? null,
+    intencao: intencoes[0] ?? null,
+    intencoes,
+    tons: limitarEscolhas<Tom>(b?.tons, TONS.map((t) => t.id), MAX_TONS),
   };
+}
+
+/** Deterministic synthesis telling the model to re-read the source in light of all choices. */
+export function blocoDirecaoEditorial(b: BriefingEditorial, desafio?: { objetivo?: string }): string[] {
+  const tons = b.tons.map((id) => TONS.find((t) => t.id === id)!);
+  const pubs = b.publico.map((id) => PUBLICOS.find((p) => p.id === id)!);
+  if (!tons.length && !pubs.length && !b.publicoOutro && !b.intencoes.length) return [];
+  const l = ["Direção editorial (aplica a TODOS os slides; não é matéria factual):"];
+  if (desafio?.objetivo) l.push(`- Desafio: ${desafio.objetivo}`);
+  if (pubs.length || b.publicoOutro) l.push(`- Para quem: ${[...pubs.map((p) => `${p.nome} (precisa de ${NECESSIDADE_PUBLICO[p.id]})`), ...(b.publicoOutro ? [b.publicoOutro] : [])].join("; ")}. Com vários públicos, escolhe exemplos e implicações que sirvam todos; não escrevas uma secção por público.`);
+  if (tons.length === 1) l.push(`- Como soa: ${tons[0].nome} — ${tons[0].desc}`);
+  if (tons.length === 2) l.push(`- Como soa: combina ${tons[0].nome} e ${tons[1].nome}: o primeiro ${PAPEL_TOM[tons[0].id]}; o segundo ${PAPEL_TOM[tons[1].id]}. Se os tons entrarem em tensão, prevalece o primeiro na capa e no fecho, e o segundo no desenvolvimento.`);
+  if (b.intencoes.length === 2) l.push(`- Para que serve: a intenção principal (acima) define a espinha do carrossel; a secundária só entra onde a fonte o sustente, sem desviar a estrutura.`);
+  l.push("- Relê a fonte à luz desta direção: escolhe os factos que mais servem este público e este desafio, ordena-os segundo a estrutura pedida e escreve no tom indicado. A direção muda a seleção, a ordem e a voz; nunca os factos.");
+  l.push("- Continua proibido: factos, números, citações ou exemplos que não estejam na fonte; cada afirmação factual mantém o seu §.");
+  return l;
 }
 
 /** Prompt lines for the user message (choices, not facts). */
 export function linhasBriefing(b: BriefingEditorial): string[] {
   const nomes = [...b.publico.map((id) => PUBLICOS.find((p) => p.id === id)!.nome), ...(b.publicoOutro ? [b.publicoOutro] : [])];
   const cta = b.cta ? CTAS.find((c) => c.id === b.cta)!.regra : "";
-  const int = b.intencao ? INTENCOES.find((i) => i.id === b.intencao)!.regra : "";
-  return [int ? `Intenção editorial: ${int}` : "", nomes.length ? `Público deste carrossel: ${nomes.join("; ")}.` : "", cta ? `Apelo final: ${cta}` : ""].filter(Boolean);
+  const [p, sec] = b.intencoes.map((id) => INTENCOES.find((i) => i.id === id)!.regra);
+  return [p ? `Intenção editorial: ${p}` : "", sec ? `Intenção secundária: ${sec}` : "", nomes.length ? `Público deste carrossel: ${nomes.join("; ")}.` : "", cta ? `Apelo final: ${cta}` : "", ...blocoDirecaoEditorial(b)].filter(Boolean);
 }
 
 /** Tone text sent to the server: preset name + description, or free text. */
-export function textoTom(preset: string | null, livre: string): string {
-  const t = TONS.find((x) => x.id === preset);
-  const base = t ? `${t.nome} — ${t.desc}` : "";
-  return [base, livre.trim()].filter(Boolean).join(" ").slice(0, 80);
+export const MAX_TOM = 300;
+export function textoTom(preset: string | string[] | null, livre: string): string {
+  const ids = Array.isArray(preset) ? preset : preset ? [preset] : [];
+  const base = ids.map((id) => TONS.find((x) => x.id === id)).filter(Boolean).map((t) => `${t!.nome} — ${t!.desc}`).join(" + ");
+  return [base, livre.trim()].filter(Boolean).join(" ").slice(0, MAX_TOM);
 }

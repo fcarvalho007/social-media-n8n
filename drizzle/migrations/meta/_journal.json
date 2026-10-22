@@ -484,6 +484,13 @@
       "when": 1792419617421,
       "tag": "0068_artigos_imagens_registo",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792673481486,
+      "tag": "0069_mc_traducoes_recusa_revalidar",
+      "breakpoints": true
     }
   ]
 }
