@@ -83,3 +83,6 @@
 - [ ] Ronda 4: validação nos seis estilos, desktop e 375 px
 - [x] Capa: 3 propostas (Manifesto, Choque de dado, Fotografia imersiva) no passo Design
 - [ ] Capa: validação visual desktop/375 px; «Trocar fotografia» com pesquisa gratuita diretamente na capa
+- [x] Aviso de carga + «Dividir em dois slides» na Narrativa; segundo gancho no slide 2; «Zonas seguras» no editor; capas no painel Direção visual
+- [ ] Ronda 2: fotografia gratuita sugerida por slide (aceitar/trocar) e «Trocar fotografia» na capa
+- [ ] Ronda 4: validação dos seis estilos e exportação PNG/PDF de teste
