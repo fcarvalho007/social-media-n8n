@@ -17,7 +17,7 @@ import { associarIdentidade, resumoContinuidade, souAdminNewsletter, type Contin
 
 const SEM = "__sem__";
 const NOVA = "__nova__";
-const dataPt = (s: string) => new Date(s).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" });
+
 
 interface Acao { titulo: string; desc: string; icon: typeof Mail; url: string }
 const PRODUCAO: Acao[] = [
@@ -37,6 +37,7 @@ const CONFIGURACAO: Acao[] = [
 
 export default function Estudio() {
   const ctx = useProjeto();
+  const navigate = useNavigate();
   const [admin, setAdmin] = useState(false);
   const [resumo, setResumo] = useState<{ estado: "a_carregar" | "pronto" | "erro"; dados?: Continuidade; erro?: string }>({ estado: "a_carregar" });
   const [tentativa, setTentativa] = useState(0);
