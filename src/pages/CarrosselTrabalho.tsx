@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, CloudOff, History, Loader2, Plus, RotateCw } from "lucide-react";
-import { apagarSlide, inserirSlide, LIMITE_PAGINAS } from "@/features/editor-grafico/estado";
+import { apagarSlideLogico, inserirSlide, LIMITE_PAGINAS, moverSlideLogico } from "@/features/editor-grafico/estado";
+import { StoryboardOrdenavel } from "@/features/motor/StoryboardOrdenavel";
+import { BotaoReescrever } from "@/features/motor/ReescreverIA";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -236,13 +238,26 @@ export default function CarrosselTrabalho() {
 
   const removerSlide = (sid: string) => {
     const antes = pacote;
-    if (!antes || antes.conteudo.slides.length <= 1) return;
-    const i = antes.variantes.A.paginas.findIndex((pg) => pg.slide === sid);
-    if (i < 0) return;
-    setPacote(apagarSlide(antes, "A", i));
-    setSlideSel((x) => Math.max(0, x - 1));
+    if (!antes) return;
+    const i = antes.conteudo.slides.findIndex((s) => s.id === sid);
+    const depois = apagarSlideLogico(antes, sid);
+    if (i < 0 || depois === antes) { toast.error("Não foi possível remover este slide."); return; }
+    setPacote(depois);
+    setSlideSel(Math.min(i, depois.conteudo.slides.length - 1));
     setRevisao((r) => r + 1);
-    toast("Slide removido.", { action: { label: "Desfazer", onClick: () => { setPacote(antes); setRevisao((r) => r + 1); } } });
+    toast("Slide removido.", { action: { label: "Desfazer", onClick: () => { setPacote(antes); setSlideSel(i); setRevisao((r) => r + 1); } } });
+  };
+
+  /** Free: reorders the narrative; A and B follow. */
+  const moverSlide = (de: number, para: number) => {
+    const antes = pacote;
+    if (!antes) return;
+    const depois = moverSlideLogico(antes, de, para);
+    if (depois === antes) return;
+    setPacote(depois);
+    setSlideSel(para);
+    setRevisao((r) => r + 1);
+    toast(`Slide movido para a posição ${para + 1}.`, { action: { label: "Desfazer", onClick: () => { setPacote(antes); setSlideSel(de); setRevisao((r) => r + 1); } } });
   };
 
   // ---------- framework proposal accept (explicit; composition kept, new version) ----------

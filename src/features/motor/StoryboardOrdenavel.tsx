@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -40,7 +40,7 @@ export function StoryboardOrdenavel({ itens, iSel, onSel, onMover, rodape }: { i
   };
   return (
     <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={fim}>
-      <SortableContext items={itens.map((x) => x.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={itens.map((x) => x.id)} strategy={rectSortingStrategy}>
         <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible" aria-label="Storyboard · arrasta para mudar a ordem">
           {itens.map((it, i) => <Linha key={it.id} item={it} i={i} sel={i === iSel} onSel={() => onSel(i)} />)}
           {rodape}
