@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { criarTrabalho, escolherNarrativa, lerEscolhaNarrativa, listarCandidatos, regenerarSlide, type CandidatoPool, type TrabalhoCompleto } from "@/services/motor";
+import { criarTrabalho, escolherNarrativa, lerEscolhaNarrativa, lerPropostaVersao, listarCandidatos, regenerarSlide, type CandidatoPool, type TrabalhoCompleto } from "@/services/motor";
 import { FRAMEWORKS, obterFramework, type Framework } from "../../../supabase/functions/_shared/motor/frameworks";
 import type { PropostaEditorial } from "../../../supabase/functions/_shared/motor/proposta";
 import { MODOS_REGEN, NOTA_MAX, type ModoRegen } from "../../../supabase/functions/_shared/motor/regenerar";
@@ -46,6 +46,8 @@ export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Pr
   const [erroR, setErroR] = useState<Record<string, string>>({});
   const [escolhaInicial, setEscolhaInicial] = useState<"editorial" | "pas" | null>(null);
   const [rever, setRever] = useState(false);
+  const [tomNovo, setTomNovo] = useState<string | null>(null);
+  const [objetivoNovo, setObjetivoNovo] = useState<string | null>(null);
   const [aEscolher, setAEscolher] = useState(false);
 
   useEffect(() => { setSelecaoS(lerSelecao(origem, versao, n)); setErroAplicar(null); }, [origem, versao, n]);
@@ -97,6 +99,10 @@ export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Pr
         const fundida = fundirSelecao(atual, [{ trabalho: candidato.trabalho, framework: "pas", conteudo: candidato.conteudo }], atual.slides.map(() => candidato.trabalho));
         if (fundida.ok === false) throw new Error(fundida.motivo);
         await aceitar(fundida.conteudo);
+      } else if (escolhaInicial === "pas") {
+        // Back to Editorial: restore the original Editorial text (version 1) as a new version; PAS stays in history.
+        const original = await lerPropostaVersao(dados.proposta.id, 1) as PropostaEditorial;
+        await aceitar({ ...original, slides: original.slides });
       }
       await escolherNarrativa(origem, framework);
       setEscolhaInicial(framework); setRever(false);
@@ -126,7 +132,7 @@ export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Pr
     try {
       const r = await criarTrabalho({
         project_id: dados.trabalho.project_id, texto: dados.fonte.texto, titulo: dados.fonte.titulo ?? atual.titulo,
-        objetivo: atual.objetivo, tom: atual.tom, slides, modo: "ia", framework: escolha.id, origem_trabalho: origem, base_versao: versao,
+        objetivo: (objetivoNovo ?? atual.objetivo).slice(0, 200), tom: (tomNovo ?? atual.tom).slice(0, 80), slides, modo: "ia", framework: escolha.id, origem_trabalho: origem, base_versao: versao,
       });
       setAtivo(r.trabalho_id); setEscolha(null); await ler();
     } catch (e) { toast.error((e as Error).message); }
@@ -190,6 +196,17 @@ export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Pr
           {(() => { const f = FRAMEWORKS.find((x) => x.id === destaque); return f ? <><span className="font-medium text-foreground">{f.nome}:</span> {f.descricao}</> : "Toca ou foca uma estrutura para ver a descrição. Ao escolher, confirmas antes de ser feito qualquer pedido."; })()}
         </p>
       </div>
+
+      <details className="group rounded-[var(--mc-r-md)] border border-border px-3">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-medium [&::-webkit-details-marker]:hidden">Rever abordagem<span className="text-xs font-normal text-muted-foreground">{(tomNovo ?? atual.tom) || "Tom automático"}</span></summary>
+        <div className="grid gap-3 pb-3 sm:grid-cols-2">
+          <label className="space-y-1 text-sm"><span className="block font-medium">Ângulo / objetivo</span>
+            <input className="h-11 w-full rounded-md border border-input bg-background px-3" maxLength={200} value={objetivoNovo ?? atual.objetivo ?? ""} onChange={(e) => setObjetivoNovo(e.target.value)} placeholder="Por exemplo: o que muda para as PME" /></label>
+          <label className="space-y-1 text-sm"><span className="block font-medium">Tom, público e apelo final</span>
+            <input className="h-11 w-full rounded-md border border-input bg-background px-3" maxLength={80} value={tomNovo ?? atual.tom ?? ""} onChange={(e) => setTomNovo(e.target.value)} placeholder="Sóbrio, para gestores, convidar a ler" /></label>
+          <p className="text-xs text-muted-foreground sm:col-span-2">Aplica-se à próxima estrutura que pedires acima: o resultado aparece como proposta comparável e o texto atual não muda.</p>
+        </div>
+      </details>
 
       {emCursoF.map((c) => (
         <p key={c.trabalho} className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 motion-safe:animate-spin" />A preparar «{obterFramework(c.framework)?.nome ?? c.framework}»… Podes continuar a editar.</p>
