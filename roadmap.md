@@ -81,3 +81,5 @@
 - [ ] Ronda 2: imagens gratuitas sugeridas por slide (proposta)
 - [ ] Ronda 3: guias de zona segura no editor, dividir slide, texto alternativo por slide
 - [ ] Ronda 4: validação nos seis estilos, desktop e 375 px
+- [x] Capa: 3 propostas (Manifesto, Choque de dado, Fotografia imersiva) no passo Design
+- [ ] Capa: validação visual desktop/375 px; «Trocar fotografia» com pesquisa gratuita diretamente na capa
