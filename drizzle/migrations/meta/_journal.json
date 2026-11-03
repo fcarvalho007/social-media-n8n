@@ -505,6 +505,13 @@
       "when": 1793718056608,
       "tag": "0071_indices_desempenho",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1793720443342,
+      "tag": "0072_hub_worker_so_com_trabalho",
+      "breakpoints": true
     }
   ]
 }
