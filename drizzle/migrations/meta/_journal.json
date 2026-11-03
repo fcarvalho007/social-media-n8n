@@ -498,6 +498,13 @@
       "when": 1792674913716,
       "tag": "0070_mc_traducoes_mantidos",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1793718056608,
+      "tag": "0071_indices_desempenho",
+      "breakpoints": true
     }
   ]
 }
