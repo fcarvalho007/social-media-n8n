@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { decidirCuradoria, selecionarNaEdicao, ocultarNaEdicao, reporNaEdicao, lerFonteCuradoria, listarCuradoria, type DecisaoEditorial, type FonteCuradoria } from "@/services/curadoria";
+import { decidirCuradoria, selecionarNaEdicao, ocultarNaEdicao, reporNaEdicao, lerFonteCuradoria, listarCuradoria, retirarDaNewsletter, reporNaNewsletter, type DecisaoEditorial, type FonteCuradoria } from "@/services/curadoria";
 import type { NoticiaCurada } from "@/services/curadoria";
 
 export function nomeFonteCuradoria(n: Pick<NoticiaCurada, "fonte_nome" | "url">) {
@@ -27,10 +27,10 @@ export function canalCuradoria(n: Pick<NoticiaCurada, "fonte_tipo" | "origem">) 
   return nomes[n.fonte_tipo ?? ""] ?? nomes[n.origem] ?? "Origem não identificada";
 }
 
-export const API_CURADORIA = { listar: listarCuradoria, ler: lerFonteCuradoria, decidir: decidirCuradoria, selecionarEdicao: selecionarNaEdicao, ocultarEdicao: ocultarNaEdicao, reporEdicao: reporNaEdicao };
-interface Props { persistirFiltros?: boolean; api?: typeof API_CURADORIA; selecionar?: (f: FonteCuradoria) => void; noticiaInicial?: string; paraEdicao?: { id: string; onSelecionada: () => void }; aoDecidir?: (decisao: DecisaoEditorial) => Promise<string | null>; cabecalho?: (abrirAprovadas: () => void) => React.ReactNode; }
+export const API_CURADORIA = { listar: listarCuradoria, ler: lerFonteCuradoria, decidir: decidirCuradoria, selecionarEdicao: selecionarNaEdicao, ocultarEdicao: ocultarNaEdicao, reporEdicao: reporNaEdicao, retirarNewsletter: retirarDaNewsletter, reporNewsletter: reporNaNewsletter };
+interface Props { persistirFiltros?: boolean; api?: typeof API_CURADORIA; selecionar?: (f: FonteCuradoria) => void; noticiaInicial?: string; paraEdicao?: { id: string; onSelecionada: () => void }; aoDecidir?: (decisao: DecisaoEditorial) => Promise<string | null>; cabecalho?: (abrirAprovadas: () => void) => React.ReactNode; edicaoAtual?: { id: string; numero: number } | null; }
 const ESTADOS: Array<{ id: DecisaoEditorial; nome: string }> = [{ id: "pendente", nome: "Por rever" }, { id: "aprovada", nome: "Aprovadas" }, { id: "rejeitada", nome: "Rejeitadas" }];
-export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, persistirFiltros = false, api = API_CURADORIA, aoDecidir, cabecalho }: Props) {
+export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, persistirFiltros = false, api = API_CURADORIA, aoDecidir, cabecalho, edicaoAtual }: Props) {
   const [params, setParams] = useSearchParams();
   const [locais, setLocais] = useState<FiltrosCuradoria>({ ...FILTROS_CURADORIA, estado: selecionar || paraEdicao ? 'aprovada' : 'pendente' });
   const filtros = persistirFiltros ? lerFiltrosCuradoria(params) : locais;
@@ -117,6 +117,22 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, pers
   };
   const idsVisíveis = dados?.itens.map((item) => item.id) ?? [];
   const todasVisíveis = idsVisíveis.length > 0 && idsVisíveis.every((id) => selecionados.has(id));
+  const retirarNewsletter = async (noticia: NoticiaCurada) => {
+    if (!edicaoAtual) return;
+    const ed = edicaoAtual;
+    setOcupado(noticia.id);
+    try {
+      await api.retirarNewsletter(noticia.id, ed.id);
+      setDados((atual) => atual ? { ...atual, itens: atual.itens.map((i) => i.id === noticia.id ? { ...i, edicoes: (i.edicoes ?? []).filter((e) => e !== ed.id) } : i) } : atual);
+      void aoDecidir?.("rejeitada").catch(() => null);
+      toast.success(`Retirada da edição #${ed.numero}. Continua aprovada.`, { action: { label: "Desfazer", onClick: () => {
+        void api.reporNewsletter(noticia.id, ed.id)
+          .then(() => { setTentativa((v) => v + 1); void aoDecidir?.("rejeitada").catch(() => null); toast.success("Notícia reposta na edição"); })
+          .catch((erro: Error) => toast.error(erro.message));
+      } } });
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setOcupado(null); }
+  };
   const retirarDaEdicao = async (noticia: NoticiaCurada) => {
     if (!paraEdicao || noticia.edicoes?.includes(paraEdicao.id)) return;
     setOcupado(noticia.id);
@@ -157,7 +173,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, pers
         {dados.itens.map((n) => <li key={n.id} className="flex min-w-0 gap-3 rounded-lg border bg-card p-4 shadow-sm transition-colors hover:border-primary/40">
           {estado === "pendente" && !selecionar && !paraEdicao && <Checkbox disabled={emAcao} className="mt-1 h-5 w-5" aria-label={`Selecionar ${n.titulo}`} checked={selecionados.has(n.id)} onCheckedChange={(checked) => setSelecionados((atual) => { const seguinte = new Set(atual); if (checked) seguinte.add(n.id); else seguinte.delete(n.id); return seguinte; })} />}
           <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><span className="font-medium text-foreground">{n.categoria} · {canalCuradoria(n)}</span><time dateTime={n.criado_em}>{new Date(n.criado_em).toLocaleDateString("pt-PT")}</time><span>{n.nivel === "artigo" ? "Artigo disponível" : "Só título/resumo disponível"}</span>{n.usos > 0 && <span>Reutilizada em {n.usos} {n.usos === 1 ? "conteúdo" : "conteúdos"}</span>}{n.estado_newsletter === "enviada" && <span>Já enviada na newsletter</span>}</div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><span className="font-medium text-foreground">{n.categoria} · {canalCuradoria(n)}</span><time dateTime={n.criado_em}>{new Date(n.criado_em).toLocaleDateString("pt-PT")}</time><span>{n.nivel === "artigo" ? "Artigo disponível" : "Só título/resumo disponível"}</span>{n.usos > 0 && <span>Reutilizada em {n.usos} {n.usos === 1 ? "conteúdo" : "conteúdos"}</span>}{n.estado_newsletter === "enviada" && <span>Já enviada na newsletter</span>}{estado === "aprovada" && edicaoAtual && n.edicoes?.includes(edicaoAtual.id) && <span className="font-medium text-primary">Na edição #{edicaoAtual.numero}</span>}</div>
           <h2 className="break-words text-base font-semibold leading-snug">{n.titulo}</h2>
           <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Fonte: </span>{nomeFonteCuradoria(n)}</p>
           {n.descricao && <p className="line-clamp-3 break-words text-sm leading-relaxed text-muted-foreground">{n.descricao}</p>}
@@ -167,7 +183,8 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, pers
               setOcupado(n.id); try { await api.selecionarEdicao(n.id, paraEdicao.id); if (consultaAtual.current === chaveConsulta) { paraEdicao.onSelecionada(); setTentativa((x) => x + 1); } toast.success("Notícia escolhida para a edição"); } catch (e) { toast.error((e as Error).message); } finally { setOcupado(null); }
             }}>{n.edicoes?.includes(paraEdicao.id) ? "Já nesta edição" : "Usar nesta edição"}</Button> : <>
               {estado !== "aprovada" && <Button className="min-h-11" disabled={emAcao} onClick={() => decidir(n.id, "aprovada")}>Aprovar</Button>}
-              {estado !== "rejeitada" && <Button variant="outline" className="min-h-11" disabled={emAcao} onClick={() => decidir(n.id, "rejeitada")}>Rejeitar</Button>}
+              {estado === "aprovada" && edicaoAtual && n.edicoes?.includes(edicaoAtual.id) && <Button variant="outline" className="min-h-11" disabled={emAcao} onClick={() => void retirarNewsletter(n)}>Retirar da newsletter</Button>}
+              {estado !== "rejeitada" && <Button variant="outline" className="min-h-11" disabled={emAcao} onClick={() => { if (estado === "aprovada" && edicaoAtual && n.edicoes?.includes(edicaoAtual.id) && !window.confirm(`Esta notícia está na edição #${edicaoAtual.numero}. Rejeitar na mesma?`)) return; void decidir(n.id, "rejeitada"); }}>Rejeitar</Button>}
               {estado === "aprovada" && SEO_DISPONIVEL && <Button className="min-h-11" asChild><Link to={`/campanhas/nova?noticia=${encodeURIComponent(n.id)}`}>Criar campanha</Link></Button>}
               {estado === "aprovada" && <DropdownMenu><DropdownMenuTrigger asChild><Button variant={SEO_DISPONIVEL ? "outline" : "default"} className="min-h-11" aria-label={`Criar peça a partir de ${n.titulo}`} disabled={emAcao}>Criar peça<ChevronDown data-icon="inline-end" aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuGroup>
                 <DropdownMenuItem className="min-h-11" asChild><Link to={`/estudio/roteiros/novo?noticia=${encodeURIComponent(n.id)}`}>Criar roteiro</Link></DropdownMenuItem>

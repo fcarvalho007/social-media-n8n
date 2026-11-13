@@ -5,7 +5,7 @@ import { CuradoriaNoticias, nomeFonteCuradoria, canalCuradoria, type API_CURADOR
 import type { NoticiaCurada, FonteCuradoria } from '@/services/curadoria';
 const n: NoticiaCurada = { id:'news', titulo:'Uma notícia para reutilizar', descricao:'Factos aprovados pela curadoria.', url:null, categoria:'ia', origem:'rss', editorial_estado:'aprovada', estado_newsletter:'enviada', edicao_id:'old', criado_em:'2026-10-07T08:00:00Z', nivel:'resumo', usos:2, edicoes:['old'] };
 const f: FonteCuradoria = { noticia_id:n.id, hash:'canonical-hash', titulo:n.titulo, texto:n.descricao!, url:null, categoria:'ia', origem:'rss', nivel:'resumo', parcial:false };
-function api(): typeof API_CURADORIA { return { listar:vi.fn().mockResolvedValue({total:1,itens:[n]}), ler:vi.fn().mockResolvedValue(f), decidir:vi.fn().mockResolvedValue(undefined), selecionarEdicao:vi.fn().mockResolvedValue('copy'), ocultarEdicao:vi.fn().mockResolvedValue(undefined), reporEdicao:vi.fn().mockResolvedValue(undefined) }; }
+function api(): typeof API_CURADORIA { return { listar:vi.fn().mockResolvedValue({total:1,itens:[n]}), ler:vi.fn().mockResolvedValue(f), decidir:vi.fn().mockResolvedValue(undefined), selecionarEdicao:vi.fn().mockResolvedValue('copy'), ocultarEdicao:vi.fn().mockResolvedValue(undefined), reporEdicao:vi.fn().mockResolvedValue(undefined), retirarNewsletter:vi.fn().mockResolvedValue(undefined), reporNewsletter:vi.fn().mockResolvedValue(undefined) }; }
 afterEach(cleanup);
 describe('curadoria: decisão partilhada e escolha sem geração', () => {
  it('seleção só mostra aprovadas e lê uma cópia ao clicar, sem decidir nem gerar', async () => {
@@ -127,4 +127,14 @@ it('regressa à página disponível ao decidir a última notícia da página fin
  const a=api();vi.mocked(a.listar).mockResolvedValueOnce({total:25,itens:[n]}).mockResolvedValueOnce({total:24,itens:[{...n,id:'restante',titulo:'Resultado da primeira página'}]});
  render(<MemoryRouter initialEntries={['/curadoria?noticias_pagina=2']}><CuradoriaNoticias api={a} persistirFiltros/></MemoryRouter>);
  fireEvent.click(await screen.findByRole('button',{name:'Aprovar'}));await screen.findByRole('heading',{name:'Resultado da primeira página'});expect(a.listar).toHaveBeenLastCalledWith(expect.objectContaining({pagina:0}));
+});
+
+describe('curadoria: retirar da newsletter', () => {
+  it('mostra «Retirar da newsletter» numa aprovada que está na edição atual e retira-a', async () => {
+    const a = api();
+    render(<MemoryRouter><CuradoriaNoticias api={a} edicaoAtual={{ id: 'old', numero: 320 }} /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('radio', { name: 'Aprovadas' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Retirar da newsletter' }));
+    await waitFor(() => expect(a.retirarNewsletter).toHaveBeenCalledWith('news', 'old'));
+  });
 });

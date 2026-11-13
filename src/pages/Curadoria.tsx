@@ -27,6 +27,7 @@ export default function Curadoria() {
   // Refresh batch results without losing the URL-backed editorial filters.
   const [versaoLista, setVersaoLista] = useState(0);
   const qc = useQueryClient();
+  const edicaoCuradoria = useQuery({ queryKey: ["curadoria-edicao-id"], queryFn: getEdicaoAtual, staleTime: 60_000 });
   const { user } = useAuth();
   const { isAdmin } = useCurrentUserRoles();
   const fontes = useQuery({ queryKey: ["fontes"], queryFn: listarFontes });
@@ -51,7 +52,7 @@ export default function Curadoria() {
           toast.success(r.noticias > 0 ? `${r.noticias} ${r.noticias === 1 ? "notícia nova" : "notícias novas"} em «Por rever».` : "Processamento concluído, sem notícias novas.");
         }} />
         {params.get('noticia') && <NoticiaEncontrada id={params.get('noticia')!} fechar={() => setParams(p => { const n = new URLSearchParams(p); n.delete('noticia'); return n; })} />}
-        <CuradoriaNoticias key={versaoLista} persistirFiltros cabecalho={(abrir) => <ResumoSemana onAbrir={abrir} />} aoDecidir={async (decisao) => {
+        <CuradoriaNoticias key={versaoLista} persistirFiltros edicaoAtual={edicaoCuradoria.data ? { id: edicaoCuradoria.data.id, numero: edicaoCuradoria.data.numero } : null} cabecalho={(abrir) => <ResumoSemana onAbrir={abrir} />} aoDecidir={async (decisao) => {
           void qc.invalidateQueries({ queryKey: CHAVE_RESUMO_SEMANA });
           if (decisao !== "aprovada") { void qc.invalidateQueries({ queryKey: CHAVE_EDICAO_CURADORIA }); return null; }
           const ed = await qc.fetchQuery({ queryKey: CHAVE_EDICAO_CURADORIA, queryFn: lerEdicaoProxima, staleTime: 0 });

@@ -23,11 +23,20 @@ const T = {
 const LOTES = [10, 20, 30, 50] as const;
 
 export type ResultadoProcessamentoFila = {
-  ok: boolean; bloqueado?: boolean; processados: number; noticias: number;
+  ok: boolean; bloqueado?: boolean; parcial?: boolean; porFazer?: number; processados: number; noticias: number;
   ferramentas: number; descartados: number; falhados: number; restantes: number;
 };
 
-type PedidoProcessamento = { limite: number };
+type PedidoProcessamento = { limite: number; continuar?: boolean };
+
+/** Turns transport errors (edge timeout, non-2xx) into a message the editor can act on. */
+export function mensagemErroProcessar(erro: unknown): string {
+  const msg = String((erro as { message?: string } | null)?.message ?? erro ?? "");
+  if (/non-2xx|timeout|timed out|546|504|failed to fetch|network/i.test(msg)) {
+    return "O servidor demorou demasiado e o lote foi interrompido. As notícias já tratadas ficaram guardadas; tente continuar com um lote mais pequeno dentro de 3 minutos.";
+  }
+  return `Não foi possível processar: ${msg || "erro desconhecido"}`;
+}
 
 export type FaseProcessamento = "parado" | "a_recolher" | "a_interpretar";
 
@@ -85,7 +94,7 @@ export function FilaEntrada({ compacto = false, recolherAntes = false, onConclui
     mutationKey: CHAVE_PROCESSAMENTO,
     mutationFn: async (pedido: PedidoProcessamento) => {
       setAvisoRecolha(null);
-      if (recolherAntes) {
+      if (recolherAntes && !pedido.continuar) {
         setFase("a_recolher");
         setRecolhidas(null);
         try { const rr = await recolher({}) as { inseridas?: number; na_fila?: number }; setRecolhidas(Math.max(rr.inseridas ?? 0, rr.na_fila ?? 0)); }
@@ -94,7 +103,7 @@ export function FilaEntrada({ compacto = false, recolherAntes = false, onConclui
       const contagem = await q.refetch();
       setBase(contagem.data?.total ?? null);
       setFase("a_interpretar");
-      try { return await processar({ data: pedido }); }
+      try { return await processar({ data: { limite: pedido.limite } }); }
       finally { setFase("parado"); setBase(null); }
     },
     onSuccess: (r) => {
@@ -262,12 +271,27 @@ export function FilaEntrada({ compacto = false, recolherAntes = false, onConclui
           <CheckCircle2 size={13} /> Concluído: {ultimoProcessamento.dados.noticias} {ultimoProcessamento.dados.noticias === 1 ? "notícia nova" : "notícias novas"}
           {ultimoProcessamento.dados.falhados > 0 && ` · ${ultimoProcessamento.dados.falhados} falharam`}
           {ultimoProcessamento.dados.processados === 0 && " · nada recente para interpretar (só itens dos últimos 7 dias)"}
+          {ultimoProcessamento.dados.parcial && ` · parou a tempo; faltam ${ultimoProcessamento.dados.porFazer ?? 0} deste lote`}
+        </p>
+      )}
+
+      {!aTrabalhar && ultimoProcessamento?.estado === "success" && ultimoProcessamento.dados?.parcial && total > 0 && (
+        <button type="button" className="mt-2 min-h-11 rounded-lg px-3 text-[12.5px] font-semibold"
+          style={{ background: T.primary, color: "#fff" }}
+          onClick={() => mProcessar.mutate({ limite: Math.min(lote, total), continuar: true })}>
+          Continuar com as {Math.min(lote, total)} restantes
+        </button>
+      )}
+
+      {!aTrabalhar && ultimoProcessamento?.estado === "success" && ultimoProcessamento.dados?.bloqueado && (
+        <p className="mt-2 text-[12.5px]" style={{ color: T.warn }}>
+          Outro processamento está a decorrer. Tente de novo dentro de alguns minutos.
         </p>
       )}
 
       {ultimoProcessamento?.estado === "error" && (
         <p className="mt-2 text-[12.5px]" style={{ color: "#B42318" }}>
-          Não foi possível processar: {(ultimoProcessamento.erro as Error).message}
+          {mensagemErroProcessar(ultimoProcessamento.erro)}
         </p>
       )}
 

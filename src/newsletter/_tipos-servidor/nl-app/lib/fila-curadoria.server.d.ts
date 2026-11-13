@@ -2,6 +2,12 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 type Admin = SupabaseClient<any, any, any>;
 export declare const CHAVE_MODO_MANUAL = "curadoria_modo_manual";
+/** Stop starting new items after this; the edge request is killed at ~150 s. */
+export declare const ORCAMENTO_MS = 100000;
+/** Max time for one item (article read + AI). */
+export declare const LIMITE_ITEM_MS = 30000;
+/** Rejects with «tempo esgotado» when the work exceeds `ms`. */
+export declare function comPrazo<T>(trabalho: Promise<T>, ms: number): Promise<T>;
 /** Items older than this are never interpreted: the newsletter needs current news. */
 export declare const DIAS_MAX_PROCESSAR = 7;
 export type ItemFila = {
@@ -46,6 +52,10 @@ export declare function limparFilaAntiga(admin: Admin, opcoes: {
 export type ResultadoLote = {
     ok: boolean;
     bloqueado?: boolean;
+    /** True when the time budget ended the batch early. */
+    parcial?: boolean;
+    /** Items selected for this batch that were left untouched. */
+    porFazer?: number;
     processados: number;
     noticias: number;
     ferramentas: number;

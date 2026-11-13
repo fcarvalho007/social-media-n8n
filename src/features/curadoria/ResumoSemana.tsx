@@ -58,7 +58,8 @@ export function ResumoSemana({ onAbrir }: { onAbrir: () => void }) {
           {e && e.porCategoria.length > 0 && <> · {e.porCategoria.map(([c, n]) => `${nomeCat(c)} ${n}`).join(" · ")}</>}
         </span>
       </button>
-      {e && <Button asChild variant="outline" className="min-h-11 shrink-0"><Link to="/newsletter">{e.porOrganizar > 0 ? "Organizar na newsletter" : "Abrir edição"}<ArrowRight data-icon="inline-end" aria-hidden="true" /></Link></Button>}
+      <div className="flex flex-wrap gap-2"><Button variant="outline" className="min-h-11 shrink-0" onClick={onAbrir}>Ver aprovadas</Button>
+      {e && <Button asChild variant="outline" className="min-h-11 shrink-0"><Link to="/newsletter">{e.porOrganizar > 0 ? "Organizar na newsletter" : "Abrir edição"}<ArrowRight data-icon="inline-end" aria-hidden="true" /></Link></Button>}</div>
     </div>
   );
 }

@@ -11,4 +11,6 @@ export const apiLocal: typeof API_CURADORIA = {
   selecionarEdicao: async () => "local-selecao",
   ocultarEdicao: async () => undefined,
   reporEdicao: async () => undefined,
+  retirarNewsletter: async () => undefined,
+  reporNewsletter: async () => undefined,
 };

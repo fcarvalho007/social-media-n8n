@@ -14,7 +14,18 @@ type Admin = SupabaseClient<any, any, any>;
 
 export const CHAVE_MODO_MANUAL = "curadoria_modo_manual";
 const CHAVE_LOCK = "curadoria_fila_lock";
-const LOCK_MAX_MS = 10 * 60 * 1000;
+const LOCK_MAX_MS = 3 * 60 * 1000;
+/** Stop starting new items after this; the edge request is killed at ~150 s. */
+export const ORCAMENTO_MS = 100_000;
+/** Max time for one item (article read + AI). */
+export const LIMITE_ITEM_MS = 30_000;
+
+/** Rejects with «tempo esgotado» when the work exceeds `ms`. */
+export function comPrazo<T>(trabalho: Promise<T>, ms: number): Promise<T> {
+  let t: ReturnType<typeof setTimeout> | undefined;
+  const prazo = new Promise<never>((_, rej) => { t = setTimeout(() => rej(new Error("tempo esgotado")), ms); });
+  return Promise.race([trabalho, prazo]).finally(() => clearTimeout(t));
+}
 /** Items older than this are never interpreted: the newsletter needs current news. */
 export const DIAS_MAX_PROCESSAR = 7;
 
@@ -174,6 +185,10 @@ async function libertarLock(admin: Admin): Promise<void> {
 export type ResultadoLote = {
   ok: boolean;
   bloqueado?: boolean;
+  /** True when the time budget ended the batch early. */
+  parcial?: boolean;
+  /** Items selected for this batch that were left untouched. */
+  porFazer?: number;
   processados: number;
   noticias: number;
   ferramentas: number;
@@ -253,9 +268,16 @@ export async function processarLote(
     };
 
 
-    for (const item of itens) {
+    const inicio = Date.now();
+    for (const [indice, item] of itens.entries()) {
+      if (Date.now() - inicio > ORCAMENTO_MS) {
+        resultado.parcial = true;
+        resultado.porFazer = itens.length - indice;
+        break;
+      }
       resultado.processados += 1;
       try {
+        await comPrazo((async () => {
         if (item.origem === "email" && item.email_recebido_id) {
           const { reprocessarEmailGuardado } = await import("./reprocessar-email.server.ts");
           const r = await reprocessarEmailGuardado(admin, item.email_recebido_id, opcoes.quem, false);
@@ -268,7 +290,7 @@ export async function processarLote(
             titulo: item.titulo,
             resultado: `${r.noticias_inseridas} notícias · ${r.ferramentas_inseridas} ferramentas`,
           });
-          continue;
+          return;
         }
 
         // Lê o artigo original, extrai e garante que a descrição acrescenta
@@ -306,7 +328,7 @@ export async function processarLote(
             } as never)
             .eq("id", item.id);
           resultado.detalhes.push({ titulo, resultado: `descartado — ${descreverMotivoLixo(motivoLixo)}` });
-          continue;
+          return;
         }
 
         const { data: inserida, error: insErr } = await admin.from("nl_noticias").insert({
@@ -337,6 +359,7 @@ export async function processarLote(
           } as never)
           .eq("id", item.id);
         resultado.detalhes.push({ titulo, resultado: "em pendentes" });
+        })(), LIMITE_ITEM_MS);
       } catch (e) {
         const msg = String((e as { message?: string })?.message ?? e).slice(0, 300);
         resultado.falhados += 1;

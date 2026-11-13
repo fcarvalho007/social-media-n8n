@@ -41,3 +41,15 @@ export const reporNaEdicao = (id: string, edicao: string) => rpc<void>("nl_curad
 
 export interface ResumoSemana { inicio: string; total: number; enviadas: number; por_enviar: number; por_categoria: Record<string, number> }
 export const resumoSemanaCuradoria = () => rpc<ResumoSemana>("nl_curadoria_resumo_semana", {});
+
+/** Removes an approved news item from a draft edition (deletes its edition copy) and hides it there. */
+export async function retirarDaNewsletter(origemId: string, edicaoId: string): Promise<void> {
+  const { error } = await db.from("nl_noticias").delete().eq("curadoria_origem_id", origemId).eq("edicao_id", edicaoId);
+  if (error) throw new Error(error.message);
+  await ocultarNaEdicao(origemId, edicaoId);
+}
+/** Undo for retirarDaNewsletter: unhide and copy it back into the edition. */
+export async function reporNaNewsletter(origemId: string, edicaoId: string): Promise<void> {
+  await reporNaEdicao(origemId, edicaoId);
+  await selecionarNaEdicao(origemId, edicaoId);
+}
