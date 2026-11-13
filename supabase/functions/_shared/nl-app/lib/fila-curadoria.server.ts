@@ -205,16 +205,23 @@ export async function processarLote(
   try {
     const { data } = await admin
       .from("nl_curadoria_fila")
-      .select("id, origem, titulo, url, descricao, fonte_id, email_recebido_id, tentativas")
+      .select("id, origem, titulo, url, descricao, fonte_id, fonte_nome, email_recebido_id, tentativas, publicado_em")
       .eq("estado", "em_fila")
       .gte("publicado_em", new Date(Date.now() - DIAS_MAX_PROCESSAR * 24 * 60 * 60 * 1000).toISOString())
       .order("publicado_em", { ascending: false })
-      .limit(limite);
+      .limit(300);
 
-    const itens = (data ?? []) as Array<{
+    const candidatos = (data ?? []) as Array<{
       id: string; origem: string; titulo: string; url: string | null; descricao: string;
-      fonte_id: string | null; email_recebido_id: string | null; tentativas: number;
+      fonte_id: string | null; fonte_nome: string | null; email_recebido_id: string | null;
+      tentativas: number; publicado_em: string | null;
     }>;
+
+    // Lote variado: não deixar uma fonte prolífica ocupar o lote inteiro.
+    const { escolherLoteVariado } = await import("../edge-shared/seleccao-diversa.ts");
+    const { lerTectos } = await import("../edge-shared/tectos-curadoria.ts");
+    const tectos = await lerTectos(admin);
+    const { seleccionados: itens, porFonte } = escolherLoteVariado(candidatos, limite, tectos.maxPorFonte);
 
     const resultado: ResultadoLote = { ...vazio, detalhes: [] };
 
@@ -355,6 +362,8 @@ export async function processarLote(
           descartados: resultado.descartados,
           falhados: resultado.falhados,
           restantes: resultado.restantes,
+          distribuicao_por_fonte: porFonte,
+          vindos_de_email: itens.filter((i) => i.origem === "email").length,
         },
       } as never);
     }

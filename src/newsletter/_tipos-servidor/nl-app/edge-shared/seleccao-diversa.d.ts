@@ -22,3 +22,17 @@ export declare function seleccionarDiverso<T>(itens: T[], chaves: ChavesSeleccao
 export declare function chaveTitulo(titulo: string): string;
 /** Semelhança simples por palavras (Jaccard sobre palavras com 4+ letras). */
 export declare function semelhancaTitulos(a: string, b: string): number;
+/** Item mínimo da fila para escolher um lote variado. */
+export interface ItemLoteFila {
+    origem: string;
+    fonte_id: string | null;
+    fonte_nome?: string | null;
+    publicado_em?: string | null;
+}
+/** Chave de fonte: fonte_id, ou o domínio-base do remetente nos emails. */
+export declare function chaveFonteFila(item: ItemLoteFila): string;
+/**
+ * Escolhe `max` itens da fila com variedade: round-robin por fonte (tecto
+ * maxPorFonte) e pelo menos um terço de itens vindos de emails, quando existem.
+ */
+export declare function escolherLoteVariado<T extends ItemLoteFila>(itens: T[], max: number, maxPorFonte?: number): ResultadoSeleccao<T>;
