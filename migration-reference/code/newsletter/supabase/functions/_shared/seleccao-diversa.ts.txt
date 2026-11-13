@@ -152,7 +152,7 @@ export function escolherLoteVariado<T extends ItemLoteFila>(
   maxPorFonte = 2,
 ): ResultadoSeleccao<T> {
   const prioridade = (i: T) => Date.parse(i.publicado_em ?? "") || 0;
-  const chaves = { fonte: chaveFonteFila, prioridade };
+  const chaves: ChavesSeleccao<T> = { fonte: (i: T) => chaveFonteFila(i), prioridade };
   const emails = itens.filter((i) => i.origem === "email");
   const outros = itens.filter((i) => i.origem !== "email");
   const quotaEmail = Math.min(emails.length, Math.ceil(max / 3));
