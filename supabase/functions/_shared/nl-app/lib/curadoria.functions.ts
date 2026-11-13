@@ -3,10 +3,10 @@ import { createServerFn } from "../_shim/start.ts";
 import { requireSupabaseAuth } from "../_shim/auth.ts";
 import { parseFeed } from "./rss-parser.ts";
 
-const UA_DESCOBERTA = "DigitalSprintBot/1.0 (+descoberta)";
+const UA_DESCOBERTA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 const CAMINHOS_COMUNS_FEED = [
   "/feed", "/feed/", "/rss", "/rss/", "/rss.xml", "/feed.xml",
-  "/atom.xml", "/index.xml", "/?feed=rss2", "/blog/feed", "/news/feed",
+  "/atom.xml", "/index.xml", "/feeds/news/", "/feeds/", "/?feed=rss2", "/blog/feed", "/news/feed",
 ];
 
 async function fetchTextoDescoberta(url: string, timeoutMs = 8000): Promise<{ ok: boolean; texto: string; status: number }> {
@@ -68,7 +68,28 @@ export const descobrirFeed = createServerFn({ method: "POST" })
     type Candidato = { url: string; titulo: string; total: number; tipo: "rss" | "html" };
     const inicial = await fetchTextoDescoberta(data.url);
     if (!inicial.ok) {
-      return { ok: false as const, erro: `HTTP ${inicial.status || "falha"}`, nomeSugerido: "", candidatos: [] as Candidato[] };
+      // Site blocks the homepage: still probe common feed paths on the same host.
+      const base = new URL(data.url);
+      const lista = CAMINHOS_COMUNS_FEED.map((c) => new URL(c, `${base.protocol}//${base.host}`).toString());
+      const res = await Promise.all(lista.map(async (u): Promise<Candidato | null> => {
+        const r = await fetchTextoDescoberta(u, 6000);
+        if (!r.ok) return null;
+        const itens = parseFeed(r.texto);
+        if (itens.length === 0) return null;
+        const t = extrairTituloHtml(r.texto);
+        return { url: u, titulo: t || u, total: itens.length, tipo: "rss" };
+      }));
+      const vistos = new Set<number>();
+      const candidatos = res.filter((x): x is Candidato => x !== null)
+        .filter((c) => { const k = c.total * 1000 + c.titulo.length; if (vistos.has(k)) return false; vistos.add(k); return true; })
+        .slice(0, 6);
+      if (candidatos.length > 0) return { ok: true as const, nomeSugerido: candidatos[0].titulo, candidatos };
+      return {
+        ok: false as const,
+        erro: `O site recusou o acesso (HTTP ${inicial.status || "falha"}). Cole diretamente o endereço do feed RSS, se o conhecer.`,
+        nomeSugerido: "",
+        candidatos: [] as Candidato[],
+      };
     }
 
     const talvezFeed = parseFeed(inicial.texto);

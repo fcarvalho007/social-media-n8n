@@ -6,16 +6,6 @@
 export declare const descobrirFeed: import("../_shim/start.ts").NlServerFn<{
     url: string;
 }, {
-    ok: false;
-    erro: string;
-    nomeSugerido: string;
-    candidatos: {
-        url: string;
-        titulo: string;
-        total: number;
-        tipo: "rss" | "html";
-    }[];
-} | {
     ok: true;
     nomeSugerido: string;
     candidatos: {
@@ -25,6 +15,16 @@ export declare const descobrirFeed: import("../_shim/start.ts").NlServerFn<{
         tipo: "rss" | "html";
     }[];
     erro?: undefined;
+} | {
+    ok: false;
+    erro: string;
+    nomeSugerido: string;
+    candidatos: {
+        url: string;
+        titulo: string;
+        total: number;
+        tipo: "rss" | "html";
+    }[];
 }>;
 /**
  * Testa um feed RSS/Atom sem escrever nada.
