@@ -18,6 +18,7 @@ import { EmailsPage } from "@/newsletter/routes/_authenticated/emails";
 import { ModoRecolha } from "@/newsletter/features/definicoes/ModoRecolha";
 import { ConfirmacaoExternaHost } from "@/newsletter/shim/confirmar";
 import "@/newsletter/newsletter.css";
+import { ResumoSemana, CHAVE_RESUMO_SEMANA, CHAVE_EDICAO_CURADORIA, lerEdicaoProxima } from "@/features/curadoria/ResumoSemana";
 
 export default function Curadoria() {
   const [params, setParams] = useSearchParams();
@@ -50,7 +51,12 @@ export default function Curadoria() {
           toast.success(r.noticias > 0 ? `${r.noticias} ${r.noticias === 1 ? "notícia nova" : "notícias novas"} em «Por rever».` : "Processamento concluído, sem notícias novas.");
         }} />
         {params.get('noticia') && <NoticiaEncontrada id={params.get('noticia')!} fechar={() => setParams(p => { const n = new URLSearchParams(p); n.delete('noticia'); return n; })} />}
-        <CuradoriaNoticias key={versaoLista} persistirFiltros />
+        <CuradoriaNoticias key={versaoLista} persistirFiltros cabecalho={(abrir) => <ResumoSemana onAbrir={abrir} />} aoDecidir={async (decisao) => {
+          void qc.invalidateQueries({ queryKey: CHAVE_RESUMO_SEMANA });
+          if (decisao !== "aprovada") { void qc.invalidateQueries({ queryKey: CHAVE_EDICAO_CURADORIA }); return null; }
+          const ed = await qc.fetchQuery({ queryKey: CHAVE_EDICAO_CURADORIA, queryFn: lerEdicaoProxima, staleTime: 0 });
+          return ed ? `Aprovada e adicionada à edição #${ed.numero} (${ed.total} ${ed.total === 1 ? "notícia" : "notícias"})` : null;
+        }} />
         {colarAberto && <AdicionarNoticias
           edicaoId={edicao.data?.id ?? null}
           isAdmin={isAdmin}
