@@ -8,10 +8,18 @@ describe("resumo da curadoria", () => {
   it("conta as adicionadas hoje pelo dia de Lisboa e por categoria", () => {
     const agora = new Date("2026-07-15T10:00:00Z");
     const r = resumirEdicao(320, [
-      { categoria: "ia", created_at: "2026-07-14T23:30:00Z" }, // 00:30 em Lisboa (verão) → hoje
-      { categoria: "ia", created_at: "2026-07-14T22:30:00Z" }, // 23:30 em Lisboa → ontem
-      { categoria: "meta", created_at: "2026-07-15T09:00:00Z" },
-    ], agora);
-    expect(r).toEqual({ numero: 320, total: 3, hoje: 2, porCategoria: [["ia", 2], ["meta", 1]] });
+      { id: "a", categoria: "ia", created_at: "2026-07-14T23:30:00Z" }, // 00:30 em Lisboa (verão) → hoje
+      { id: "b", categoria: "ia", created_at: "2026-07-14T22:30:00Z" }, // 23:30 em Lisboa → ontem
+      { id: "c", categoria: "meta", created_at: "2026-07-15T09:00:00Z" },
+    ], new Set(), agora);
+    expect(r).toEqual({ numero: 320, total: 3, hoje: 2, porOrganizar: 3, porCategoria: [["ia", 2], ["meta", 1]] });
+  });
+  it("conta como por organizar só as que não têm lugar nem são só no site", () => {
+    const r = resumirEdicao(320, [
+      { id: "a", categoria: "ia", created_at: "2026-07-15T09:00:00Z" },
+      { id: "b", categoria: "ia", created_at: "2026-07-15T09:00:00Z", destino: "site" },
+      { id: "c", categoria: "ia", created_at: "2026-07-15T09:00:00Z" },
+    ], new Set(["c"]));
+    expect(r.porOrganizar).toBe(1);
   });
 });

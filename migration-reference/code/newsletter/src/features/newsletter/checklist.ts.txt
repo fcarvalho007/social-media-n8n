@@ -360,3 +360,26 @@ export function avaliarAssuntoSpam(assunto: string): AvisoAssunto[] {
 
   return avisos;
 }
+
+/* ─── Resumo do bloco «A Atualidade» (formato Revista) ─── */
+
+export interface ContagemAtualidade { destaques: number; radar: number; soSite: number; porOrganizar: number }
+export interface LimitesAtualidade { destaquesMin: number; destaquesMax: number; radarMin: number }
+
+/**
+ * Collapsed summary for «A Atualidade». Approved news without a role ("por organizar")
+ * must be visible here, otherwise the block reads «0 · 0 · 0» while news are waiting.
+ */
+export function resumoAtualidade(c: ContagemAtualidade, l: LimitesAtualidade): { estado: "pronto" | "falta"; selo: string; linha: string } {
+  const pronto = c.destaques >= l.destaquesMin && c.radar >= l.radarMin;
+  const porOrg = c.porOrganizar > 0 ? `${c.porOrganizar} ${c.porOrganizar === 1 ? "aprovada" : "aprovadas"} por organizar · ` : "";
+  if (pronto) {
+    return { estado: "pronto", selo: "Pronto", linha: `${porOrg}${c.destaques} ${c.destaques === 1 ? "destaque" : "destaques"} · ${c.radar} em Novidades · ${c.soSite} só no site` };
+  }
+  const faltam = Math.max(0, l.destaquesMin - c.destaques) + Math.max(0, l.radarMin - c.radar);
+  return {
+    estado: "falta",
+    selo: c.porOrganizar > 0 ? `${c.porOrganizar} por organizar` : `Faltam ${faltam}`,
+    linha: `${porOrg}${c.destaques} de ${l.destaquesMin}–${l.destaquesMax} destaques · ${c.radar} (mínimo ${l.radarMin}) em Novidades · ${c.soSite} só no site`,
+  };
+}

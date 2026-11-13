@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LIMITES_REVISTA, NOTAS_REVISTA, ROTULOS_REVISTA } from "@/lib/newsletter-engine/revista/rotulos";
+import { resumoAtualidade } from "../checklist";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -1108,7 +1109,7 @@ export default function EditorRevista({
   useEffect(() => {
     // Só decide quando a edição, a configuração e os itens já chegaram —
     // caso contrário abriria sempre a crónica por estar aparentemente vazia.
-    if (!cfg || !itensQ.data || !edicaoQ.data || foldsIniciados.current === edicaoId) return;
+    if (!cfg || !itensQ.data || !edicaoQ.data || !aprovadasQ.data || foldsIniciados.current === edicaoId) return;
     foldsIniciados.current = edicaoId;
     const guardados = sessionStorage.getItem(chaveFolds);
     if (guardados) {
@@ -1124,10 +1125,12 @@ export default function EditorRevista({
         : !assunto.trim()
           ? "definicoes"
           : "cronica";
-    setFolds({ [primeiro]: true });
+    // Approved news waiting for a role must be visible: open «A Atualidade» too.
+    const porOrg = (aprovadasQ.data ?? []).filter((n) => !itensQ.data!.some((i) => i.noticia_id === n.id) && n.destino !== "site").length;
+    setFolds({ [primeiro]: true, ...(porOrg > 0 && destaques.length + radar.length === 0 ? { atualidade: true } : {}) });
     // Só depende da edição: é uma decisão de arranque, não uma reacção contínua.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cfg, edicaoId, chaveFolds, itensQ.data, edicaoQ.data]);
+  }, [cfg, edicaoId, chaveFolds, itensQ.data, edicaoQ.data, aprovadasQ.data]);
 
   useEffect(() => {
     if (foldsIniciados.current !== edicaoId) return;
@@ -1172,6 +1175,9 @@ export default function EditorRevista({
   // A apresentação pode herdar o título do conteúdo da crónica, tal como a
   // composição e a pré-visualização. Só há falta quando ambos estão vazios.
   if (cfg && !cfg.cronica_titulo.trim() && !cronicaTitulo.trim()) {
+    if (porOrganizar.length > 0) {
+      bloqueios.push({ id: "por-organizar", fase: "compor", nivel: "aviso", texto: `${porOrganizar.length} ${porOrganizar.length === 1 ? "notícia aprovada à espera" : "notícias aprovadas à espera"} de lugar em «A Atualidade».`, ir: () => irPara("compor", "atualidade") });
+    }
     bloqueios.push({ id: "cronica-titulo", fase: "compor", nivel: "grave", texto: "Falta o título da crónica.", ir: () => irPara("compor", "cronica") });
   }
   if (cfg && !cfg.cronica_url.trim()) {
@@ -1432,19 +1438,10 @@ export default function EditorRevista({
           <BlocoEdicao
             id="atualidade" numero={2} titulo="A Atualidade" icone={Layers}
             aberto={folds.atualidade ?? false} alternar={alternar}
-            resumo={
-              destaques.length >= LIMITES_REVISTA.destaquesMin && radar.length >= LIMITES_REVISTA.radarMin
-                ? {
-                    estado: "pronto",
-                    selo: "Pronto",
-                    linha: `${plural(destaques.length, "destaque", "destaques")} · ${radar.length} em Novidades · ${soSite.length} só no site`,
-                  }
-                : {
-                    estado: "falta",
-                    selo: `Faltam ${Math.max(0, LIMITES_REVISTA.destaquesMin - destaques.length) + Math.max(0, LIMITES_REVISTA.radarMin - radar.length)}`,
-                    linha: `${destaques.length} de ${LIMITES_REVISTA.destaquesMin}–${LIMITES_REVISTA.destaquesMax} destaques · ${radar.length} (mínimo ${LIMITES_REVISTA.radarMin}) em Novidades · ${soSite.length} só no site`,
-                  }
-            }
+            resumo={resumoAtualidade(
+              { destaques: destaques.length, radar: radar.length, soSite: soSite.length, porOrganizar: porOrganizar.length },
+              LIMITES_REVISTA,
+            )}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
