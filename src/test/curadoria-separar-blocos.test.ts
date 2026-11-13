@@ -1,6 +1,7 @@
-// @ts-nocheck -- imports a Deno edge module whose client types differ from the web app's
 import { it, expect } from 'vitest';
-import { separarBlocos } from '../../supabase/functions/_shared/nl-app/lib/processar-noticias.server';
+// Non-literal path keeps the web typecheck from following this Deno module.
+const modulo = '../../supabase/functions/_shared/nl-app/lib/processar-noticias.server';
+const { separarBlocos } = (await import(/* @vite-ignore */ modulo)) as { separarBlocos: (t: string) => { blocos: string[] } };
 
 const exemplo = `Comunicados\n\nSpain is considering a TikTok suspension\n\n→ Maldita.es alleges abuse material.\n\n→ No ban has been imposed.\n\nhttps://www.euronews.com/2026/11/10/tiktok\n\nWhatsApp wants to handle more of your life admin 💬\n\n→ Its new boss wants simpler chats.\n\nhttps://techcrunch.com/2026/11/10/whatsapp/\n\neBay is making life harder for Meta’s AI shopper 🛍️\n\n→ Fresh tests found Muse unable to browse.\n\nhttps://www.theverge.com/tech/1030838/ebay`;
 
