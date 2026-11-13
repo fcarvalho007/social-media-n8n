@@ -47,6 +47,7 @@ export type Diagnostico = {
 };
 export declare function extrairUrl(bloco: string): string | null;
 export type ModoSegmentacao = "whatsapp" | "whatsapp_copiado" | "generico";
+export declare function partirPorUrl(paragrafos: string[]): string[];
 export declare function separarBlocos(texto: string): {
     blocos: string[];
     modo: ModoSegmentacao;

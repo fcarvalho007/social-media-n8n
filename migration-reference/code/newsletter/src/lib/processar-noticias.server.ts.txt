@@ -146,6 +146,28 @@ function blocoTemUrlDoHost(bloco: string, host: string): boolean {
 
 export type ModoSegmentacao = "whatsapp" | "whatsapp_copiado" | "generico";
 
+// A news item ends at the line holding its URL: split paragraphs after each
+// URL line, so pastes without blank lines (or with several links) still yield
+// one block per item. A short heading alone before the first item is dropped.
+export function partirPorUrl(paragrafos: string[]): string[] {
+  const out: string[] = [];
+  for (const p of paragrafos) {
+    let atual: string[] = [];
+    for (const linha of p.split("\n")) {
+      atual.push(linha);
+      if (/https?:\/\//i.test(linha)) { out.push(atual.join("\n").trim()); atual = []; }
+    }
+    const resto = atual.join("\n").trim();
+    if (resto) out.push(resto);
+  }
+  if (out.length > 1 && !/https?:\/\//i.test(out[0]) && !out[0].includes("\n")
+    && out[0].split(/\s+/).length <= 3) out.shift();
+  const linhas0 = (out[0] ?? "").split("\n");
+  if (linhas0.length >= 3 && !/https?:\/\//i.test(linhas0[0]) && !/[.!?:]$/.test(linhas0[0].trim())
+    && linhas0[0].trim().split(/\s+/).length <= 2) out[0] = linhas0.slice(1).join("\n").trim();
+  return out;
+}
+
 export function separarBlocos(texto: string): { blocos: string[]; modo: ModoSegmentacao } {
   const wa = segmentarMensagensWhatsApp(texto);
   if (wa && wa.length > 0) return { blocos: wa, modo: "whatsapp" };
@@ -154,7 +176,7 @@ export function separarBlocos(texto: string): { blocos: string[]; modo: ModoSegm
   if (copiado && copiado.length > 0) return { blocos: copiado, modo: "whatsapp_copiado" };
 
   const limpo = limparLinhasWhatsApp(texto);
-  const cru = limpo.split(/\n\s*\n/).map((b) => b.trim()).filter((b) => b.length > 0);
+  const cru = partirPorUrl(limpo.split(/\n\s*\n/).map((b) => b.trim()).filter((b) => b.length > 0));
   const fundidos: string[] = [];
   for (let i = 0; i < cru.length; i++) {
     const b = cru[i];

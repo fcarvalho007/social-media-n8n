@@ -401,6 +401,15 @@ export function AdicionarNoticias({
               )}
               {metaExtracao?.diagnostico && metaExtracao.diagnostico.length > 0 && (
                 <div className="mt-2.5">
+                  {(() => {
+                    const d = metaExtracao.diagnostico;
+                    const n = (e: string[]) => d.filter((x) => e.includes(x.estado)).length;
+                    return (
+                      <p className="text-[12px] font-semibold mb-1" style={{ color: T.ink }}>
+                        Detetadas {d.length} · Novas {n(["extraida", "fallback"])} · Duplicadas {n(["duplicada"])} · Sem link {n(["sem_url"])}
+                      </p>
+                    );
+                  })()}
                   <button
                     type="button"
                     onClick={() => setDiagAberto((v) => !v)}
