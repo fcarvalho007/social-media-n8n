@@ -6649,6 +6649,7 @@ export type Database = {
         Args: { _edicao: string; _id: string }
         Returns: undefined
       }
+      nl_curadoria_resumo_semana: { Args: never; Returns: Json }
       nl_curadoria_snapshot: { Args: { _id: string }; Returns: Json }
       nl_encontrar_candidatos_repeticao: {
         Args: { _categoria: string; _limiar?: number; _titulo: string }

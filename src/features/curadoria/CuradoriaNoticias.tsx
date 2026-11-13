@@ -15,6 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { decidirCuradoria, selecionarNaEdicao, ocultarNaEdicao, reporNaEdicao, lerFonteCuradoria, listarCuradoria, type DecisaoEditorial, type FonteCuradoria } from "@/services/curadoria";
 import type { NoticiaCurada } from "@/services/curadoria";
+import { useQueryClient } from "@tanstack/react-query";
+import { ResumoSemana, CHAVE_RESUMO_SEMANA } from "./ResumoSemana";
 
 export function nomeFonteCuradoria(n: Pick<NoticiaCurada, "fonte_nome" | "url">) {
   if (n.fonte_nome) return n.fonte_nome;
@@ -31,6 +33,7 @@ interface Props { persistirFiltros?: boolean; api?: typeof API_CURADORIA; seleci
 const ESTADOS: Array<{ id: DecisaoEditorial; nome: string }> = [{ id: "pendente", nome: "Por rever" }, { id: "aprovada", nome: "Aprovadas" }, { id: "rejeitada", nome: "Rejeitadas" }];
 export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, persistirFiltros = false, api = API_CURADORIA }: Props) {
   const [params, setParams] = useSearchParams();
+  const qc = useQueryClient();
   const [locais, setLocais] = useState<FiltrosCuradoria>({ ...FILTROS_CURADORIA, estado: selecionar || paraEdicao ? 'aprovada' : 'pendente' });
   const filtros = persistirFiltros ? lerFiltrosCuradoria(params) : locais;
   const { estado, query, categoria, dias, pagina } = filtros;
@@ -95,6 +98,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, pers
       await api.decidir(id, decisao);
       setDados((atual) => atual ? { ...atual, total: Math.max(0, atual.total - 1), itens: atual.itens.filter((item) => item.id !== id) } : atual);
       setSelecionados((atual) => { const seguinte = new Set(atual); seguinte.delete(id); return seguinte; });
+      void qc.invalidateQueries({ queryKey: CHAVE_RESUMO_SEMANA });
       toast.success(decisao === "aprovada" ? "Aprovada e disponível para criar conteúdo" : "Movida para Rejeitadas");
     }
     catch (e) { toast.error((e as Error).message); } finally { setOcupado(null); }
@@ -109,6 +113,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, pers
     setDados((atual) => atual ? { ...atual, total: Math.max(0, atual.total - concluídos.length), itens: atual.itens.filter((item) => !concluídos.includes(item.id)) } : atual);
     if (consultaAtual.current === chaveConsulta) setSelecionados(new Set(falhados));
     setProcessandoLote(false);
+    void qc.invalidateQueries({ queryKey: CHAVE_RESUMO_SEMANA });
     if (concluídos.length) toast.success(`${concluídos.length} ${concluídos.length === 1 ? "notícia movida" : "notícias movidas"} para Rejeitadas`);
     if (falhados.length) toast.error(`${falhados.length} ${falhados.length === 1 ? "notícia não foi processada" : "notícias não foram processadas"}`);
   };
@@ -129,6 +134,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, pers
     finally { setOcupado(null); }
   };
   return <section className="flex min-w-0 flex-col gap-4" aria-label="Notícias da curadoria">
+    {!selecionar && !paraEdicao && <ResumoSemana onAbrir={() => mudarFiltros({ estado: "aprovada", dias: "7", pagina: 0 })} />}
     {selecionar && <p className="text-sm text-muted-foreground">Escolhe uma notícia aprovada. Fica guardada uma cópia da fonte neste conteúdo; escolher não gera nem publica nada.</p>}
     {!selecionar && !paraEdicao && <ToggleGroup type="single" value={estado} onValueChange={(v) => { if (v) { mudarFiltros({ estado: v as DecisaoEditorial, pagina: 0 }); } }} className="justify-start gap-1 self-start rounded-lg border bg-card p-1" aria-label="Decisão editorial">
       {ESTADOS.map((e) => <ToggleGroupItem disabled={emAcao} className="min-h-11" key={e.id} value={e.id}>{e.nome}</ToggleGroupItem>)}

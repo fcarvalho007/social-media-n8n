@@ -38,3 +38,6 @@ export const decidirCuradoria = (id: string, estado: DecisaoEditorial) => rpc<vo
 export const selecionarNaEdicao = (id: string, edicao: string) => rpc<string>("nl_curadoria_para_edicao", { _id: id, _edicao: edicao });
 export const ocultarNaEdicao = (id: string, edicao: string) => rpc<void>("nl_curadoria_ocultar_edicao", { _id: id, _edicao: edicao });
 export const reporNaEdicao = (id: string, edicao: string) => rpc<void>("nl_curadoria_repor_edicao", { _id: id, _edicao: edicao });
+
+export interface ResumoSemana { inicio: string; total: number; enviadas: number; por_enviar: number; por_categoria: Record<string, number> }
+export const resumoSemanaCuradoria = () => rpc<ResumoSemana>("nl_curadoria_resumo_semana", {});
