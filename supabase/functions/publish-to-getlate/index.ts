@@ -23,6 +23,7 @@ const FORMAT_TO_NETWORK: Record<string, string> = {
   instagram_image: 'instagram',
   instagram_stories: 'instagram',
   instagram_reel: 'instagram',
+  instagram_feed_video: 'instagram',
   // LinkedIn
   linkedin_post: 'linkedin',
   linkedin_document: 'linkedin',
@@ -534,7 +535,11 @@ function buildPlatformSpecificData(network: string, format: string, options: Net
     const instagram = options?.instagram ?? {};
     const variant = instagram.formatVariant;
     if (format.includes('stories') || variant === 'story') data.contentType = 'story';
-    if (format.includes('reel') || variant === 'reel') data.contentType = 'reels';
+    if (format.includes('reel') || format === 'instagram_feed_video' || variant === 'reel') {
+      data.contentType = 'reels';
+      // Instagram API has no separate feed video: a Reel shared to feed appears in the profile grid and feed.
+      data.shareToFeed = true;
+    }
     const isStory = data.contentType === 'story';
 
     const firstComment = instagram.firstComment?.trim();
@@ -848,7 +853,7 @@ Deno.serve(async (req) => {
       console.log(`[publish-to-getlate] Scheduled for: ${getlatePayload.scheduledFor} (raw time: "${scheduled_time}" → "${normalizedTime}")`);
     }
 
-    const reserva = await reservarSocial(supabase,userId,post_id,`${network}:${format.endsWith('_stories')?'story':format.includes('reel')?'reel':'feed'}`,'publicar', {content:contentToSend,media:media_urls},corsHeaders);
+    const reserva = await reservarSocial(supabase,userId,post_id,`${network}:${format.endsWith('_stories')?'story':(format.includes('reel')||format==='instagram_feed_video')?'reel':'feed'}`,'publicar', {content:contentToSend,media:media_urls},corsHeaders);
     if (reserva.repetida) return reserva.repetida;
     const idempotency_key = reserva.key;
     let attemptId: string | null = null;

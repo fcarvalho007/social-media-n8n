@@ -49,6 +49,7 @@ Deno.serve(async (req) => {
       instagram_image: 'Imagem',
       instagram_stories: 'Story',
       instagram_reel: 'Reel',
+      instagram_feed_video: 'Vídeo na feed',
       linkedin_post: 'Post',
       linkedin_document: 'Documento PDF',
       youtube_shorts: 'Short',

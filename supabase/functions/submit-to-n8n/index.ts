@@ -18,6 +18,7 @@ const WEBHOOKS: Record<string, string> = {
   instagram_carousel: "aprovacao-instagram",
   instagram_image: "aprovacao-instagram",
   instagram_reel: "aprovacao-instagram",
+  instagram_feed_video: "aprovacao-instagram",
   instagram_stories: "aprovacao-stories",
   linkedin: "aprovacao-linkedin",
   linkedin_post: "aprovacao-linkedin",

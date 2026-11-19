@@ -49,6 +49,14 @@ const PRESETS: VisualPreset[] = [
     illustration: 'shortVideo',
   },
   {
+    id: 'feed-video',
+    name: 'Vídeo na feed',
+    subtitle: '4:5 ou 1:1 · Instagram e LinkedIn',
+    formats: ['instagram_feed_video', 'linkedin_post'],
+    networks: ['instagram', 'linkedin'],
+    illustration: 'photo',
+  },
+  {
     id: 'photo',
     name: 'Post com imagem',
     subtitle: 'Foto única',

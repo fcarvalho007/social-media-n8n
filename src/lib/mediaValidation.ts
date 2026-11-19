@@ -38,6 +38,7 @@ export const FORMAT_ASPECT_RATIOS: Record<string, { ratios: string[]; tolerance:
   instagram_carousel: { ratios: ['1:1', '4:5', '3:4'], tolerance: 0.05 },
   instagram_image: { ratios: ['1:1', '4:5', '3:4'], tolerance: 0.05 },
   instagram_reel: { ratios: ['9:16'], tolerance: 0.03 },
+  instagram_feed_video: { ratios: ['4:5', '1:1'], tolerance: 0.03 },
   instagram_stories: { ratios: ['9:16'], tolerance: 0.03 },
   instagram_story_link: { ratios: ['9:16'], tolerance: 0.03 },
   linkedin_post: { ratios: ['1:1', '4:5', '16:9', '9:16', '1.91:1'], tolerance: 0.1 },
@@ -55,6 +56,7 @@ export const MIN_RESOLUTIONS: Record<string, { width: number; height: number }> 
   instagram_carousel: { width: 1080, height: 1080 },
   instagram_image: { width: 1080, height: 1080 },
   instagram_reel: { width: 1080, height: 1920 },
+  instagram_feed_video: { width: 1080, height: 1080 },
   instagram_stories: { width: 1080, height: 1920 },
   instagram_story_link: { width: 1080, height: 1920 },
   linkedin_post: { width: 1080, height: 1080 },
@@ -70,6 +72,7 @@ export const MIN_RESOLUTIONS: Record<string, { width: number; height: number }> 
 // Max video duration in seconds (per Getlate API authoritative values)
 export const MAX_VIDEO_DURATION: Record<string, number> = {
   instagram_reel: 90,
+  instagram_feed_video: 90,
   instagram_stories: 60,
   instagram_story_link: 60,
   instagram_image: 3600, // Feed video up to 60min
@@ -86,6 +89,7 @@ export const MAX_VIDEO_DURATION: Record<string, number> = {
 export const MIN_VIDEO_DURATION: Record<string, number> = {
   tiktok_video: 3,
   instagram_reel: 3,
+  instagram_feed_video: 3,
   facebook_reel: 3,
   linkedin_post: 3,
 };

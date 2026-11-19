@@ -32,6 +32,7 @@ const FORMAT_LABELS: Partial<Record<PostFormat, string>> = {
   instagram_stories: 'Stories',
   instagram_story_link: 'Stories',
   instagram_reel: 'Reels',
+  instagram_feed_video: 'Vídeo na feed',
   facebook_stories: 'Stories',
   facebook_reel: 'Reels',
   tiktok_video: 'TikTok',

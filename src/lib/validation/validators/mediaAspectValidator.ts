@@ -32,6 +32,23 @@ export async function mediaAspectValidator(
   const networks = new Set(ctx.selectedFormats.map(f => getNetworkFromFormat(f)));
   if (!networks.has('instagram')) return issues;
 
+  // Feed video: sent as a Reel shared to feed; Instagram shows 4:5–1:1 uncropped in feed.
+  if (ctx.selectedFormats.includes('instagram_feed_video' as never)) {
+    const vids = ctx.mediaFiles.filter(f => f.type.startsWith('video/'));
+    const ratios = await Promise.all(vids.map(async file => ({ file, ratio: await getVideoRatio(file) })));
+    const fora = ratios.filter(r => r.ratio !== null && (r.ratio < 0.8 - 0.02 || r.ratio > 1 + 0.02)).map(r => r.file);
+    if (ctx.mediaFiles.some(f => f.type.startsWith('image/'))) {
+      issues.push({ id: 'media:instagram_feed_video:imagem', severity: 'error', category: 'media', platform: 'instagram',
+        format: 'instagram_feed_video' as never, title: 'Vídeo na feed só aceita vídeo',
+        description: 'Para imagens, escolhe «Post de Imagem» ou «Carrossel».' });
+    }
+    if (fora.length > 0) {
+      issues.push({ id: `media:instagram_feed_video:aspect:${fora.map(f => f.name).join(',')}`, severity: 'warning', category: 'media',
+        platform: 'instagram', format: 'instagram_feed_video' as never, title: 'Vídeo fora de 4:5 a 1:1',
+        description: 'Na feed, o Instagram mostra vídeos entre 4:5 e 1:1. Para vídeo vertical 9:16, usa «Reel».' });
+    }
+  }
+
   const VERTICAL_FORMATS: string[] = ['instagram_reel', 'instagram_stories', 'instagram_story_link'];
   const verticalFormatSelected = ctx.selectedFormats.find(f => VERTICAL_FORMATS.includes(f));
   const feedFormatSelected = ctx.selectedFormats.some(
@@ -81,7 +98,9 @@ export async function mediaAspectValidator(
         format: verticalFormatSelected as any,
         title: `${formatLabel} fora do rácio 9:16`,
         description:
-          'O Instagram exige 9:16 (1080×1920) para este formato. A média será cortada/escalada automaticamente. Para controlo total, sobe um ficheiro vertical 9:16.',
+          verticalFormatSelected === 'instagram_reel'
+            ? 'O Reel é pensado para 9:16 (1080×1920). Para um vídeo 4:5 ou 1:1 na feed, escolhe «Vídeo na feed».'
+            : 'O Instagram exige 9:16 (1080×1920) para este formato. Para controlo total, sobe um ficheiro vertical 9:16.',
       });
     }
 

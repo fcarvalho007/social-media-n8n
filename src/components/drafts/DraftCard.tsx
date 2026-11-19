@@ -36,6 +36,7 @@ const platformConfig: Record<string, { icon: React.ComponentType<any>; label: st
   'instagram_carrousel': { icon: Instagram, label: 'Instagram Carrossel', color: 'bg-pink-500/10 text-pink-600' },
   'instagram_stories': { icon: Instagram, label: 'Instagram Stories', color: 'bg-purple-500/10 text-purple-600' },
   'instagram-stories': { icon: Instagram, label: 'Instagram Stories', color: 'bg-purple-500/10 text-purple-600' },
+  'instagram_feed_video': { icon: Instagram, label: 'Instagram vídeo na feed', color: 'bg-orange-500/10 text-orange-600' },
   'instagram_reel': { icon: Instagram, label: 'Instagram Reel', color: 'bg-orange-500/10 text-orange-600' },
   'instagram-reels': { icon: Instagram, label: 'Instagram Reels', color: 'bg-orange-500/10 text-orange-600' },
   'linkedin_post': { icon: Linkedin, label: 'LinkedIn', color: 'bg-blue-500/10 text-blue-600' },

@@ -274,6 +274,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
         instagram_carrousel: 'instagram_carousel',
         instagram_carousel: 'instagram_carousel',
         instagram_reel: 'instagram_reel',
+        instagram_feed_video: 'instagram_feed_video',
         instagram_stories: 'instagram_stories',
         linkedin: 'linkedin_post',
         linkedin_post: 'linkedin_post',

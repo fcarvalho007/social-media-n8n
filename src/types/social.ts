@@ -11,6 +11,7 @@ export type PostFormat =
   | 'instagram_stories'
   | 'instagram_story_link'
   | 'instagram_reel'
+  | 'instagram_feed_video'
   // LinkedIn
   | 'linkedin_post'
   | 'linkedin_document'
@@ -85,12 +86,22 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
       maxMedia: 1,
       maxDuration: 90,
     },
+    {
+      format: 'instagram_feed_video',
+      label: 'Vídeo na feed',
+      description: 'Vídeo 4:5 ou 1:1 na feed (também nos Reels)',
+      icon: 'Video',
+      requiresVideo: true,
+      minMedia: 1,
+      maxMedia: 1,
+      maxDuration: 90,
+    },
   ],
   linkedin: [
     { 
       format: 'linkedin_post', 
       label: 'Post com Legenda', 
-      description: 'Texto e imagens', 
+      description: 'Texto, imagens ou vídeo', 
       icon: 'FileText',
       minMedia: 0,
       maxMedia: 9,

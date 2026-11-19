@@ -123,6 +123,7 @@ export function getMinPrice(modelId: string): number {
 // Video formats that don't support AI image generation
 export const VIDEO_ONLY_FORMATS = [
   'instagram_reel',
+  'instagram_feed_video',
   'instagram_stories',
   'youtube_shorts',
   'youtube_video',

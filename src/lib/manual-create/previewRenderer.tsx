@@ -47,7 +47,7 @@ export function renderFormatPreview(format: PostFormat, ctx: PreviewRendererCont
     if (format === 'instagram_stories') {
       return <InstagramStoryPreview mediaUrl={mediaPreviewUrls[0]} aspectRatioValid={true} />;
     }
-    if (format === 'instagram_reel') {
+    if (format === 'instagram_reel' || format === 'instagram_feed_video') {
       return <InstagramReelPreview mediaUrl={mediaPreviewUrls[0]} caption={previewCaption} />;
     }
     return <InstagramCarouselPreview mediaItems={mediaItems} caption={previewCaption} />;

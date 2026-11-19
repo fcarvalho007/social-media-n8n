@@ -88,6 +88,7 @@ export const FORMAT_TO_ACCOUNT: Record<string, string> = {
   instagram_image: INSTAGRAM_CONFIG.accountId,
   instagram_stories: INSTAGRAM_CONFIG.accountId,
   instagram_reel: INSTAGRAM_CONFIG.accountId,
+  instagram_feed_video: INSTAGRAM_CONFIG.accountId,
   // LinkedIn
   linkedin_post: LINKEDIN_CONFIG.memberUrn,
   linkedin_document: LINKEDIN_CONFIG.memberUrn,
@@ -110,6 +111,7 @@ export const FORMAT_TO_NETWORK: Record<string, string> = {
   instagram_image: 'instagram',
   instagram_stories: 'instagram',
   instagram_reel: 'instagram',
+  instagram_feed_video: 'instagram',
   linkedin_post: 'linkedin',
   linkedin_document: 'linkedin',
   youtube_shorts: 'youtube',

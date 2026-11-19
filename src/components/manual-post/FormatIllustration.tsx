@@ -331,6 +331,7 @@ export function getIllustrationType(format: string): string {
     'instagram_stories': 'stories',
     'instagram_story_link': 'story-link',
     'instagram_reel': 'reels',
+    'instagram_feed_video': 'post',
     'linkedin_post': 'linkedin-post',
     'linkedin_document': 'linkedin-pdf',
     'youtube_video': 'youtube-video',
