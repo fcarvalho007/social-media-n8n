@@ -137,6 +137,13 @@ export function validateFormat(
     errors.push('Story com Link aceita apenas uma imagem ou um vídeo');
   }
 
+  if (format === 'linkedin_post' && videoCount > 0 && (imageCount > 0 || videoCount > 1)) {
+    errors.push('O LinkedIn aceita um vídeo ou até 9 imagens, não ambos.');
+  }
+  if (format === 'instagram_feed_video' && imageCount > 0) {
+    errors.push('Este formato só aceita um vídeo');
+  }
+
   // Video requirement
   if (config.requiresVideo && videoCount === 0) {
     errors.push('Este formato requer um vídeo');

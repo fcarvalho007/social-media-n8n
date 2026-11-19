@@ -215,6 +215,18 @@ export function useMediaUpload(params: UseMediaUploadParams) {
                 severity: 'error',
               });
             }
+            if (fmt === 'instagram_feed_video' && videoInfo.width && videoInfo.height) {
+              const r = videoInfo.width / videoInfo.height;
+              if (r < 0.78 || r > 1.02) {
+                issues.push({
+                  fileName: videoFile.name,
+                  issue: `Vídeo ${videoInfo.width}x${videoInfo.height} fora de 4:5 a 1:1 para Vídeo na feed`,
+                  suggestion: r < 0.78 ? 'Para vídeo vertical 9:16, escolhe «Reel»' : 'Usa um vídeo 4:5 (1080×1350) ou 1:1',
+                  type: 'aspectRatio',
+                  severity: 'warning',
+                });
+              }
+            }
             const verticalFormats = ['instagram_reel', 'tiktok_video', 'facebook_reel'];
             if (verticalFormats.includes(fmt) && isHorizontal) {
               issues.push({

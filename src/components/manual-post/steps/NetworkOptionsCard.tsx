@@ -247,7 +247,8 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
         if (opts.storyLinkStickerText) tokens.push('Sticker');
         if (opts.storyLinkOverlayText) tokens.push('Overlay');
       } else {
-        if (opts.formatVariant && opts.formatVariant !== 'feed') tokens.push(opts.formatVariant);
+        if (selectedFormats.includes('instagram_feed_video')) tokens.push('vídeo na feed · também nos Reels');
+        else if (opts.formatVariant && opts.formatVariant !== 'feed') tokens.push(opts.formatVariant);
         if (opts.firstComment?.trim()) tokens.push('1.º comentário');
         if ((opts.collaborators?.length ?? 0) > 0) tokens.push(`${opts.collaborators!.length} colab.`);
         if ((opts.photoTags?.length ?? 0) > 0) tokens.push(`${opts.photoTags!.length} tag(s)`);
