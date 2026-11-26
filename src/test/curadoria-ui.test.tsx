@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+vi.spyOn(window, 'confirm').mockImplementation(() => true);
 import { CuradoriaNoticias, nomeFonteCuradoria, canalCuradoria, type API_CURADORIA } from '@/features/curadoria/CuradoriaNoticias';
 import type { NoticiaCurada, FonteCuradoria } from '@/services/curadoria';
 const n: NoticiaCurada = { id:'news', titulo:'Uma notícia para reutilizar', descricao:'Factos aprovados pela curadoria.', url:null, categoria:'ia', origem:'rss', editorial_estado:'aprovada', estado_newsletter:'enviada', edicao_id:'old', criado_em:'2026-10-07T08:00:00Z', nivel:'resumo', usos:2, edicoes:['old'] };

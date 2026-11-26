@@ -60,6 +60,14 @@ export async function definirModoManual(admin: Admin, manual: boolean): Promise<
     .upsert({ chave: CHAVE_MODO_MANUAL, valor: manual ? "true" : "false" } as never, { onConflict: "chave" });
 }
 
+/** True when the item falls inside the processing window (today backwards). */
+export function itemRecente(publicadoEm: string | null | undefined, agora: number = Date.now()): boolean {
+  if (!publicadoEm) return true;
+  const t = Date.parse(publicadoEm);
+  if (Number.isNaN(t)) return true;
+  return t >= agora - DIAS_MAX_PROCESSAR * 24 * 60 * 60 * 1000;
+}
+
 /** Insere candidatos na fila, ignorando os que já lá estão (url_norm único). */
 export async function enfileirar(admin: Admin, itens: ItemFila[]): Promise<number> {
   if (itens.length === 0) return 0;
@@ -75,7 +83,7 @@ export async function enfileirar(admin: Admin, itens: ItemFila[]): Promise<numbe
     descricao: (i.descricao ?? "").slice(0, 4000),
     publicado_em: i.publicado_em ?? new Date().toISOString(),
     estado: "em_fila",
-  }));
+  })).filter((l) => itemRecente(l.publicado_em));
 
   let inseridos = 0;
   // Um a um: um url repetido não pode abortar o lote inteiro.
@@ -189,6 +197,9 @@ export type ResultadoLote = {
   parcial?: boolean;
   /** Items selected for this batch that were left untouched. */
   porFazer?: number;
+  /** Oldest / newest publication date among the items processed. */
+  de?: string | null;
+  ate?: string | null;
   processados: number;
   noticias: number;
   ferramentas: number;
@@ -370,6 +381,10 @@ export async function processarLote(
         resultado.detalhes.push({ titulo: item.titulo, resultado: `falhou — ${msg}` });
       }
     }
+
+    const datasLote = itens.map((i) => i.publicado_em).filter((d): d is string => !!d).sort();
+    resultado.de = datasLote[0] ?? null;
+    resultado.ate = datasLote[datasLote.length - 1] ?? null;
 
     const contagem = await contarFila(admin);
     resultado.restantes = contagem.total;

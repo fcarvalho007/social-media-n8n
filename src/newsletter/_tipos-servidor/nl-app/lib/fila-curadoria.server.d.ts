@@ -25,6 +25,8 @@ export type ItemFila = {
 /** A recolha automática deve apenas guardar em fila (sem IA)? */
 export declare function modoManualActivo(admin: Admin): Promise<boolean>;
 export declare function definirModoManual(admin: Admin, manual: boolean): Promise<void>;
+/** True when the item falls inside the processing window (today backwards). */
+export declare function itemRecente(publicadoEm: string | null | undefined, agora?: number): boolean;
 /** Insere candidatos na fila, ignorando os que já lá estão (url_norm único). */
 export declare function enfileirar(admin: Admin, itens: ItemFila[]): Promise<number>;
 /** Itens com mais de estes dias podem ser apagados da fila (pré-definição). */
@@ -56,6 +58,9 @@ export type ResultadoLote = {
     parcial?: boolean;
     /** Items selected for this batch that were left untouched. */
     porFazer?: number;
+    /** Oldest / newest publication date among the items processed. */
+    de?: string | null;
+    ate?: string | null;
     processados: number;
     noticias: number;
     ferramentas: number;

@@ -17,6 +17,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { decidirCuradoria, selecionarNaEdicao, ocultarNaEdicao, reporNaEdicao, lerFonteCuradoria, listarCuradoria, retirarDaNewsletter, reporNaNewsletter, type DecisaoEditorial, type FonteCuradoria } from "@/services/curadoria";
 import type { NoticiaCurada } from "@/services/curadoria";
 
+/** True when a news item is older than the 7-day newsletter window. */
+export function noticiaAntiga(data: string, agora: number = Date.now()): boolean {
+  const t = Date.parse(data);
+  return !Number.isNaN(t) && t < agora - 7 * 24 * 60 * 60 * 1000;
+}
+
 export function nomeFonteCuradoria(n: Pick<NoticiaCurada, "fonte_nome" | "url">) {
   if (n.fonte_nome) return n.fonte_nome;
   try { const u = new URL(n.url ?? ""); if (/^https?:$/.test(u.protocol)) return u.hostname.replace(/^www\./, ""); } catch { /* historical records may have no URL */ }
@@ -182,7 +188,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, pers
             {selecionar ? <Button className="min-h-11" disabled={emAcao} onClick={() => escolher(n.id)}>{ocupado === n.id ? "A selecionar…" : "Usar notícia"}</Button> : paraEdicao ? <Button className="min-h-11" disabled={emAcao || n.edicoes?.includes(paraEdicao.id)} onClick={async () => {
               setOcupado(n.id); try { await api.selecionarEdicao(n.id, paraEdicao.id); if (consultaAtual.current === chaveConsulta) { paraEdicao.onSelecionada(); setTentativa((x) => x + 1); } toast.success("Notícia escolhida para a edição"); } catch (e) { toast.error((e as Error).message); } finally { setOcupado(null); }
             }}>{n.edicoes?.includes(paraEdicao.id) ? "Já nesta edição" : "Usar nesta edição"}</Button> : <>
-              {estado !== "aprovada" && <Button className="min-h-11" disabled={emAcao} onClick={() => decidir(n.id, "aprovada")}>Aprovar</Button>}
+              {estado !== "aprovada" && <Button className="min-h-11" disabled={emAcao} onClick={() => { if (noticiaAntiga(n.publicado_em ?? n.criado_em) && !window.confirm("Esta notícia tem mais de 7 dias. Aprovar e pôr na newsletter na mesma?")) return; void decidir(n.id, "aprovada"); }}>Aprovar</Button>}
               {estado === "aprovada" && edicaoAtual && n.edicoes?.includes(edicaoAtual.id) && <Button variant="outline" className="min-h-11" disabled={emAcao} onClick={() => void retirarNewsletter(n)}>Retirar da newsletter</Button>}
               {estado !== "rejeitada" && <Button variant="outline" className="min-h-11" disabled={emAcao} onClick={() => { if (estado === "aprovada" && edicaoAtual && n.edicoes?.includes(edicaoAtual.id) && !window.confirm(`Esta notícia está na edição #${edicaoAtual.numero}. Rejeitar na mesma?`)) return; void decidir(n.id, "rejeitada"); }}>Rejeitar</Button>}
               {estado === "aprovada" && SEO_DISPONIVEL && <Button className="min-h-11" asChild><Link to={`/campanhas/nova?noticia=${encodeURIComponent(n.id)}`}>Criar campanha</Link></Button>}
