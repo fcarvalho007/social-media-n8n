@@ -1,5 +1,12 @@
 # Roadmap
 
+## Instalação e teste do processamento 26/11/2026
+- [x] Instalar apenas nl-api, com a correção de prazos e seleção recente, conforme autorização explícita
+- [x] Executar 22 testes da Curadoria e verificar o grafo de 257 ficheiros
+- [x] Processar um único lote autorizado de 10 itens: 15 notícias pendentes, 14 ferramentas, zero falhas; fila de 175 para 165
+- [x] Confirmar os cartões na Curadoria com sessão iniciada e o trinco libertado; não aprovar notícias nem enviar/publicar
+- [ ] Restantes integrações locais — aguardam autorização própria; este pedido não as inclui
+
 ## Instalação autorizada campanhas e isolamento 18/10/2026
 - [x] Confirmar HEAD e árvore autorizados
 - [x] Auditar dependências e aplicar pré-requisitos e DDL 0064/0065 em falta (0064–0066 Cloud)
