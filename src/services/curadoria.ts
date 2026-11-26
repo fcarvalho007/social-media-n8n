@@ -4,7 +4,7 @@ import { erroDeSessao, SESSAO_EXPIRADA, tratarSessaoRecusada } from "@/lib/sessa
 export type DecisaoEditorial = "pendente" | "aprovada" | "rejeitada";
 export interface NoticiaCurada {
   id: string; titulo: string; descricao: string | null; url: string | null; categoria: string; origem: string;
-  editorial_estado: DecisaoEditorial; estado_newsletter: string; edicao_id: string | null; criado_em: string;
+  editorial_estado: DecisaoEditorial; estado_newsletter: string; edicao_id: string | null; criado_em: string; publicado_em?: string | null;
   fonte_id?: string | null; fonte_nome?: string | null; fonte_tipo?: string | null;
   nivel: "artigo" | "resumo"; usos: number; edicoes: string[];
 }

@@ -346,6 +346,7 @@ export async function processarLote(
           fonte_estado: fonte.estado,
           fonte_url_original: fonte.urlOriginal,
           corpo_artigo: corpoArtigo || null,
+          fonte_publicado_em: item.publicado_em,
         } as never).select("id").maybeSingle();
         if (insErr) throw new Error(insErr.message);
 

@@ -3991,6 +3991,7 @@ export type Database = {
           estado: string
           fonte_estado: string
           fonte_id: string | null
+          fonte_publicado_em: string | null
           fonte_url_original: string | null
           id: string
           ordem: number
@@ -4024,6 +4025,7 @@ export type Database = {
           estado?: string
           fonte_estado?: string
           fonte_id?: string | null
+          fonte_publicado_em?: string | null
           fonte_url_original?: string | null
           id?: string
           ordem?: number
@@ -4057,6 +4059,7 @@ export type Database = {
           estado?: string
           fonte_estado?: string
           fonte_id?: string | null
+          fonte_publicado_em?: string | null
           fonte_url_original?: string | null
           id?: string
           ordem?: number
