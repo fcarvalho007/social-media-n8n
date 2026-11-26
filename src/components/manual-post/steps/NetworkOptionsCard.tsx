@@ -266,6 +266,8 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
       const opts = networkOptions.youtube ?? {};
       if (opts.title?.trim()) tokens.push('título');
       if ((opts.tags?.length ?? 0) > 0) tokens.push(`${opts.tags!.length} tag(s)`);
+      const cat = youtubeCategories.find((c) => c.id === (opts.categoryId ?? '22'));
+      if (cat) tokens.push(cat.label);
       if (opts.visibility && opts.visibility !== 'public') tokens.push(opts.visibility);
     } else if (network === 'googlebusiness') {
       const opts = networkOptions.googlebusiness ?? {};
