@@ -148,7 +148,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, pers
     finally { setOcupado(null); }
   };
   return <section className="flex min-w-0 flex-col gap-4" aria-label="Notícias da curadoria">
-    {!selecionar && !paraEdicao && cabecalho?.(() => mudarFiltros({ estado: "aprovada", dias: "7", pagina: 0 }))}
+    {!selecionar && !paraEdicao && cabecalho?.(() => { mudarFiltros({ estado: "aprovada", dias: "todos", query: "", categoria: "todas", pagina: 0 }); requestAnimationFrame(() => document.getElementById("curadoria-procura")?.scrollIntoView({ behavior: "smooth", block: "start" })); })}
     {selecionar && <p className="text-sm text-muted-foreground">Escolhe uma notícia aprovada. Fica guardada uma cópia da fonte neste conteúdo; escolher não gera nem publica nada.</p>}
     {!selecionar && !paraEdicao && <ToggleGroup type="single" value={estado} onValueChange={(v) => { if (v) { mudarFiltros({ estado: v as DecisaoEditorial, pagina: 0 }); } }} className="justify-start gap-1 self-start rounded-lg border bg-card p-1" aria-label="Decisão editorial">
       {ESTADOS.map((e) => <ToggleGroupItem disabled={emAcao} className="min-h-11" key={e.id} value={e.id}>{e.nome}</ToggleGroupItem>)}
