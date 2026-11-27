@@ -97,4 +97,4 @@
 - [x] Carga de leitura no indicador de avisos; divisão com pré-visualização; «Em uso» nas capas; legenda das zonas seguras
 - [ ] Ronda 4: capturas fiáveis dos seis estilos no canvas principal + exportação PNG/PDF de teste
 
-- [ ] Instalar no servidor a correção do limite diário de newsletters (aguarda autorização: deploy + lote de teste com IA paga)
+- [x] Instalada no servidor a correção do limite diário de newsletters; lote de teste de 10: 10 notícias RSS, 0 falhas, newsletters adiadas sem IA
