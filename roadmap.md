@@ -1,5 +1,11 @@
 # Roadmap
 
+## Erro nos Destaques com Brief — 27/11/2026
+- [x] Localizar a contagem por associações e a sincronização anterior à gravação
+- [ ] Corrigir sincronização e aviso recuperável — aguarda aprovação do plano
+- [ ] Validar testes e ecrã sem modificar conteúdos reais
+- [ ] Instalar correção — aguarda autorização própria
+
 ## Instalação e teste do processamento 26/11/2026
 - [x] Instalar apenas nl-api, com a correção de prazos e seleção recente, conforme autorização explícita
 - [x] Executar 22 testes da Curadoria e verificar o grafo de 257 ficheiros
