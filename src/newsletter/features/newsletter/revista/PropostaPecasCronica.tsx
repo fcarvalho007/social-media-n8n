@@ -7,6 +7,7 @@ import { Check, Eraser, Loader2, RefreshCw, RotateCcw, Sparkles, X } from "lucid
 import { proporPecasCronicaFn, type PropostaPecas } from "@/newsletter/lib/propor-pecas.functions";
 import { paragrafosCronica } from "@/newsletter/lib/newsletter-engine/revista/sequencia-cronica";
 import type { ConfigRevista } from "./data-revista";
+import { ORIGINAL, snapshotRepor, type OrigemPeca } from "./pecas-trecho";
 
 type CamposPecas = Pick<
   ConfigRevista,
@@ -30,10 +31,11 @@ export const PECAS_VAZIAS: CamposPecas = {
 };
 
 export function PropostaPecasCronica({
-  edicaoId, cfg, editar, excerto, bloqueado,
+  edicaoId, cfg, editar, excerto, bloqueado, definirOrigem,
 }: {
   edicaoId: string; cfg: ConfigRevista; editar: (p: Partial<ConfigRevista>) => void;
   excerto: string; bloqueado: boolean;
+  definirOrigem: (o: Partial<Record<"lede" | "pull_quote" | "momento", OrigemPeca | null>>) => void;
 }) {
   const propor = useServerFn(proporPecasCronicaFn);
   const [aCarregar, setACarregar] = useState(false);
@@ -75,6 +77,11 @@ export function PropostaPecasCronica({
     if (!Object.keys(p).length) { toast.info("Nenhuma peça escolhida."); return; }
     setAnterior(snapshotPecas(cfg));
     editar(p);
+    definirOrigem({
+      ...(p.cronica_lede ? { lede: "ia" as const } : {}),
+      ...(p.pull_quote ? { pull_quote: "ia" as const } : {}),
+      ...(p.momento_activo ? { momento: "ia" as const } : {}),
+    });
     setProposta(null);
     toast.success("Peças aplicadas.");
   };
@@ -86,11 +93,16 @@ export function PropostaPecasCronica({
     toast.success("Peças repostas como estavam.");
   };
 
-  const limpar = () => {
-    if (!window.confirm("Esvaziar a lede, a frase de destaque e o momento editorial?")) return;
-    setAnterior(snapshotPecas(cfg));
-    editar(PECAS_VAZIAS);
-    toast.success("Peças limpas.");
+  const reporOriginal = () => {
+    if (!window.confirm("Retirar a lede, a frase de destaque, o número e o excerto personalizado? O texto da crónica fica igual.")) return;
+    const antes = snapshotRepor(cfg);
+    editar(ORIGINAL);
+    definirOrigem({ lede: null, pull_quote: null, momento: null });
+    setAnterior(null);
+    toast.success("Crónica reposta como foi escrita.", {
+      duration: 10_000,
+      action: { label: "Desfazer", onClick: () => { editar(antes); toast.info("Peças repostas."); } },
+    });
   };
 
   const Linha = ({ k, rotulo, texto, pos }: { k: keyof typeof escolha; rotulo: string; texto: string; pos: number }) => (
@@ -119,9 +131,9 @@ export function PropostaPecasCronica({
             <RotateCcw className="h-4 w-4" /> Reverter
           </button>
         )}
-        <button type="button" onClick={limpar} disabled={bloqueado}
+        <button type="button" onClick={reporOriginal} disabled={bloqueado}
           className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground disabled:opacity-50">
-          <Eraser className="h-4 w-4" /> Limpar peças
+          <Eraser className="h-4 w-4" /> Repor crónica original
         </button>
       </div>
 

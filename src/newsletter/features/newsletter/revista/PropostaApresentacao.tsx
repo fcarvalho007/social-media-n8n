@@ -177,10 +177,6 @@ export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqu
     setAnteriores((a) => { const n = { ...a }; delete n[k]; return n; });
     toast.info("Campo reposto como estava antes.");
   };
-  const MOMENTO_CAMPOS = (p: PropostaApresentacaoResultado): Partial<ConfigRevista> => ({
-    momento_activo: true, momento_etiqueta: p.momento.etiqueta,
-    momento_valor: p.momento.valor, momento_descricao: p.momento.descricao,
-  });
 
   const aplicarImagem = async () => {
     if (!foto || !proposta) return;
@@ -207,10 +203,7 @@ export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqu
     const partes: Record<string, Partial<ConfigRevista>> = {};
     if (rascunho.titulo.trim()) partes.titulo = { cronica_titulo: rascunho.titulo.trim() };
     if (rascunho.subtitulo.trim()) partes.subtitulo = { cronica_subtitulo: rascunho.subtitulo.trim() };
-    if (rascunho.lede.trim()) partes.lede = { cronica_lede: rascunho.lede.trim() };
     if (rascunho.excerto.trim()) partes.excerto = { cronica_excerto: rascunho.excerto.trim() };
-    if (rascunho.pullQuote.trim()) partes.pullQuote = { pull_quote: rascunho.pullQuote.trim() };
-    if (proposta?.momento.valor) partes.momento = MOMENTO_CAMPOS(proposta);
     setAnteriores((a) => {
       const n = { ...a };
       for (const [k, p] of Object.entries(partes)) if (!n[k]) n[k] = snapshotAnterior(cfg, p);
@@ -231,7 +224,7 @@ export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqu
           <p className="text-[13px] font-semibold text-foreground">Propor apresentação a partir do texto</p>
           <p className="text-[12px] text-muted-foreground">
             {suficiente
-              ? "Lê a crónica escrita e sugere título, lede, excerto, momento, frase de destaque e imagem."
+              ? "Sugere título, segunda linha, excerto e imagem. Lede, frase de destaque e número ficam nas Peças móveis."
               : "Escreve alguns parágrafos da crónica para ficar disponível."}
           </p>
         </div>
@@ -291,51 +284,12 @@ export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqu
             reverter={() => reverter("subtitulo")}
           />
           <Linha
-            etiqueta="Lede / tese editorial" actual={cfg.cronica_lede} sugestao={rascunho.lede} area
-            aplicado={!!aplicados.lede}
-            editarSugestao={(v) => setRascunho((r) => ({ ...r, lede: v }))}
-            aplicar={() => aplicarCampo("lede", { cronica_lede: rascunho.lede.trim() })}
-            reverter={() => reverter("lede")}
-          />
-          <Linha
             etiqueta="Excerto da crónica" actual={cfg.cronica_excerto} sugestao={rascunho.excerto} area
             aplicado={!!aplicados.excerto}
             editarSugestao={(v) => setRascunho((r) => ({ ...r, excerto: v }))}
             aplicar={() => aplicarCampo("excerto", { cronica_excerto: rascunho.excerto.trim() })}
             reverter={() => reverter("excerto")}
           />
-          <Linha
-            etiqueta="Frase de destaque" actual={cfg.pull_quote} sugestao={rascunho.pullQuote} area
-            aplicado={!!aplicados.pullQuote}
-            editarSugestao={(v) => setRascunho((r) => ({ ...r, pullQuote: v }))}
-            aplicar={() => aplicarCampo("pullQuote", { pull_quote: rascunho.pullQuote.trim() })}
-            reverter={() => reverter("pullQuote")}
-          />
-
-          {proposta.momento.valor ? (
-            <div className="space-y-1.5 rounded-lg border border-border bg-background p-3">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Momento editorial
-              </span>
-              <p className="text-[14px] text-foreground">
-                <strong>{proposta.momento.etiqueta}</strong> · {proposta.momento.valor} — {proposta.momento.descricao}
-              </p>
-              <button
-                type="button"
-                onClick={() => aplicarCampo("momento", MOMENTO_CAMPOS(proposta))}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[12px] font-semibold text-foreground transition hover:border-primary"
-              >
-                <Check className="h-3.5 w-3.5" /> {aplicados.momento ? "Aplicado" : "Aplicar"}
-              </button>
-              {aplicados.momento && <BotaoReverter onClick={() => reverter("momento")} />}
-            </div>
-          ) : (
-            <p className="rounded-lg border border-dashed border-border p-3 text-[12px] text-muted-foreground">
-              {proposta.momentoRejeitado
-                ? "O valor proposto para o momento editorial não existia no texto, por isso foi descartado."
-                : "A crónica não tem um número ou prazo concreto para o momento editorial."}
-            </p>
-          )}
 
           {foto ? (
             <div className="space-y-2 rounded-lg border border-border bg-background p-3">
