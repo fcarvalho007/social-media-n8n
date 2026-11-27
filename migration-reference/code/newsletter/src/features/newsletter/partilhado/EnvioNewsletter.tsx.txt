@@ -9,6 +9,7 @@ import { avisosConfirmaveisDe, bloqueiosRigidosDe, pendentesPorNoticia, rotuloAc
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   AlertTriangle, CalendarClock, CheckCircle2, Circle, FileText,
@@ -196,11 +197,14 @@ export function EnvioNewsletter({
   useEffect(() => { if (forcaveis.length === 0) setForcarBriefs(false); }, [forcaveis.length]);
   // Bloqueios que ainda travam: os fixos sempre; os dos Briefs até confirmar.
   const rigidos = forcarBriefs ? fixos : todosRigidos;
+  const navegar = useNavigate();
   const irResolver = (noticiaId?: string) => {
     const q = new URLSearchParams({ edicao: edicaoId });
     if (noticiaId) q.set("noticia", noticiaId);
+    q.set("voltar", "1");
     onAberto(false);
-    window.location.assign(`/newsletter/briefs?${q.toString()}`);
+    // In-app navigation keeps history, so the Briefs page can return here.
+    navegar({ to: `/briefs?${q.toString()}` });
   };
   const avisos = [...new Set([...problemas, ...(prontidao ? avisosConfirmaveisDe(prontidao.areas) : [])])];
   const [avisosPendentes, setAvisosPendentes] = useState<null | "disparar" | "agendar">(null);
@@ -415,7 +419,7 @@ export function EnvioNewsletter({
                     {p.estado === "ok" && <><CheckCircle2 size={14} className="text-estado-pronto" /> Enviada</>}
                     {p.estado === "a_enviar" && <><Loader2 size={14} className="animate-spin" /> A enviar…</>}
                     {p.estado === "a_preparar" && <><Loader2 size={14} className="animate-spin" /> A preparar…</>}
-                    {p.estado === "espera" && "Em espera"}
+                    {p.estado === "espera" && "Na fila do servidor"}
                     {p.estado === "erro" && (
                       <>
                         <span className="max-w-[180px] truncate text-destructive" title={p.erro}>{p.erro ?? "Falhou"}</span>
@@ -446,7 +450,9 @@ export function EnvioNewsletter({
           >
             <p className="font-semibold text-foreground">
               {forcarBriefs && fixos.length === 0
-                ? "Vai enviar com pontos por resolver"
+                ? (progresso.length > 0
+                  ? "Enviada com avisos: estes Destaques ligam à notícia original (não é um erro)"
+                  : "Vai enviar com pontos por resolver: estes Destaques vão ligar à notícia original")
                 : pendentes.length > 0
                   ? `Falta resolver ${pendentes.reduce((n, g) => n + g.pontos.length, 0)} ${pendentes.reduce((n, g) => n + g.pontos.length, 0) === 1 ? "ponto" : "pontos"} em ${pendentes.length} ${pendentes.length === 1 ? "Destaque" : "Destaques"}`
                   : "Falta resolver antes de enviar"}

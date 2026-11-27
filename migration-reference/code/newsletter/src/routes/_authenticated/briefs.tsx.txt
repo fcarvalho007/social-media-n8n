@@ -142,12 +142,23 @@ function PainelBriefs() {
     <div style={{ minHeight: "100vh", background: T.bg, color: T.ink }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px 80px" }}>
         <header style={{ marginBottom: 24 }}>
+          <button
+            type="button"
+            onClick={() => {
+              const veioDoEnvio = new URLSearchParams(window.location.search).get("voltar") === "1";
+              if (veioDoEnvio && window.history.length > 1) window.history.back();
+              else window.location.assign("/newsletter");
+            }}
+            style={{ marginBottom: 12, background: "transparent", border: 0, padding: 0, color: T.accent, fontSize: 13, cursor: "pointer" }}
+          >
+            ← Voltar à edição
+          </button>
           <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.16em", color: T.accent, textTransform: "uppercase" }}>
             Digital Sprint · interno
           </p>
           <h1 style={{ margin: "6px 0 4px", fontSize: 28, fontWeight: 600 }}>Briefs</h1>
           <p style={{ margin: 0, color: T.muted, fontSize: 14 }}>
-            Prova da relação notícia → Brief → edição. Nada daqui é visível ao leitor nem afeta o envio.
+            Prova da relação notícia → Brief → edição. Um Destaque sem Brief pronto liga à notícia original no email.
           </p>
         </header>
 
