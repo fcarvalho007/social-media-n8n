@@ -1,5 +1,12 @@
 # Roadmap
 
+## Envio: o que falta, atalhos e «Enviar mesmo assim» — 27/11/2026
+
+- [x] Lista do que falta agrupada por Destaque, em linguagem simples, com atalho para o painel de Briefs na peça certa
+- [x] «Enviar mesmo assim» com confirmação; só os pontos dos Briefs deixam de travar; registado no histórico
+- [ ] Experimentar no ecrã (janela de envio e atalho) — aguarda sessão de verificação
+- [ ] Instalar no servidor — aguarda autorização
+
 ## Erro nos Destaques com Brief — 27/11/2026
 - [x] Localizar a contagem por associações e a sincronização anterior à gravação
 - [x] Corrigir sincronização após gravação, reconciliação sem apagar Briefs e aviso editorial em vez de 500

@@ -17,7 +17,19 @@ export interface AreaProntidao {
      * endereço da edição web bloqueiam.
      */
     severidade?: "bloqueio" | "aviso";
+    /** Notícias concretas em causa (áreas dos Briefs), para a lista agrupada. */
+    itens?: PendenteBrief[];
 }
+/** Um ponto por resolver numa notícia em Destaque. */
+export interface PendenteBrief {
+    noticiaId: string;
+    titulo: string;
+    motivo: string;
+    accao: AccaoProntidao;
+}
+/** Áreas cujo bloqueio pode ser ultrapassado com «Enviar mesmo assim»:
+ *  os Destaques afectados ligam à fonte original, como o Radar. */
+export declare const CHAVES_BRIEFS_FORCAVEIS: ReadonlyArray<ChaveArea>;
 export interface Prontidao {
     ok: boolean;
     /** Mensagens dos bloqueios críticos, pela ordem em que devem ser resolvidos. */

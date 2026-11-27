@@ -87,6 +87,25 @@ export interface ListaPreparada {
     erro?: string;
 }
 /**
+ * Prepara a edição Revista antes do envio: publica a versão web, guarda o URL
+ * e grava a fotografia (dados + HTML + texto) no estado «preparado».
+ *
+ * «Preparado» garante determinismo — todas as listas recebem exactamente o
+ * mesmo conteúdo — mas ainda é reversível: só bloqueia definitivamente quando
+ * a primeira lista for aceite pela E-goi.
+ * Não faz nada em edições Clássicas nem em edições já bloqueadas ou preparadas.
+ */
+/** Separa os bloqueios rígidos: com `forcar`, os das áreas indicadas deixam de travar. */
+export declare function filtrarRigidos(areas: Array<{
+    chave: string;
+    estado: string;
+    severidade?: string;
+    mensagem: string;
+}>, forcar: boolean, chavesForcaveis: ReadonlyArray<string>): {
+    rigidosRestantes: string[];
+    forcados: string[];
+};
+/**
  * Fase 1 — prepara todas as campanhas na E-goi (criar/actualizar rascunho)
  * ANTES de qualquer disparo. Nenhuma lista é enviada aqui.
  * Coloca também o bloqueio `envio_em_curso` para evitar disparos duplos.
@@ -99,6 +118,7 @@ export declare function prepararEnvio(opts: {
     confirmacaoNumero?: number;
     exigirConfirmacao?: boolean;
     publicarConteudos?: boolean;
+    forcarBriefs?: boolean;
 }): Promise<{
     ok: true;
     modo: "teste" | "real";
@@ -155,6 +175,7 @@ export declare function dispararEgoi(opts: {
     confirmacaoNumero?: number;
     exigirConfirmacao?: boolean;
     publicarConteudos?: boolean;
+    forcarBriefs?: boolean;
 }): Promise<{
     ok: boolean;
     modo: "teste" | "real";
@@ -179,3 +200,6 @@ export declare function publicarWordpress(opts: {
     actualizada: boolean;
     mensagem: string;
 }>;
+/** Marca de «Enviar mesmo assim» para um envio em segundo plano: guardada em
+ *  configuracoes (sem nova coluna) e consumida uma vez pelo agendamento. */
+export declare function chaveForcarBriefs(edicaoId: string): string;

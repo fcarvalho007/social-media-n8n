@@ -46,9 +46,44 @@ export function rotuloAccaoProntidao(a?: string): string | null {
 
 /** Linha da prontidão, na forma mínima que a interface precisa de classificar. */
 export interface LinhaProntidao {
+  chave?: string;
   estado: string;
   mensagem: string;
   severidade?: "bloqueio" | "aviso";
+  itens?: Array<{ noticiaId: string; titulo: string; motivo: string; accao?: string }>;
+}
+
+/** Áreas dos Briefs: bloqueiam, mas quem envia pode confirmar «enviar mesmo assim». */
+const CHAVES_FORCAVEIS = new Set(["briefs", "leituras", "factualidade", "fontes"]);
+
+/** Separa bloqueios rígidos em ultrapassáveis (Briefs) e fixos (o resto). */
+export function separarRigidos(areas: LinhaProntidao[]): { forcaveis: string[]; fixos: string[] } {
+  const rig = areas.filter((a) => a.estado === "bloqueada" && a.severidade === "bloqueio");
+  return {
+    forcaveis: rig.filter((a) => CHAVES_FORCAVEIS.has(a.chave ?? "")).map((a) => a.mensagem),
+    fixos: rig.filter((a) => !CHAVES_FORCAVEIS.has(a.chave ?? "")).map((a) => a.mensagem),
+  };
+}
+
+export interface GrupoPendentes {
+  noticiaId: string;
+  titulo: string;
+  pontos: Array<{ motivo: string; accao?: string }>;
+}
+
+/** Junta os pontos por resolver de todas as áreas por notícia, sem repetir motivos. */
+export function pendentesPorNoticia(areas: LinhaProntidao[]): GrupoPendentes[] {
+  const grupos = new Map<string, GrupoPendentes>();
+  for (const a of areas) {
+    if (a.estado !== "bloqueada") continue;
+    for (const it of a.itens ?? []) {
+      const k = it.noticiaId || it.titulo;
+      const g = grupos.get(k) ?? { noticiaId: it.noticiaId, titulo: it.titulo, pontos: [] };
+      if (!g.pontos.some((p) => p.motivo === it.motivo)) g.pontos.push({ motivo: it.motivo, accao: it.accao });
+      grupos.set(k, g);
+    }
+  }
+  return [...grupos.values()];
 }
 
 /** Pontos que travam mesmo o envio — não há «enviar mesmo assim». */

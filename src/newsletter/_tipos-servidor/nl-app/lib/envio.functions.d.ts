@@ -41,6 +41,7 @@ export declare const prepararEnvioFn: import("../_shim/start.ts").NlServerFn<{
     lista_ids: string[];
     confirmacao_numero?: number;
     publicar_conteudos?: boolean;
+    forcar_briefs?: boolean;
 }, {
     ok: true;
     modo: "teste" | "real";
@@ -116,6 +117,7 @@ export declare const enviarSegundoPlanoFn: import("../_shim/start.ts").NlServerF
     lista_ids: string[];
     confirmacao_numero: number;
     publicar_conteudos?: boolean;
+    forcar_briefs?: boolean;
 }, {
     ok: true;
     segundo_plano: true;

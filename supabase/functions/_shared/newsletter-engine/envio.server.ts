@@ -298,11 +298,23 @@ const LOCK_MS = 10 * 60_000;
  * a primeira lista for aceite pela E-goi.
  * Não faz nada em edições Clássicas nem em edições já bloqueadas ou preparadas.
  */
+/** Separa os bloqueios rígidos: com `forcar`, os das áreas indicadas deixam de travar. */
+export function filtrarRigidos(
+  areas: Array<{ chave: string; estado: string; severidade?: string; mensagem: string }>,
+  forcar: boolean,
+  chavesForcaveis: ReadonlyArray<string>,
+): { rigidosRestantes: string[]; forcados: string[] } {
+  const rig = areas.filter((a) => a.estado === "bloqueada" && a.severidade === "bloqueio");
+  const ok = (a: { chave: string }) => forcar && chavesForcaveis.includes(a.chave);
+  return { forcados: rig.filter(ok).map((a) => a.mensagem), rigidosRestantes: rig.filter((a) => !ok(a)).map((a) => a.mensagem) };
+}
+
 async function prepararEdicaoRevista(
   sb: SupabaseClient,
   edicaoId: string,
   quem: string,
   listaIds: string[],
+  forcarBriefs = false,
 ): Promise<void> {
   const { data: edRaw } = await sb.from("nl_edicoes")
     .select("template_version").eq("id", edicaoId).maybeSingle();
@@ -317,15 +329,25 @@ async function prepararEdicaoRevista(
   // 1) Prontidão completa ANTES de qualquer escrita externa. Os avisos não
   //    travam (a decisão é editorial, confirmada no modal); os bloqueios
   //    rígidos dos Briefs travam mesmo — nada segue para a E-goi.
-  const { avaliarProntidao } = await import("./revista/prontidao.server.ts");
+  const { avaliarProntidao, CHAVES_BRIEFS_FORCAVEIS } = await import("./revista/prontidao.server.ts");
   const pront = await avaliarProntidao(edicaoId, { listaIds });
-  if (pront.bloqueiosRigidos.length) {
+  // «Enviar mesmo assim»: só os bloqueios dos Briefs podem ser ultrapassados;
+  // os Destaques afectados ligam à fonte original (só os prontos são publicados).
+  const { rigidosRestantes, forcados } = filtrarRigidos(pront.areas, forcarBriefs, CHAVES_BRIEFS_FORCAVEIS);
+  if (forcados.length) {
+    await sb.from("nl_audit_log").insert({
+      quem,
+      accao: "Envio Revista forçado com Briefs por resolver",
+      detalhe: forcados.join(" · ").slice(0, 500),
+    });
+  }
+  if (rigidosRestantes.length) {
     await sb.from("nl_audit_log").insert({
       quem,
       accao: "Envio Revista travado pelos Briefs",
-      detalhe: pront.bloqueiosRigidos.join(" · ").slice(0, 500),
+      detalhe: rigidosRestantes.join(" · ").slice(0, 500),
     });
-    throw new ErroEnvio(pront.bloqueiosRigidos.join(" · "), 409);
+    throw new ErroEnvio(rigidosRestantes.join(" · "), 409);
   }
   await sb.from("nl_audit_log").insert({
     quem,
@@ -443,6 +465,7 @@ export async function prepararEnvio(opts: {
   confirmacaoNumero?: number;
   exigirConfirmacao?: boolean;
   publicarConteudos?: boolean;
+  forcarBriefs?: boolean;
 }) {
   const sb = admin();
   const listasR = await resolverListas(sb, opts.listaIds);
@@ -497,9 +520,9 @@ export async function prepararEnvio(opts: {
   // A pessoa autorizou explicitamente esta publicação no modal; a versão web
   // permanece fora dos motores de busca até ao primeiro envio real.
   if (revista && opts.publicarConteudos) {
-    await prepararEdicaoRevista(sb, opts.edicaoId, quem, listasR.listas.map((l) => l.id));
+    await prepararEdicaoRevista(sb, opts.edicaoId, quem, listasR.listas.map((l) => l.id), opts.forcarBriefs === true);
   } else if (revista && listasR.modo === "real") {
-    await prepararEdicaoRevista(sb, opts.edicaoId, quem, listasR.listas.map((l) => l.id));
+    await prepararEdicaoRevista(sb, opts.edicaoId, quem, listasR.listas.map((l) => l.id), opts.forcarBriefs === true);
   }
 
 
@@ -756,6 +779,7 @@ export async function dispararEgoi(opts: {
   confirmacaoNumero?: number;
   exigirConfirmacao?: boolean;
   publicarConteudos?: boolean;
+  forcarBriefs?: boolean;
 }) {
   const prep = await prepararEnvio(opts);
 
@@ -836,4 +860,10 @@ export async function publicarWordpress(opts: {
     actualizada: wp.actualizada,
     mensagem: wp.actualizada ? "Página actualizada no WordPress ✓" : "Página escrita no WordPress ✓",
   };
+}
+
+/** Marca de «Enviar mesmo assim» para um envio em segundo plano: guardada em
+ *  configuracoes (sem nova coluna) e consumida uma vez pelo agendamento. */
+export function chaveForcarBriefs(edicaoId: string): string {
+  return `envio_forcar_briefs:${edicaoId}`;
 }

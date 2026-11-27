@@ -35,7 +35,7 @@ export const dispararEgoiFn = createServerFn({ method: "POST" })
 /** Fase 1 do envio: prepara (cria/actualiza) as campanhas de todas as listas. */
 export const prepararEnvioFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { edicao_id: string; lista_ids: string[]; confirmacao_numero?: number; publicar_conteudos?: boolean }) => d)
+  .inputValidator((d: { edicao_id: string; lista_ids: string[]; confirmacao_numero?: number; publicar_conteudos?: boolean; forcar_briefs?: boolean }) => d)
   .handler(async ({ data, context }) => {
     const { prepararEnvio } = await import("./newsletter-engine/envio.server");
     return prepararEnvio({
@@ -44,6 +44,7 @@ export const prepararEnvioFn = createServerFn({ method: "POST" })
       listaIds: data.lista_ids ?? [],
       confirmacaoNumero: data.confirmacao_numero,
       publicarConteudos: data.publicar_conteudos === true,
+      forcarBriefs: data.forcar_briefs === true,
     });
   });
 
@@ -136,9 +137,9 @@ export const agendarEnvioFn = createServerFn({ method: "POST" })
  */
 export const enviarSegundoPlanoFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { edicao_id: string; lista_ids: string[]; confirmacao_numero: number; publicar_conteudos?: boolean }) => d)
+  .inputValidator((d: { edicao_id: string; lista_ids: string[]; confirmacao_numero: number; publicar_conteudos?: boolean; forcar_briefs?: boolean }) => d)
   .handler(async ({ data, context }) => {
-    const { admin, autorizar, ErroEnvio } = await import("./newsletter-engine/envio.server");
+    const { admin, autorizar, ErroEnvio, chaveForcarBriefs } = await import("./newsletter-engine/envio.server");
     const sb = admin();
     const user = await autorizar(sb, context.userId, "real");
     if (!data.lista_ids?.length) throw new ErroEnvio("Escolhe pelo menos uma lista.");
@@ -162,6 +163,14 @@ export const enviarSegundoPlanoFn = createServerFn({ method: "POST" })
       agendado_por: user.nome,
     }).eq("id", data.edicao_id).or("agendamento_estado.is.null,agendamento_estado.not.in.(agendado,a_executar)").select("id").maybeSingle();
     if (!claim) throw new ErroEnvio("Já existe uma ordem de envio para esta edição.", 409);
+    await sb.from("configuracoes").delete().eq("chave", chaveForcarBriefs(data.edicao_id));
+    if (data.forcar_briefs === true) {
+      await sb.from("configuracoes").insert({ chave: chaveForcarBriefs(data.edicao_id), valor: agora });
+      await sb.from("audit_log").insert({
+        quem: user.nome,
+        accao: `Confirmou enviar a edição #${e.numero} com Briefs por resolver`,
+      });
+    }
     await sb.from("audit_log").insert({
       quem: user.nome,
       accao: `Deu ordem de envio da edição #${e.numero} (em segundo plano)`,

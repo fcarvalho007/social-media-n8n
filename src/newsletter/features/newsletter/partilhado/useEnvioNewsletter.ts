@@ -34,6 +34,8 @@ export interface ResultadoDisparo {
 
 export interface OpcoesDisparo {
   publicarConteudos?: boolean;
+  /** «Enviar mesmo assim» com Briefs por resolver. */
+  forcarBriefs?: boolean;
 }
 
 export interface UseEnvioArgs {
@@ -126,6 +128,7 @@ export function useEnvioNewsletter(args: UseEnvioArgs): EnvioNewsletter {
             lista_ids: listasSel,
             confirmacao_numero: numero,
             publicar_conteudos: (opcoes || undefined)?.publicarConteudos === true,
+            forcar_briefs: (opcoes || undefined)?.forcarBriefs === true,
           },
         });
         return {
@@ -145,6 +148,7 @@ export function useEnvioNewsletter(args: UseEnvioArgs): EnvioNewsletter {
           lista_ids: listasSel,
           confirmacao_numero: numero,
           publicar_conteudos: (opcoes || undefined)?.publicarConteudos === true,
+          forcar_briefs: (opcoes || undefined)?.forcarBriefs === true,
         },
       });
       // A preparação pode publicar a página web e a crónica. Refresca a

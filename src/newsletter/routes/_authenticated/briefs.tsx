@@ -64,9 +64,15 @@ function PainelBriefs() {
   const [aviso, setAviso] = useState<string | null>(null);
 
   const edicoes = useQuery({ queryKey: ["brief-edicoes"], queryFn: () => listarEdicoesBriefFn() });
+  // Atalho vindo do envio: ?edicao=…&noticia=… abre a peça em causa.
+  const [alvo, setAlvo] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("noticia"));
+  const [realce, setRealce] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!edicaoId && edicoes.data?.length) setEdicaoId(edicoes.data[0].id);
+    if (edicaoId || !edicoes.data?.length) return;
+    const pedida = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("edicao");
+    setEdicaoId(edicoes.data.find((e) => e.id === pedida)?.id ?? edicoes.data[0].id);
   }, [edicoes.data, edicaoId]);
 
   const noticias = useQuery({
@@ -107,6 +113,17 @@ function PainelBriefs() {
       invalidar();
     },
   });
+
+  useEffect(() => {
+    if (!alvo || !briefs.data || !noticias.data) return;
+    const b = briefs.data.find((x) => x.noticia_id === alvo);
+    if (b) setAberto(b.id);
+    setRealce(alvo);
+    setAlvo(null);
+    requestAnimationFrame(() => {
+      document.getElementById(`peca-${alvo}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [alvo, briefs.data, noticias.data]);
 
   const jaComBrief = useMemo(
     () => new Set((briefs.data ?? []).map((b) => b.noticia_id ?? "")),
@@ -180,14 +197,16 @@ function PainelBriefs() {
         ) : (
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 36px", display: "grid", gap: 10 }}>
             {(briefs.data ?? []).map((b) => (
+              <div key={b.id} id={b.noticia_id ? `peca-${b.noticia_id}` : undefined}
+                style={realce && realce === b.noticia_id ? { outline: `2px solid ${T.warn}`, borderRadius: 12 } : undefined}>
               <CartaoBrief
-                key={b.id}
                 brief={b}
                 aberto={aberto === b.id}
                 onAlternar={() => setAberto(aberto === b.id ? null : b.id)}
                 onRemover={() => remover.mutate(b.id)}
                 onMudou={invalidar}
               />
+              </div>
             ))}
           </ul>
         )}
@@ -200,7 +219,9 @@ function PainelBriefs() {
             {(noticias.data ?? []).map((n) => (
               <li
                 key={n.id}
+                id={jaComBrief.has(n.id) ? undefined : `peca-${n.id}`}
                 style={{
+                  ...(realce === n.id && !jaComBrief.has(n.id) ? { outline: `2px solid ${T.warn}` } : {}),
                   background: T.card, border: `1px solid ${T.line}`, borderRadius: 10,
                   padding: "12px 14px", display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between",
                 }}

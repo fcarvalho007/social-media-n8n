@@ -62,6 +62,27 @@ export interface AreaProntidao {
    * endereço da edição web bloqueiam.
    */
   severidade?: "bloqueio" | "aviso";
+  /** Notícias concretas em causa (áreas dos Briefs), para a lista agrupada. */
+  itens?: PendenteBrief[];
+}
+
+/** Um ponto por resolver numa notícia em Destaque. */
+export interface PendenteBrief {
+  noticiaId: string;
+  titulo: string;
+  motivo: string;
+  accao: AccaoProntidao;
+}
+
+/** Áreas cujo bloqueio pode ser ultrapassado com «Enviar mesmo assim»:
+ *  os Destaques afectados ligam à fonte original, como o Radar. */
+export const CHAVES_BRIEFS_FORCAVEIS: ReadonlyArray<ChaveArea> = ["briefs", "leituras", "factualidade", "fontes"];
+
+/** Texto simples para os motivos técnicos dos Briefs. */
+function motivoSimples(m: string): string {
+  const f = /^Falta «(.+)»\.?$/.exec(m.trim());
+  if (f) return `Falta escrever a secção «${f[1]}» do Brief.`;
+  return m;
 }
 
 
@@ -304,15 +325,28 @@ export async function avaliarProntidao(
       });
     } else {
       const comBrief = val.prontos.length;
+      const comRegisto = new Set(
+        [...val.prontos.map((b) => b.noticia_id), ...val.incompletos, ...val.verificacoes, ...val.leiturasPorAprovar, ...val.fontes]
+          .map((x) => (typeof x === "string" ? x : (x as { noticiaId?: string | null })?.noticiaId) ?? ""),
+      );
+      const semBrief: PendenteBrief[] = (estrutura?.destaques ?? [])
+        .filter((d) => !comRegisto.has(d.noticiaId))
+        .map((d) => ({ noticiaId: d.noticiaId, titulo: d.titulo, motivo: "Ainda não tem Brief.", accao: "gerar_brief" as const }));
+      const titulos = new Map((estrutura?.destaques ?? []).map((d) => [d.noticiaId, d.titulo]));
+      const tituloDe = (x: { noticiaId: string | null; titulo: string }) => (x.noticiaId && titulos.get(x.noticiaId)) || x.titulo;
+      const p = (l: Array<{ noticiaId: string | null; titulo: string; motivo: string }>, accao: AccaoProntidao) =>
+        l.map((x) => ({ noticiaId: x.noticiaId ?? "", titulo: tituloDe(x), motivo: motivoSimples(x.motivo), accao }));
       if (comBrief < total) {
-        const emFalta = [...val.incompletos, ...val.verificacoes][0]?.motivo;
+        const itens = [...semBrief, ...p(val.incompletos, "gerar_brief")];
+        const emFalta = total - comBrief;
         bloquear({
           chave: "briefs",
           rotulo: "Briefs",
           estado: "bloqueada",
-          mensagem: `Faltam Briefs prontos: ${comBrief}/${total}.${emFalta ? ` ${emFalta}` : ""}`,
+          mensagem: `${emFalta} ${emFalta === 1 ? "Destaque ainda não tem" : "Destaques ainda não têm"} Brief pronto.`,
           severidade: "bloqueio",
           accao: "gerar_brief",
+          itens,
         });
       } else {
         areas.push({
@@ -325,13 +359,15 @@ export async function avaliarProntidao(
 
       const leiturasOk = nDestaques - val.leiturasPorAprovar.length;
       if (val.leiturasPorAprovar.length) {
+        const n = val.leiturasPorAprovar.length;
         bloquear({
           chave: "leituras",
           rotulo: "Leituras",
           estado: "bloqueada",
-          mensagem: `Leituras por aprovar: ${leiturasOk}/${nDestaques}.`,
+          mensagem: `Falta aprovar a sua leitura em ${n} ${n === 1 ? "Destaque" : "Destaques"} (${leiturasOk} de ${nDestaques} aprovadas).`,
           severidade: "bloqueio",
           accao: "rever_leitura",
+          itens: p(val.leiturasPorAprovar, "rever_leitura").map((x) => ({ ...x, motivo: "A sua leitura ainda não foi aprovada." })),
         });
       } else {
         areas.push({
@@ -343,16 +379,21 @@ export async function avaliarProntidao(
       }
 
       const problemasFacto = [...val.verificacoes, ...val.incompletos];
-      if (problemasFacto.length) {
+      if (val.verificacoes.length) {
+        const n = val.verificacoes.length;
         bloquear({
           chave: "factualidade",
           rotulo: "Factualidade",
           estado: "bloqueada",
-          mensagem: `Factualidade por resolver: ${val.factualidadeOk}/${val.total}. ${problemasFacto[0].motivo}`,
+          mensagem: `${n} ${n === 1 ? "Brief precisa" : "Briefs precisam"} de nova verificação dos factos.`,
           severidade: "bloqueio",
           accao: problemasFacto[0].motivo.includes("perto do original")
             ? "reformular_brief"
             : "reverificar_brief",
+          itens: val.verificacoes.map((x) => ({
+            noticiaId: x.noticiaId ?? "", titulo: tituloDe(x), motivo: x.motivo,
+            accao: x.motivo.includes("perto do original") ? "reformular_brief" as const : "reverificar_brief" as const,
+          })),
         });
       } else {
         areas.push({
@@ -368,9 +409,10 @@ export async function avaliarProntidao(
           chave: "fontes",
           rotulo: "Fontes",
           estado: "bloqueada",
-          mensagem: `Fontes por corrigir: ${val.fontesOk}/${val.total}. ${val.fontes[0].motivo}`,
+          mensagem: `${val.fontes.length} ${val.fontes.length === 1 ? "Destaque tem" : "Destaques têm"} a fonte original em falta ou indisponível.`,
           severidade: "bloqueio",
           accao: "corrigir_fonte",
+          itens: p(val.fontes, "corrigir_fonte"),
         });
       } else {
         areas.push({

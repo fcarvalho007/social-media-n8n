@@ -5,7 +5,7 @@
 // No formato Revista mostra-se ainda o resumo de prontidão (Fase E3): antes de
 // confirmar, a pessoa vê numa linguagem simples o que está pronto e o que falta.
 
-import { avisosConfirmaveisDe, bloqueiosRigidosDe } from "@/newsletter/lib/newsletter-engine/revista/prontidao-rotulos";
+import { avisosConfirmaveisDe, bloqueiosRigidosDe, pendentesPorNoticia, rotuloAccaoProntidao, separarRigidos } from "@/newsletter/lib/newsletter-engine/revista/prontidao-rotulos";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@/newsletter/shim/start";
@@ -188,21 +188,34 @@ export function EnvioNewsletter({
   // Os bloqueios rígidos (só os dos Briefs e o endereço da edição web) não são
   // confirmáveis: o botão fica inactivo. Tudo o resto avisa e pede a
   // confirmação extra («Enviar mesmo assim»).
-  const rigidos = prontidao ? bloqueiosRigidosDe(prontidao.areas) : [];
+  const todosRigidos = prontidao ? bloqueiosRigidosDe(prontidao.areas) : [];
+  const { forcaveis, fixos } = separarRigidos(prontidao?.areas ?? []);
+  const pendentes = pendentesPorNoticia(prontidao?.areas ?? []);
+  const [forcarBriefs, setForcarBriefs] = useState(false);
+  const [confirmarForcar, setConfirmarForcar] = useState(false);
+  useEffect(() => { if (forcaveis.length === 0) setForcarBriefs(false); }, [forcaveis.length]);
+  // Bloqueios que ainda travam: os fixos sempre; os dos Briefs até confirmar.
+  const rigidos = forcarBriefs ? fixos : todosRigidos;
+  const irResolver = (noticiaId?: string) => {
+    const q = new URLSearchParams({ edicao: edicaoId });
+    if (noticiaId) q.set("noticia", noticiaId);
+    onAberto(false);
+    window.location.assign(`/newsletter/briefs?${q.toString()}`);
+  };
   const avisos = [...new Set([...problemas, ...(prontidao ? avisosConfirmaveisDe(prontidao.areas) : [])])];
   const [avisosPendentes, setAvisosPendentes] = useState<null | "disparar" | "agendar">(null);
   const confirmarAvisos = () => {
     const accao = avisosPendentes;
     setAvisosPendentes(null);
     if (accao === "disparar") registar("Avisos confirmados — a iniciar envio…");
-    if (accao === "disparar") disparar.mutate({ publicarConteudos: revista === true });
+    if (accao === "disparar") disparar.mutate({ publicarConteudos: revista === true, forcarBriefs });
     if (accao === "agendar") agendar.mutate();
   };
   const precisaPublicar = !!revista && (!cronicaPublicada || !webPublica);
   const iniciarDisparo = () => {
     if (avisos.length > 0) { registar("A aguardar confirmação dos avisos."); setAvisosPendentes("disparar"); return; }
     registar(revista ? "A publicar crónica e página web; depois segue o envio…" : "A enviar…");
-    disparar.mutate({ publicarConteudos: revista === true });
+    disparar.mutate({ publicarConteudos: revista === true, forcarBriefs });
   };
   const pedirDisparo = () => {
     setRegisto([]);
@@ -426,12 +439,73 @@ export function EnvioNewsletter({
         )}
         {erro && <p className="rounded-xl bg-destructive/5 px-3.5 py-2.5 text-[13px] text-destructive" role="alert">{erro}</p>}
 
-        {rigidos.length > 0 && (
-          <div className="rounded-xl border border-destructive/35 bg-destructive/5 px-3.5 py-2.5 text-[13px] text-destructive" role="alert">
-            <p className="font-semibold">Resolve no editor antes de enviar:</p>
-            <ul className="mt-1 list-disc space-y-0.5 pl-5">
-              {rigidos.map((m) => <li key={m}>{m}</li>)}
-            </ul>
+        {todosRigidos.length > 0 && (
+          <div
+            className={`rounded-xl border px-3.5 py-3 text-[13px] ${forcarBriefs && fixos.length === 0 ? "border-border bg-muted/40" : "border-destructive/35 bg-destructive/5"}`}
+            role="alert"
+          >
+            <p className="font-semibold text-foreground">
+              {forcarBriefs && fixos.length === 0
+                ? "Vai enviar com pontos por resolver"
+                : pendentes.length > 0
+                  ? `Falta resolver ${pendentes.reduce((n, g) => n + g.pontos.length, 0)} ${pendentes.reduce((n, g) => n + g.pontos.length, 0) === 1 ? "ponto" : "pontos"} em ${pendentes.length} ${pendentes.length === 1 ? "Destaque" : "Destaques"}`
+                  : "Falta resolver antes de enviar"}
+            </p>
+            {pendentes.length > 0 && (
+              <ul className="mt-2 space-y-2">
+                {pendentes.map((g) => (
+                  <li key={g.noticiaId || g.titulo} className="rounded-lg border border-border bg-card px-3 py-2">
+                    <p className="font-semibold text-foreground">«{g.titulo}»</p>
+                    <ul className="mt-1 space-y-1">
+                      {g.pontos.map((pt) => (
+                        <li key={pt.motivo} className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-muted-foreground">{pt.motivo}</span>
+                          <Button type="button" size="sm" variant="outline" className="h-7 px-2.5 text-[12px]" onClick={() => irResolver(g.noticiaId)}>
+                            {rotuloAccaoProntidao(pt.accao) ?? "Resolver"} →
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {pendentes.length === 0 && forcaveis.length > 0 && (
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted-foreground">
+                {forcaveis.map((m) => <li key={m}>{m}</li>)}
+              </ul>
+            )}
+            {fixos.length > 0 && (
+              <>
+                <p className="mt-2 font-semibold text-destructive">Isto impede sempre o envio:</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5 text-destructive">
+                  {fixos.map((m) => <li key={m}>{m}</li>)}
+                </ul>
+              </>
+            )}
+            {forcaveis.length > 0 && (
+              <p className="mt-2 text-[12.5px] text-muted-foreground">
+                Porque importa: um Destaque sem Brief pronto não tem página própria no site.
+              </p>
+            )}
+            {forcaveis.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                {pendentes.length > 0 && (
+                  <Button type="button" size="sm" variant="outline" onClick={() => irResolver(pendentes[0].noticiaId)}>
+                    Abrir os Briefs da edição
+                  </Button>
+                )}
+                {forcarBriefs ? (
+                  <Button type="button" size="sm" variant="ghost" onClick={() => { setForcarBriefs(false); registar("Envio com pontos por resolver anulado."); }}>
+                    Anular «enviar mesmo assim»
+                  </Button>
+                ) : (
+                  <Button type="button" size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={emCurso} onClick={() => setConfirmarForcar(true)}>
+                    Enviar mesmo assim…
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -505,6 +579,23 @@ export function EnvioNewsletter({
             onCancelar={() => setAvisosPendentes(null)}
           />
         )}
+      {confirmarForcar && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/45 px-4" onClick={() => setConfirmarForcar(false)}>
+          <div role="alertdialog" aria-modal="true" aria-label="Enviar mesmo assim" className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <p className="text-[18px] font-semibold text-foreground">Enviar com Briefs por resolver?</p>
+            <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
+              Os Destaques sem Brief pronto vão ligar diretamente à notícia original, como o Radar. Nada é publicado no site para eles. Os Briefs prontos seguem como habitualmente. Fica registado no histórico que enviou assim.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setConfirmarForcar(false)}>Cancelar</Button>
+              <Button type="button" variant="destructive" onClick={() => {
+                setConfirmarForcar(false); setForcarBriefs(true);
+                registar("Confirmado: enviar com Briefs por resolver (os Destaques afetados ligam à fonte).");
+              }}>Sim, enviar mesmo assim</Button>
+            </div>
+          </div>
+        </div>
+      )}
       {confirmarPublicacao && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/45 px-4" onClick={() => setConfirmarPublicacao(false)}>
           <div role="alertdialog" aria-modal="true" className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>

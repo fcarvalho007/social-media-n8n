@@ -1,5 +1,5 @@
 // Motor de agendamento: executa edições cujo `agendado_para` já passou.
-import { admin, dispararEgoi, publicarWordpress } from "./envio.server.ts";
+import { admin, chaveForcarBriefs, dispararEgoi, publicarWordpress } from "./envio.server.ts";
 
 export interface ResultadoAgendamento {
   processadas: number;
@@ -53,7 +53,13 @@ export async function executarAgendamentos(): Promise<ResultadoAgendamento> {
         }
       }
 
+      // «Enviar mesmo assim» confirmado no modal: consumido uma única vez.
+      const { data: marca } = await sb.from("nl_configuracoes")
+        .select("chave").eq("chave", chaveForcarBriefs(ed.id)).maybeSingle();
+      if (marca) await sb.from("nl_configuracoes").delete().eq("chave", chaveForcarBriefs(ed.id));
+
       const r = await dispararEgoi({
+        forcarBriefs: Boolean(marca),
         quemNome: quem,
         edicaoId: ed.id,
         listaIds,

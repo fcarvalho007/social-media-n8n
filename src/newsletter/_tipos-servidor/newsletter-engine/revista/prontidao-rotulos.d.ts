@@ -4,10 +4,32 @@ export declare function rotuloWorkflow(e: EstadoWorkflow | string): string;
 export declare function rotuloAccaoProntidao(a?: string): string | null;
 /** Linha da prontidão, na forma mínima que a interface precisa de classificar. */
 export interface LinhaProntidao {
+    chave?: string;
     estado: string;
     mensagem: string;
     severidade?: "bloqueio" | "aviso";
+    itens?: Array<{
+        noticiaId: string;
+        titulo: string;
+        motivo: string;
+        accao?: string;
+    }>;
 }
+/** Separa bloqueios rígidos em ultrapassáveis (Briefs) e fixos (o resto). */
+export declare function separarRigidos(areas: LinhaProntidao[]): {
+    forcaveis: string[];
+    fixos: string[];
+};
+export interface GrupoPendentes {
+    noticiaId: string;
+    titulo: string;
+    pontos: Array<{
+        motivo: string;
+        accao?: string;
+    }>;
+}
+/** Junta os pontos por resolver de todas as áreas por notícia, sem repetir motivos. */
+export declare function pendentesPorNoticia(areas: LinhaProntidao[]): GrupoPendentes[];
 /** Pontos que travam mesmo o envio — não há «enviar mesmo assim». */
 export declare function bloqueiosRigidosDe(areas: LinhaProntidao[]): string[];
 /** Pontos por resolver que quem envia pode confirmar e seguir. */
