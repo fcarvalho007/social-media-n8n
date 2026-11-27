@@ -6,7 +6,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@/newsletter/shim/start";
 import { toast } from "sonner";
-import { Check, Loader2, RefreshCw, Sparkles, Undo2, X } from "lucide-react";
+import { Check, Eraser, Loader2, RefreshCw, Sparkles, Undo2, X } from "lucide-react";
+import { ORIGINAL, snapshotRepor } from "./pecas-trecho";
+import type { OrigensDestaque } from "./DestaquesCronica";
 import { snapshotAnterior } from "./reverter-proposta";
 import { proporApresentacaoFn, type PropostaApresentacaoResultado } from "@/newsletter/lib/propor-apresentacao.functions";
 import { importarPexelsFn } from "@/newsletter/lib/imagens.functions";
@@ -22,6 +24,7 @@ interface Props {
   cronicaHtml: string;
   editar: (p: Partial<ConfigRevista>) => void;
   bloqueado: boolean;
+  definirOrigem: (o: OrigensDestaque) => void;
 }
 
 const MIN_CARACTERES = 200;
@@ -97,7 +100,7 @@ function Linha({
   );
 }
 
-export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqueado }: Props) {
+export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqueado, definirOrigem }: Props) {
   const propor = useServerFn(proporApresentacaoFn);
   const importar = useServerFn(importarPexelsFn);
 
@@ -166,8 +169,25 @@ export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqu
   // Keeps the first pre-apply value so repeated applies still revert to the original.
   const guardarAnterior = (k: string, patch: Partial<ConfigRevista>) =>
     setAnteriores((a) => (a[k] ? a : { ...a, [k]: snapshotAnterior(cfg, patch) }));
+  const ORIGEM_DE: Record<string, "lede" | "pull_quote" | "momento"> = { lede: "lede", pullQuote: "pull_quote", momento: "momento" };
   const aplicarCampo = (k: string, patch: Partial<ConfigRevista>) => {
     guardarAnterior(k, patch); editar(patch); marcar(k);
+    if (ORIGEM_DE[k]) definirOrigem({ [ORIGEM_DE[k]]: "ia" });
+  };
+  const momentoCampos = (p: PropostaApresentacaoResultado): Partial<ConfigRevista> => ({
+    momento_activo: true, momento_etiqueta: p.momento.etiqueta,
+    momento_valor: p.momento.valor, momento_descricao: p.momento.descricao,
+  });
+  const reporOriginal = () => {
+    if (!window.confirm("Retirar a lede, a frase em grande, o número e o excerto personalizado? O texto da crónica fica igual.")) return;
+    const antes = snapshotRepor(cfg);
+    editar(ORIGINAL);
+    definirOrigem({ lede: null, pull_quote: null, momento: null });
+    setAplicados({}); setAnteriores({});
+    toast.success("Crónica reposta como foi escrita.", {
+      duration: 10_000,
+      action: { label: "Desfazer", onClick: () => { editar(antes); toast.info("Repostos os campos anteriores."); } },
+    });
   };
   const reverter = (k: string) => {
     const anterior = anteriores[k];
@@ -203,13 +223,17 @@ export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqu
     const partes: Record<string, Partial<ConfigRevista>> = {};
     if (rascunho.titulo.trim()) partes.titulo = { cronica_titulo: rascunho.titulo.trim() };
     if (rascunho.subtitulo.trim()) partes.subtitulo = { cronica_subtitulo: rascunho.subtitulo.trim() };
+    if (rascunho.lede.trim()) partes.lede = { cronica_lede: rascunho.lede.trim() };
     if (rascunho.excerto.trim()) partes.excerto = { cronica_excerto: rascunho.excerto.trim() };
+    if (rascunho.pullQuote.trim()) partes.pullQuote = { pull_quote: rascunho.pullQuote.trim() };
+    if (proposta?.momento.valor) partes.momento = momentoCampos(proposta);
     setAnteriores((a) => {
       const n = { ...a };
       for (const [k, p] of Object.entries(partes)) if (!n[k]) n[k] = snapshotAnterior(cfg, p);
       return n;
     });
     editar(Object.assign({}, ...Object.values(partes)));
+    definirOrigem(Object.fromEntries(Object.keys(partes).filter((k) => ORIGEM_DE[k]).map((k) => [ORIGEM_DE[k], "ia"])));
     setAplicados((a) => ({ ...a, ...Object.fromEntries(Object.keys(partes).map((k) => [k, true])) }));
     toast.success("Apresentação preenchida com a proposta.");
     if (foto) void aplicarImagem();
@@ -224,7 +248,7 @@ export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqu
           <p className="text-[13px] font-semibold text-foreground">Propor apresentação a partir do texto</p>
           <p className="text-[12px] text-muted-foreground">
             {suficiente
-              ? "Sugere título, segunda linha, excerto e imagem. Lede, frase de destaque e número ficam nas Peças móveis."
+              ? "Sugere título, segunda linha, lede, excerto, frase em grande, número e imagem."
               : "Escreve alguns parágrafos da crónica para ficar disponível."}
           </p>
         </div>
@@ -236,6 +260,10 @@ export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqu
         >
           {ocupado ? <Loader2 className="h-4 w-4 animate-spin" /> : proposta ? <RefreshCw className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
           {proposta ? "Actualizar proposta" : "Propor apresentação"}
+        </button>
+        <button type="button" onClick={reporOriginal}
+          className="flex items-center gap-1.5 rounded-xl border border-border px-3.5 py-2 text-[13px] font-semibold text-muted-foreground transition hover:text-foreground">
+          <Eraser className="h-4 w-4" /> Repor crónica original
         </button>
       </div>
 
@@ -284,12 +312,41 @@ export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqu
             reverter={() => reverter("subtitulo")}
           />
           <Linha
+            etiqueta="Lede / tese editorial" actual={cfg.cronica_lede} sugestao={rascunho.lede} area
+            aplicado={!!aplicados.lede}
+            editarSugestao={(v) => setRascunho((r) => ({ ...r, lede: v }))}
+            aplicar={() => aplicarCampo("lede", { cronica_lede: rascunho.lede.trim() })}
+            reverter={() => reverter("lede")}
+          />
+          <Linha
             etiqueta="Excerto da crónica" actual={cfg.cronica_excerto} sugestao={rascunho.excerto} area
             aplicado={!!aplicados.excerto}
             editarSugestao={(v) => setRascunho((r) => ({ ...r, excerto: v }))}
             aplicar={() => aplicarCampo("excerto", { cronica_excerto: rascunho.excerto.trim() })}
             reverter={() => reverter("excerto")}
           />
+          <Linha
+            etiqueta="Frase em grande" actual={cfg.pull_quote} sugestao={rascunho.pullQuote} area
+            aplicado={!!aplicados.pullQuote}
+            editarSugestao={(v) => setRascunho((r) => ({ ...r, pullQuote: v }))}
+            aplicar={() => aplicarCampo("pullQuote", { pull_quote: rascunho.pullQuote.trim() })}
+            reverter={() => reverter("pullQuote")}
+          />
+          {proposta.momento.valor ? (
+            <div className="space-y-1.5 rounded-lg border border-border bg-background p-3">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Número da semana</span>
+              <p className="text-[14px] text-foreground">
+                <strong>{proposta.momento.etiqueta}</strong> · {proposta.momento.valor} — {proposta.momento.descricao}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => aplicarCampo("momento", momentoCampos(proposta))}
+                  className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[12px] font-semibold text-foreground transition hover:border-primary">
+                  <Check className="h-3.5 w-3.5" /> {aplicados.momento ? "Aplicado" : "Aplicar"}
+                </button>
+                {aplicados.momento && <BotaoReverter onClick={() => reverter("momento")} />}
+              </div>
+            </div>
+          ) : null}
 
           {foto ? (
             <div className="space-y-2 rounded-lg border border-border bg-background p-3">
