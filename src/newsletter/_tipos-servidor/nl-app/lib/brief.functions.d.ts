@@ -32,6 +32,7 @@ export declare const criarBriefFn: import("../_shim/start.ts").NlServerFn<{
     criado: boolean;
     slug: string;
     reutilizado: boolean;
+    bloqueio?: string;
 }>;
 /** Retira o Brief desta edição (o Brief em si mantém-se). */
 export declare const removerBriefDaEdicaoFn: import("../_shim/start.ts").NlServerFn<{
@@ -128,6 +129,7 @@ export declare const sincronizarBriefPapelFn: import("../_shim/start.ts").NlServ
 }, {
     briefId: string | null;
     criado: boolean;
+    bloqueio?: string;
 }>;
 /** Autosave do texto da leitura em revisão. */
 export declare const guardarLeituraBriefFn: import("../_shim/start.ts").NlServerFn<{

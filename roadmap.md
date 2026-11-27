@@ -2,9 +2,11 @@
 
 ## Erro nos Destaques com Brief — 27/11/2026
 - [x] Localizar a contagem por associações e a sincronização anterior à gravação
-- [ ] Corrigir sincronização e aviso recuperável — aguarda aprovação do plano
-- [ ] Validar testes e ecrã sem modificar conteúdos reais
+- [x] Corrigir sincronização após gravação, reconciliação sem apagar Briefs e aviso editorial em vez de 500
+- [x] Executar 41 testes, lint do teste e grafo de 257 ficheiros; newsletter com sessão em 1454 px/375 px sem erros de execução ou transbordo horizontal
+- [x] Confirmar visualmente três Destaques atuais, sem mudar a edição; todas as tentativas de escrita bloqueadas durante a verificação
 - [ ] Instalar correção — aguarda autorização própria
+- [ ] Validar gravação completa no servidor — aguarda instalação e autorização para modificar uma escolha de teste
 
 ## Instalação e teste do processamento 26/11/2026
 - [x] Instalar apenas nl-api, com a correção de prazos e seleção recente, conforme autorização explícita

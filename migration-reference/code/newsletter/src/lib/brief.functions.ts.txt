@@ -72,7 +72,7 @@ export const criarBriefFn = createServerFn({ method: "POST" })
     noticiaId: String(d?.noticiaId ?? ""),
     papel: d?.papel === "radar" ? ("radar" as const) : ("destaque" as const),
   }))
-  .handler(async ({ data }): Promise<{ criado: boolean; slug: string; reutilizado: boolean }> => {
+  .handler(async ({ data }): Promise<{ criado: boolean; slug: string; reutilizado: boolean; bloqueio?: string }> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { obterOuCriarBrief, associarBriefAEdicao } = await import(
       "./newsletter-engine/revista/brief/modelo.server"
@@ -93,14 +93,14 @@ export const criarBriefFn = createServerFn({ method: "POST" })
       tipo: data.papel,
     });
 
-    await associarBriefAEdicao({
+    const associacao = await associarBriefAEdicao({
       briefId: brief.id,
       edicaoId: data.edicaoId,
       papel: data.papel,
       tituloApresentado: noticia.titulo,
     });
 
-    return { criado, slug: brief.slug, reutilizado: !criado };
+    return { criado, slug: brief.slug, reutilizado: !criado, ...associacao };
   });
 
 /** Retira o Brief desta edição (o Brief em si mantém-se). */
@@ -315,7 +315,7 @@ export const sincronizarBriefPapelFn = createServerFn({ method: "POST" })
     noticiaId: String(d?.noticiaId ?? ""),
     papel: d?.papel === "destaque" || d?.papel === "radar" ? (d.papel as TipoBrief) : null,
   }))
-  .handler(async ({ data }): Promise<{ briefId: string | null; criado: boolean }> => {
+  .handler(async ({ data }): Promise<{ briefId: string | null; criado: boolean; bloqueio?: string }> => {
     if (!data.edicaoId || !data.noticiaId) return { briefId: null, criado: false };
     const { sincronizarPapelBrief } = await import("./newsletter-engine/revista/brief/modelo.server");
     return sincronizarPapelBrief(data);
@@ -356,12 +356,12 @@ export const sincronizarBriefsDaEdicaoFn = createServerFn({ method: "POST" })
     for (const it of (itens ?? []) as Array<{ noticia_id: string; papel: string }>) {
       if (it.papel !== "destaque" && it.papel !== "radar") continue;
       try {
-        await sincronizarPapelBrief({
+        const resultado = await sincronizarPapelBrief({
           edicaoId: data.edicaoId,
           noticiaId: it.noticia_id,
           papel: it.papel,
         });
-        n += 1;
+        if (!resultado.bloqueio) n += 1;
       } catch {
         // uma notícia problemática não impede as restantes
       }

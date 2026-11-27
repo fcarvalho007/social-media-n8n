@@ -62,6 +62,7 @@ import { useSessao } from "../useSessao";
 import { Atualidade, ResumoOrdem, type PapelDerivado, type SeloBrief } from "./Atualidade";
 import { BriefsDaEdicao } from "./BriefsDaEdicao";
 import { estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn } from "@/newsletter/lib/brief.functions";
+import { guardarAntesDeSincronizar } from "@/newsletter/lib/newsletter-engine/revista/brief/sincronizacao";
 import {
   retirarNoticiaDaEdicao, atualizarAssunto, atualizarCronica, atualizarNoticia, escolherEpisodio, getConfig, getEdicaoPorId,
   listarAuditRecente, listarEpisodios, listarFerramentas, registarAudit, reordenarNoticias,
@@ -641,11 +642,18 @@ export default function EditorRevista({
     return m;
   }, [briefs]);
   /** Acompanha a escolha do papel; a geração continua a ser sempre manual. */
-  const sincronizarBrief = (noticiaId: string, papel: "destaque" | "radar" | null) => {
-    void sincronizarPapelBrief({ data: { edicaoId, noticiaId, papel } })
-      .then(recarregarBriefs)
-      .catch(() => { /* o Brief não pode travar a escolha editorial */ });
+  const sincronizarBrief = async (noticiaId: string, papel: "destaque" | "radar" | null) => {
+    try {
+      const resultado = await sincronizarPapelBrief({ data: { edicaoId, noticiaId, papel } });
+      if (resultado.bloqueio) toast.warning(resultado.bloqueio);
+      recarregarBriefs();
+    } catch {
+      toast.error("A escolha foi guardada, mas o Brief não ficou sincronizado.", {
+        action: { label: "Tentar novamente", onClick: () => { void sincronizarBrief(noticiaId, papel); } },
+      });
+    }
   };
+  const escolhaEmCurso = useRef(false);
   const accoesBriefs = { recarregar: recarregarBriefs, registar };
   /* ─── Verificação de links (partilhada com o Clássico) ─── */
   const [modalLinks, setModalLinks] = useState(false);
@@ -902,6 +910,7 @@ export default function EditorRevista({
       const item = (itensQ.data ?? []).find((i) => i.noticia_id === noticiaId);
       if (item) await removerItem(item.id);
       await retirarNoticiaDaEdicao(noticiaId, edicaoId);
+      await sincronizarBrief(noticiaId, null);
     },
     onSuccess: () => { registar("Removeu uma notícia da edição"); invalidarAprovadas(); toast.success("Notícia retirada desta newsletter. Continua aprovada na curadoria."); },
     onError: (e: Error) => toast.error(e.message),
@@ -1048,32 +1057,42 @@ export default function EditorRevista({
   const soSite = aprovadas.filter((n) => !usadas.has(n.id) && n.destino === "site");
 
 
-  const definirPapel = (noticiaId: string, papel: PapelDerivado) => {
-    if (papel === "por_organizar") return;
-    const existente = itens.find((i) => i.noticia_id === noticiaId);
+  const definirPapel = async (noticiaId: string, papel: PapelDerivado) => {
+    if (papel === "por_organizar" || bloqueado || escolhaEmCurso.current) return;
+    escolhaEmCurso.current = true;
+    try {
+    const atuais = await itensQ.refetch();
+    if (atuais.error) { toast.error("Não foi possível confirmar os Destaques atuais. Tenta novamente."); return; }
+    const lista = atuais.data ?? [];
+    const existente = lista.find((i) => i.noticia_id === noticiaId);
     const titulo = (aprovadas.find((n) => n.id === noticiaId)?.titulo ?? "notícia").slice(0, 40);
     if (papel === "so_site") {
-      mPatchNoticia.mutate({ id: noticiaId, patch: { destino: "site" } });
-      if (existente) {
-        mRemover.mutate(existente.id);
-        sincronizarBrief(noticiaId, null);
-        registar(`Passou «${titulo}» a Só site`);
-      }
+      await guardarAntesDeSincronizar(async () => {
+        await mPatchNoticia.mutateAsync({ id: noticiaId, patch: { destino: "site" } });
+        if (existente) await mRemover.mutateAsync(existente.id);
+      }, () => sincronizarBrief(noticiaId, null));
+      registar(`Passou «${titulo}» a Só site`);
       return;
     }
     if (existente?.papel === papel) return;
     // Nunca substituir outra notícia em silêncio: se o papel está cheio, explicar.
-    if (papel === "destaque" && destaques.length >= LIMITES_REVISTA.destaquesMax) {
+    if (papel === "destaque" && lista.filter(i => i.papel === "destaque").length >= LIMITES_REVISTA.destaquesMax) {
       toast.error(`Já tens ${LIMITES_REVISTA.destaquesMax} destaques. Passa um deles a Novidades da semana ou a Só site antes de escolher outro.`);
       return;
     }
     if (!existente && aprovadas.find((n) => n.id === noticiaId)?.destino === "site") {
-      mPatchNoticia.mutate({ id: noticiaId, patch: { destino: "news" } });
+      await mPatchNoticia.mutateAsync({ id: noticiaId, patch: { destino: "news" } });
     }
     registar(`Marcou «${titulo}» como ${papel === "destaque" ? "Destaque" : ROTULOS_REVISTA.radar}`);
-    sincronizarBrief(noticiaId, papel);
-    if (!existente) { mAdicionar.mutate({ noticiaId, papel }); return; }
-    mMover.mutate({ id: existente.id, papel });
+    await guardarAntesDeSincronizar(
+      () => existente ? mMover.mutateAsync({ id: existente.id, papel }) : mAdicionar.mutateAsync({ noticiaId, papel }),
+      () => sincronizarBrief(noticiaId, papel),
+    );
+    } catch {
+      // Save mutations already show their error; no Brief call follows a failed save.
+    } finally {
+      escolhaEmCurso.current = false;
+    }
   };
 
 

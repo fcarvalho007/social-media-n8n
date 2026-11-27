@@ -43,13 +43,17 @@ export declare function resolverNoticiaCanonica(noticiaId: string, sb?: Supabase
  * A identidade é sempre a da notícia canónica.
  */
 export declare function obterOuCriarBrief(pedido: PedidoBrief, sb?: SupabaseClient): Promise<ResultadoObterOuCriar>;
+/** Reconcile roles only in editable editions; preserve Brief content and links. */
+export declare function reconciliarDestaquesBrief(edicaoId: string, sb?: SupabaseClient): Promise<void>;
 export declare function associarBriefAEdicao(args: {
     briefId: string;
     edicaoId: string;
     papel: TipoBrief;
     ordem?: number;
     tituloApresentado?: string | null;
-}, sb?: SupabaseClient): Promise<void>;
+}, sb?: SupabaseClient): Promise<{
+    bloqueio?: string;
+}>;
 export declare function desassociarBriefDaEdicao(args: {
     briefId: string;
     edicaoId: string;
@@ -66,6 +70,7 @@ export declare function sincronizarPapelBrief(args: {
 }, sb?: SupabaseClient): Promise<{
     briefId: string | null;
     criado: boolean;
+    bloqueio?: string;
 }>;
 export declare function listarBriefsDaEdicao(edicaoId: string, sb?: SupabaseClient): Promise<BriefDaEdicao[]>;
 export declare function obterBriefPorSlug(slug: string, sb?: SupabaseClient): Promise<Brief | null>;

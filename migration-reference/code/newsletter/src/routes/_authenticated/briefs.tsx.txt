@@ -89,6 +89,7 @@ function PainelBriefs() {
     mutationFn: (v: { noticiaId: string; papel: TipoBrief }) =>
       criarBriefFn({ data: { edicaoId, noticiaId: v.noticiaId, papel: v.papel } }),
     onSuccess: (r) => {
+      if (r.bloqueio) { setAviso(r.bloqueio); invalidar(); return; }
       setAviso(
         r.reutilizado
           ? `Esta fonte já tinha Brief. Foi reutilizado o mesmo endereço: ${caminhoBrief(r.slug)}`

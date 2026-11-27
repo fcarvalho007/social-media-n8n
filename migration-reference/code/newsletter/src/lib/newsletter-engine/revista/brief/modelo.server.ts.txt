@@ -151,11 +151,12 @@ export async function resolverNoticiaCanonica(
   let url: string | null = null;
 
   for (let salto = 0; salto < 5; salto++) {
-    const { data } = await db
+    const { data, error } = await db
       .from("noticias")
       .select("id, titulo, url, repeticao_de")
       .eq("id", id)
       .maybeSingle();
+    if (error) throw error;
     const linha = data as { id: string; titulo: string | null; url: string | null; repeticao_de: string | null } | null;
     if (!linha) break;
     id = linha.id;
@@ -225,30 +226,65 @@ export async function obterOuCriarBrief(
 
 /* ─────────── associação à edição ─────────── */
 
+/** Reconcile roles only in editable editions; preserve Brief content and links. */
+export async function reconciliarDestaquesBrief(edicaoId: string, sb?: SupabaseClient): Promise<void> {
+  const db = sb ?? admin();
+  const edicao = await db.from("edicoes").select("estado").eq("id", edicaoId).single();
+  if (edicao.error) throw edicao.error;
+  if (edicao.data?.estado === "enviada") return;
+
+  const itens = await db.from("revista_itens").select("noticia_id, papel").eq("edicao_id", edicaoId);
+  if (itens.error) throw itens.error;
+  // The standalone legacy panel may not yet have editorial items.
+  if (!itens.data?.length) return;
+
+  const fingerprints = new Set<string>();
+  for (const item of itens.data as Array<{ noticia_id: string; papel: string }>) {
+    if (item.papel !== "destaque") continue;
+    const noticia = await resolverNoticiaCanonica(item.noticia_id, db);
+    fingerprints.add(calcularFingerprint({ url: noticia.url, titulo: noticia.titulo ?? "" }));
+  }
+  const ligacoes = await db.from("brief_edicoes")
+    .select("id, brief:briefs(fingerprint)").eq("edicao_id", edicaoId).eq("papel", "destaque");
+  if (ligacoes.error) throw ligacoes.error;
+  const antigas = (ligacoes.data ?? []) as unknown as Array<{
+    id: string; brief: { fingerprint: string } | null;
+  }>;
+  for (const ligacao of antigas) {
+    if (!ligacao.brief || fingerprints.has(ligacao.brief.fingerprint)) continue;
+    const resultado = await db.from("brief_edicoes").update({ papel: "radar" }).eq("id", ligacao.id);
+    if (resultado.error) throw resultado.error;
+  }
+}
+
 export async function associarBriefAEdicao(
   args: { briefId: string; edicaoId: string; papel: TipoBrief; ordem?: number; tituloApresentado?: string | null },
   sb?: SupabaseClient,
-): Promise<void> {
+): Promise<{ bloqueio?: string }> {
   const db = sb ?? admin();
+
+  await reconciliarDestaquesBrief(args.edicaoId, db);
 
   const jaLa = await db
     .from("brief_edicoes")
-    .select("id")
+    .select("id, papel")
     .eq("brief_id", args.briefId)
     .eq("edicao_id", args.edicaoId)
     .maybeSingle();
+  if (jaLa.error) throw jaLa.error;
 
   // Only Destaques are capped: Radar is unlimited in the editor and links go
   // straight to the source, so a Quick Brief cap must never block classification.
-  if (!jaLa.data && args.papel === "destaque") {
+  if (args.papel === "destaque" && jaLa.data?.papel !== "destaque") {
     const limites = await limitesBrief(db);
-    const { count } = await db
+    const { count, error } = await db
       .from("brief_edicoes")
       .select("id", { count: "exact", head: true })
       .eq("edicao_id", args.edicaoId)
       .eq("papel", args.papel);
+    if (error) throw error;
     if ((count ?? 0) >= limites.destaque) {
-      throw new Error(`Esta edição já tem ${limites.destaque} Destaques com Brief.`);
+      return { bloqueio: `Os ${limites.destaque} lugares de Destaque já estão ocupados. Passa um Destaque a Novidades da semana ou a Só site antes de escolher outro.` };
     }
   }
 
@@ -267,6 +303,7 @@ export async function associarBriefAEdicao(
 
   // O tipo do Brief acompanha o papel na edição mais recente.
   await db.from("briefs").update({ tipo: args.papel, indexavel: args.papel === "destaque" }).eq("id", args.briefId);
+  return {};
 }
 
 export async function desassociarBriefDaEdicao(
@@ -290,8 +327,19 @@ export async function desassociarBriefDaEdicao(
 export async function sincronizarPapelBrief(
   args: { edicaoId: string; noticiaId: string; papel: TipoBrief | null },
   sb?: SupabaseClient,
-): Promise<{ briefId: string | null; criado: boolean }> {
+): Promise<{ briefId: string | null; criado: boolean; bloqueio?: string }> {
   const db = sb ?? admin();
+  const edicao = await db.from("edicoes").select("estado").eq("id", args.edicaoId).single();
+  if (edicao.error) throw edicao.error;
+  if (edicao.data?.estado === "enviada") {
+    return { briefId: null, criado: false, bloqueio: "Esta edição já foi enviada. Os Briefs foram preservados." };
+  }
+  // A retry must follow the saved choice, not an obsolete browser request.
+  const item = await db.from("revista_itens").select("papel")
+    .eq("edicao_id", args.edicaoId).eq("noticia_id", args.noticiaId).maybeSingle();
+  if (item.error) throw item.error;
+  const papelActual = item.data?.papel;
+  args = { ...args, papel: papelActual === "destaque" || papelActual === "radar" ? papelActual : null };
   const canonica = await resolverNoticiaCanonica(args.noticiaId, db);
   const titulo = canonica.titulo?.trim() || "";
 
@@ -303,7 +351,12 @@ export async function sincronizarPapelBrief(
       .eq("fingerprint", fingerprint)
       .maybeSingle();
     const id = (data as { id: string } | null)?.id ?? null;
-    if (id) await desassociarBriefDaEdicao({ briefId: id, edicaoId: args.edicaoId }, db);
+    if (id) {
+      // Keep the association and all approved content, but release its highlight slot.
+      const resultado = await db.from("brief_edicoes").update({ papel: "radar" })
+        .eq("brief_id", id).eq("edicao_id", args.edicaoId);
+      if (resultado.error) throw resultado.error;
+    }
     return { briefId: id, criado: false };
   }
 
@@ -311,11 +364,11 @@ export async function sincronizarPapelBrief(
     { noticiaId: canonica.id, titulo, url: canonica.url, tipo: args.papel },
     db,
   );
-  await associarBriefAEdicao(
+  const associacao = await associarBriefAEdicao(
     { briefId: brief.id, edicaoId: args.edicaoId, papel: args.papel, tituloApresentado: titulo || null },
     db,
   );
-  return { briefId: brief.id, criado };
+  return { briefId: brief.id, criado, ...associacao };
 }
 
 /* ─────────── leitura ─────────── */
