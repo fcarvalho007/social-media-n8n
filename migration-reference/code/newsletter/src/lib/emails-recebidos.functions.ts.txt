@@ -7,6 +7,7 @@ export type MotivoSemResultado =
   | "sem_blocos"
   | "tudo_duplicado"
   | "ia_sem_resultado"
+  | "limite_diario"
   | null;
 
 export type ClassificacaoDetalhe = {

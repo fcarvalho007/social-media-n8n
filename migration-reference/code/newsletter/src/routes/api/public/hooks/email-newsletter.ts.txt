@@ -432,7 +432,9 @@ async function handler(request: Request): Promise<Response> {
 
   const totalConteudo = resultado.noticias_inseridas + resultado.ferramentas_inseridas;
   await actualizarClassificacao(totalConteudo > 0 ? "newsletter" : "outro", resultado.noticias_inseridas);
-  await marcarEstado(resultado.detalhe.truncado_por_tempo ? "a_processar" : "processado");
+  await marcarEstado(
+    resultado.detalhe.truncado_por_tempo || resultado.detalhe.adiado_por_limite ? "a_processar" : "processado",
+  );
 
   await supabaseAdmin.from("audit_log").insert({
     quem: "sistema",

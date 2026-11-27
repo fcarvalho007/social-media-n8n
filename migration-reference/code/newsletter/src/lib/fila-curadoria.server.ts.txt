@@ -205,6 +205,9 @@ export type ResultadoLote = {
   ferramentas: number;
   descartados: number;
   falhados: number;
+  /** Newsletters left in the queue because the daily email cap is full. */
+  adiadosEmail?: number;
+  limiteEmail?: { usadas: number; maximo: number };
   restantes: number;
   detalhes: Array<{ titulo: string; resultado: string }>;
 };
@@ -247,9 +250,22 @@ export async function processarLote(
     const { escolherLoteVariado } = await import("../../supabase/functions/_shared/seleccao-diversa");
     const { lerTectos } = await import("../../supabase/functions/_shared/tectos-curadoria");
     const tectos = await lerTectos(admin);
-    const { seleccionados: itens, porFonte } = escolherLoteVariado(candidatos, limite, tectos.maxPorFonte);
+    // Daily email cap full: newsletters stay queued (no paid AI) and the batch
+    // goes to the most recent RSS items instead.
+    const { vagasDiarias, contarInseridasHoje } = await import("../../supabase/functions/_shared/tectos-curadoria");
+    const vagasEmail = await vagasDiarias(admin, tectos, "email");
+    const emailBloqueado = vagasEmail <= 0;
+    const elegiveis = emailBloqueado ? candidatos.filter((c) => c.origem !== "email") : candidatos;
+    const { seleccionados: itens, porFonte } = escolherLoteVariado(elegiveis, limite, tectos.maxPorFonte);
 
     const resultado: ResultadoLote = { ...vazio, detalhes: [] };
+    if (emailBloqueado) {
+      resultado.adiadosEmail = candidatos.length - elegiveis.length;
+      resultado.limiteEmail = {
+        usadas: await contarInseridasHoje(admin, "email"),
+        maximo: tectos.maxPorDiaEmail,
+      };
+    }
 
     const { mapCategoria } = await import("./ia-extractor.server");
     const { custoUsd } = await import("../../supabase/functions/_shared/custos-ia");
@@ -294,6 +310,18 @@ export async function processarLote(
           const r = await reprocessarEmailGuardado(admin, item.email_recebido_id, opcoes.quem, false);
           resultado.noticias += r.noticias_inseridas;
           resultado.ferramentas += r.ferramentas_inseridas;
+          if (r.adiado) {
+            // Cap reached mid-email: keep it queued so the cut news are not lost.
+            resultado.adiadosEmail = (resultado.adiadosEmail ?? 0) + 1;
+            await admin.from("curadoria_fila")
+              .update({ motivo: "Limite diário de newsletters atingido — retoma depois", tentativas: item.tentativas + 1 } as never)
+              .eq("id", item.id);
+            resultado.detalhes.push({
+              titulo: item.titulo,
+              resultado: `${r.noticias_inseridas} notícias · adiada pelo limite diário`,
+            });
+            return;
+          }
           await admin.from("curadoria_fila")
             .update({ estado: "processado", motivo: null, tentativas: item.tentativas + 1 } as never)
             .eq("id", item.id);

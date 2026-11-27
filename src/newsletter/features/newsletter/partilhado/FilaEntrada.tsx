@@ -25,6 +25,7 @@ const LOTES = [10, 20, 30, 50] as const;
 export type ResultadoProcessamentoFila = {
   ok: boolean; bloqueado?: boolean; parcial?: boolean; porFazer?: number; de?: string | null; ate?: string | null; processados: number; noticias: number;
   ferramentas: number; descartados: number; falhados: number; restantes: number;
+  adiadosEmail?: number; limiteEmail?: { usadas: number; maximo: number };
 };
 
 type PedidoProcessamento = { limite: number; continuar?: boolean };
@@ -270,7 +271,8 @@ export function FilaEntrada({ compacto = false, recolherAntes = false, onConclui
         <p className="mt-2 text-[12.5px] inline-flex items-center gap-1.5" style={{ color: T.ok }}>
           <CheckCircle2 size={13} /> Concluído: {ultimoProcessamento.dados.noticias} {ultimoProcessamento.dados.noticias === 1 ? "notícia nova" : "notícias novas"}
           {ultimoProcessamento.dados.falhados > 0 && ` · ${ultimoProcessamento.dados.falhados} falharam`}
-          {ultimoProcessamento.dados.processados === 0 && " · nada recente para interpretar (só itens dos últimos 7 dias)"}
+          {(ultimoProcessamento.dados.adiadosEmail ?? 0) > 0 && ` · ${ultimoProcessamento.dados.adiadosEmail} ${ultimoProcessamento.dados.adiadosEmail === 1 ? "newsletter adiada" : "newsletters adiadas"}: limite diário de email atingido${ultimoProcessamento.dados.limiteEmail ? ` (${ultimoProcessamento.dados.limiteEmail.usadas} de ${ultimoProcessamento.dados.limiteEmail.maximo})` : ""}, ficam na fila para amanhã`}
+          {ultimoProcessamento.dados.processados === 0 && !(ultimoProcessamento.dados.adiadosEmail ?? 0) && " · nada recente para interpretar (só itens dos últimos 7 dias)"}
           {ultimoProcessamento.dados.de && ultimoProcessamento.dados.ate && ` · de ${new Date(ultimoProcessamento.dados.ate).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" })} a ${new Date(ultimoProcessamento.dados.de).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" })}`}
           {ultimoProcessamento.dados.parcial && ` · parou a tempo; faltam ${ultimoProcessamento.dados.porFazer ?? 0} deste lote`}
         </p>

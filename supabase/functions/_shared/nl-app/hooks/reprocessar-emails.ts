@@ -65,6 +65,15 @@ async function handler(request: Request): Promise<Response> {
 
   const resultados: Array<{ id: string; ok: boolean; noticias?: number; erro?: string }> = [];
 
+  // Daily email cap full: try nothing (no paid AI, no attempt counted), so
+  // postponed emails are not dropped by the attempts limit.
+  const { lerTectos, vagasDiarias } = await import("../edge-shared/tectos-curadoria.ts");
+  if ((await vagasDiarias(supabaseAdmin as never, await lerTectos(supabaseAdmin as never), "email")) <= 0) {
+    return new Response(JSON.stringify({ ok: true, adiados: pendentes.length, motivo: "limite_diario" }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
 
   for (const e of pendentes) {
     await supabaseAdmin.from("nl_emails_recebidos")

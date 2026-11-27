@@ -19,7 +19,7 @@ export type MetaEmail = {
     emailRecebidoId: string | null;
 };
 export type Formato = "curadoria" | "ensaio" | "misto" | "estruturado";
-export type MotivoSemResultado = "fonte_inactiva" | "sem_html" | "sem_blocos" | "tudo_duplicado" | "ia_sem_resultado" | null;
+export type MotivoSemResultado = "fonte_inactiva" | "sem_html" | "sem_blocos" | "tudo_duplicado" | "ia_sem_resultado" | "limite_diario" | null;
 export type ClassificacaoDetalhe = {
     destaques: number;
     breves: number;
@@ -47,6 +47,8 @@ export type ClassificacaoDetalhe = {
         motivo: string;
     }>;
     truncado_por_tempo?: boolean;
+    /** Daily email cap reached: the email must be resumed later, not closed. */
+    adiado_por_limite?: boolean;
     motivo_sem_resultado: MotivoSemResultado;
     fonte_id: string | null;
     fonte_nome: string | null;

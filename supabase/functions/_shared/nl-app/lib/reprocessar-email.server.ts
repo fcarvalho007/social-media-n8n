@@ -5,6 +5,8 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
 export type ResultadoReprocessamento = {
   ok: true;
+  /** Postponed by the daily email cap; must be resumed later. */
+  adiado: boolean;
   noticias_inseridas: number;
   ferramentas_inseridas: number;
   formato: string;
@@ -138,9 +140,10 @@ export async function reprocessarEmailGuardado(
   // Se a extracção foi cortada pelo tecto de tempo, o email fica pendente para
   // a corrida seguinte terminar os blocos restantes (o dedup evita repetidos).
   const truncado = Boolean((res.detalhe as { truncado_por_tempo?: boolean }).truncado_por_tempo);
+  const adiado = Boolean(res.detalhe.adiado_por_limite);
   await supabaseAdmin.from("nl_emails_recebidos")
     .update({
-      processamento_estado: truncado ? "por_processar" : "processado",
+      processamento_estado: truncado || adiado ? "por_processar" : "processado",
       processamento_erro: null,
       processado_em: new Date().toISOString(),
     } as never)
@@ -169,6 +172,7 @@ export async function reprocessarEmailGuardado(
 
   return {
     ok: true,
+    adiado,
     noticias_inseridas: res.noticias_inseridas,
     ferramentas_inseridas: res.ferramentas_inseridas,
     formato: res.formato,

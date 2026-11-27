@@ -499,6 +499,7 @@ const ROTULO_MOTIVO: Record<string, string> = {
   sem_blocos: "sem blocos",
   tudo_duplicado: "tudo duplicado",
   ia_sem_resultado: "IA sem resultado",
+  limite_diario: "adiada: limite diário",
 };
 
 function BreakdownExtraccao({ detalhe }: { detalhe: ClassificacaoDetalhe | null }) {
@@ -591,6 +592,8 @@ function explicarSemResultado(d: NoticiasDoEmail, email: EmailRecebido): string 
       return "A segmentação não encontrou blocos de conteúdo neste email.";
     case "tudo_duplicado":
       return "Todos os itens encontrados já existiam na base de dados.";
+    case "limite_diario":
+      return "O limite diário de notícias vindas de email foi atingido — este email fica à espera e é retomado depois.";
     case "ia_sem_resultado":
       return "Houve blocos de conteúdo, mas a IA não devolveu itens utilizáveis.";
     default:

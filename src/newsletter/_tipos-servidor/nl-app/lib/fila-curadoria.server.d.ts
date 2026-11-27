@@ -66,6 +66,12 @@ export type ResultadoLote = {
     ferramentas: number;
     descartados: number;
     falhados: number;
+    /** Newsletters left in the queue because the daily email cap is full. */
+    adiadosEmail?: number;
+    limiteEmail?: {
+        usadas: number;
+        maximo: number;
+    };
     restantes: number;
     detalhes: Array<{
         titulo: string;

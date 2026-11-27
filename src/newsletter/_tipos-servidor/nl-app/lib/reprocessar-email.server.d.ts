@@ -2,6 +2,8 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 export type ResultadoReprocessamento = {
     ok: true;
+    /** Postponed by the daily email cap; must be resumed later. */
+    adiado: boolean;
     noticias_inseridas: number;
     ferramentas_inseridas: number;
     formato: string;

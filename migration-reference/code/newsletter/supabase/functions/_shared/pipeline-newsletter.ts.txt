@@ -60,6 +60,7 @@ export type MotivoSemResultado =
   | "sem_blocos"
   | "tudo_duplicado"
   | "ia_sem_resultado"
+  | "limite_diario"
   | null;
 
 export type ClassificacaoDetalhe = {
@@ -83,6 +84,8 @@ export type ClassificacaoDetalhe = {
 
   descartados: Array<{ titulo: string; motivo: string }>;
   truncado_por_tempo?: boolean;
+  /** Daily email cap reached: the email must be resumed later, not closed. */
+  adiado_por_limite?: boolean;
   motivo_sem_resultado: MotivoSemResultado;
   fonte_id: string | null;
   fonte_nome: string | null;
@@ -317,6 +320,29 @@ export async function processarEmailComPipeline(
           detalhe: d,
         };
       }
+    }
+  }
+
+  // Daily email cap already full: stop before any paid AI call. The email is
+  // postponed (not closed) so a later run can still extract its news.
+  if (!opcoes.forcar) {
+    const tectosIni = await lerTectos(supabaseAdmin);
+    const vagasIni = await vagasDiarias(supabaseAdmin, tectosIni, "email");
+    if (vagasIni <= 0) {
+      const d: ClassificacaoDetalhe = {
+        ...detalheVazio(),
+        motivo_sem_resultado: "limite_diario",
+        adiado_por_limite: true,
+        vagas_dia: 0,
+        fonte_id: fonteId,
+        fonte_nome: fonteNome,
+      };
+      await gravarDetalhe(d);
+      return {
+        formato: "estruturado", candidatos: 0, noticias_inseridas: 0,
+        ferramentas_inseridas: 0, duplicadas: 0, erros: 0, usou_fallback: false,
+        url_canonico: null, motivo_sem_resultado: "limite_diario", detalhe: d,
+      };
     }
   }
 
@@ -604,6 +630,9 @@ export async function processarEmailComPipeline(
     tectos.maxPorCategoria,
   );
   detalhe.cortadas_por_tecto = foraDoTecto.length;
+  // Cut news must not be lost: the email is resumed later (URL dedup skips
+  // what already entered).
+  if (foraDoTecto.length > 0 && !opcoes.forcar) detalhe.adiado_por_limite = true;
   detalhe.tecto_email = tectoEfectivo;
   detalhe.vagas_dia = vagasDia;
 
@@ -722,6 +751,7 @@ export async function processarEmailComPipeline(
   if (inseridasN === 0 && inseridasF === 0) {
     if (!meta.html && !corpoLimpo) motivo = "sem_html";
     else if (blocos.length === 0) motivo = "sem_blocos";
+    else if (detalhe.adiado_por_limite) motivo = "limite_diario";
     else if (antes > 0 && duplicadas === antes) motivo = "tudo_duplicado";
     else motivo = "ia_sem_resultado";
   }
