@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, ChevronDown, LogOut, Plus, Settings, PanelsTopLeft } from 'lucide-react';
+import { AlertCircle, ChevronDown, LogOut, Plus, Settings, PanelsTopLeft, PanelLeftClose } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 export function AppSidebar() {
   const { counts, error: erroContagem } = usePendingCounts();
   const { user, signOut } = useAuth();
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, isMobile, toggleSidebar } = useSidebar();
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
   const totalPending = counts.stories + counts.carousels + counts.posts;
@@ -46,7 +46,8 @@ export function AppSidebar() {
   };
 
   return <Sidebar collapsible="offcanvas" className="hub-navigation data-[state=open]:duration-200 data-[state=closed]:duration-150 motion-reduce:animate-none" aria-label="Navegação do Hub">
-    <SidebarHeader className="gap-3 border-b px-4 pb-4 pt-4">
+    <SidebarHeader className="relative gap-3 border-b px-4 pb-4 pt-4">
+      {!isMobile && <Button variant="ghost" size="icon" onClick={toggleSidebar} className="absolute right-3 top-4 size-11" aria-label="Ocultar menu" title="Ocultar menu (Ctrl/⌘ B)"><PanelLeftClose aria-hidden /></Button>}
       <Link to="/" onClick={() => setOpenMobile(false)} className="flex min-h-11 items-center rounded-md pr-11 text-base font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="mr-2.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"><PanelsTopLeft className="size-4" aria-hidden /></span>Hub de conteúdo</Link>
       <Button asChild className="min-h-11 w-full justify-start gap-3">
         <Link to="/pending?tab=create" aria-current={itemNavegacaoAtivo(pathname, search, '/pending?tab=create') ? 'page' : undefined} onClick={() => setOpenMobile(false)}><Plus aria-hidden />Criar publicação social</Link>
